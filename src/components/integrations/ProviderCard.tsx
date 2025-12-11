@@ -1,0 +1,134 @@
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import Icon from '@/components/ui/icon';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+
+interface ProviderCardProps {
+  provider: any;
+  openProviderConfig: (provider: any) => void;
+  setProviderToDelete: (provider: any) => void;
+  setDeleteDialogOpen: (open: boolean) => void;
+}
+
+const ProviderCard = ({
+  provider,
+  openProviderConfig,
+  setProviderToDelete,
+  setDeleteDialogOpen
+}: ProviderCardProps) => {
+  return (
+    <Card className="p-6 bg-card/50 backdrop-blur-sm border-border hover:shadow-lg hover:shadow-primary/20 transition-all">
+      <div className="flex items-start justify-between mb-4">
+        <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center">
+          <Icon name={provider.icon} size={28} className="text-primary" />
+        </div>
+        <Badge 
+          variant={
+            provider.status === 'working' ? 'default' : 
+            provider.status === 'configured' ? 'secondary' : 
+            provider.status === 'error' ? 'destructive' : 
+            'outline'
+          }
+          className={
+            provider.status === 'configured' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : ''
+          }
+        >
+          {provider.status === 'working' && (
+            <>
+              <Icon name="CheckCircle" size={12} className="mr-1" />
+              Работает
+            </>
+          )}
+          {provider.status === 'configured' && (
+            <>
+              <Icon name="Settings" size={12} className="mr-1" />
+              Настроен
+            </>
+          )}
+          {provider.status === 'error' && (
+            <>
+              <Icon name="AlertCircle" size={12} className="mr-1" />
+              Ошибка
+            </>
+          )}
+          {provider.status === 'not_configured' && (
+            <>
+              <Icon name="AlertTriangle" size={12} className="mr-1" />
+              Не настроен
+            </>
+          )}
+        </Badge>
+      </div>
+      <h3 className="text-xl font-bold mb-2">{provider.name}</h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        {provider.requests.toLocaleString()} запросов за сегодня
+      </p>
+      {provider.usesWappi && (
+        <div className="mb-3 px-3 py-2 bg-primary/10 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Icon name="Zap" size={14} className="text-primary" />
+            <span className="text-xs font-medium text-primary">Работает через Wappi</span>
+          </div>
+        </div>
+      )}
+      {provider.lastAttemptAt && (
+        <div className="mb-3">
+          <p className="text-xs text-muted-foreground">
+            Последний запрос: {new Date(provider.lastAttemptAt).toLocaleString('ru-RU', {
+              day: '2-digit',
+              month: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex-1"
+          onClick={() => openProviderConfig(provider)}
+        >
+          <Icon name="Settings" size={16} className="mr-2" />
+          Настроить
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Icon name="MoreVertical" size={16} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => openProviderConfig(provider)}>
+              <Icon name="Settings" size={14} className="mr-2" />
+              Настроить
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => {
+                // TODO: Implement view logs
+              }}
+            >
+              <Icon name="FileText" size={14} className="mr-2" />
+              Логи
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              className="text-destructive focus:text-destructive"
+              onClick={() => {
+                setProviderToDelete(provider);
+                setDeleteDialogOpen(true);
+              }}
+            >
+              <Icon name="Trash2" size={14} className="mr-2" />
+              Удалить
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </Card>
+  );
+};
+
+export default ProviderCard;
