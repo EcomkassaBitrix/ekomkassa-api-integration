@@ -1,0 +1,33 @@
+{
+  "tests": [
+    {
+      "name": "Test retry without API key",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "message_id": "msg_test123"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Missing API key"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test retry with non-existent message",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
+      },
+      "body": {
+        "message_id": "msg_nonexistent123"
+      },
+      "expectedStatus": 404,
+      "expectedBody": {
+        "error": "Message not found"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

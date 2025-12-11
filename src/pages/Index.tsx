@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,13 +22,56 @@ const Index = () => {
     { id: 2, name: 'Ekomkassa Staging', key: 'ek_test_a1b2c3d4e5f6g7h8', created: '2024-12-05', lastUsed: '3 дня назад' },
   ];
 
-  const logs = [
-    { id: 1, method: 'POST', endpoint: '/api/sms/send', status: 200, provider: 'SMS Gateway', time: '14:32:18', duration: '120ms' },
-    { id: 2, method: 'POST', endpoint: '/api/whatsapp/send', status: 200, provider: 'WhatsApp', time: '14:31:45', duration: '340ms' },
-    { id: 3, method: 'POST', endpoint: '/api/telegram/send', status: 200, provider: 'Telegram', time: '14:30:22', duration: '180ms' },
-    { id: 4, method: 'POST', endpoint: '/api/email/send', status: 500, provider: 'Email', time: '14:29:10', duration: '1200ms' },
-    { id: 5, method: 'POST', endpoint: '/api/sms/send', status: 200, provider: 'SMS Gateway', time: '14:28:05', duration: '95ms' },
-  ];
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [retryingMessage, setRetryingMessage] = useState<string | null>(null);
+
+  const loadLogs = async () => {
+    setIsLoadingLogs(true);
+    try {
+      const response = await fetch('https://functions.poehali.dev/60b2409b-4db8-4c49-b6a6-58fab1e62a2f?limit=50', {
+        headers: {
+          'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setLogs(data.messages || []);
+      }
+    } catch (error) {
+      console.error('Failed to load logs:', error);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  const retryMessage = async (messageId: string) => {
+    setRetryingMessage(messageId);
+    try {
+      const response = await fetch('https://functions.poehali.dev/179a2b88-4c3b-4ebd-84f9-612b0c2b6227', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
+        },
+        body: JSON.stringify({ message_id: messageId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        await loadLogs();
+      }
+    } catch (error) {
+      console.error('Failed to retry message:', error);
+    } finally {
+      setRetryingMessage(null);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'logs') {
+      loadLogs();
+    }
+  }, [activeSection]);
 
   const stats = [
     { label: 'Всего запросов', value: '4,929', change: '+12.5%', icon: 'TrendingUp', color: 'text-primary' },
@@ -240,44 +283,75 @@ const Index = () => {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">История запросов</h3>
                     <div className="flex gap-2">
-                      <Input placeholder="Поиск..." className="w-64" />
-                      <Button variant="outline" size="sm">
-                        <Icon name="Filter" size={16} />
+                      <Button variant="outline" size="sm" onClick={loadLogs} disabled={isLoadingLogs}>
+                        <Icon name={isLoadingLogs ? "Loader2" : "RefreshCw"} size={16} className={isLoadingLogs ? "animate-spin mr-2" : "mr-2"} />
+                        Обновить
                       </Button>
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="border-b border-border">
-                        <tr className="text-left text-sm text-muted-foreground">
-                          <th className="pb-3 font-medium">Время</th>
-                          <th className="pb-3 font-medium">Метод</th>
-                          <th className="pb-3 font-medium">Endpoint</th>
-                          <th className="pb-3 font-medium">Провайдер</th>
-                          <th className="pb-3 font-medium">Статус</th>
-                          <th className="pb-3 font-medium">Время отклика</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {logs.map((log) => (
-                          <tr key={log.id} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
-                            <td className="py-3 text-sm">{log.time}</td>
-                            <td className="py-3">
-                              <Badge variant="outline" className="text-xs">{log.method}</Badge>
-                            </td>
-                            <td className="py-3 text-sm font-mono">{log.endpoint}</td>
-                            <td className="py-3 text-sm">{log.provider}</td>
-                            <td className="py-3">
-                              <Badge variant={log.status === 200 ? 'default' : 'destructive'}>
-                                {log.status}
-                              </Badge>
-                            </td>
-                            <td className="py-3 text-sm text-muted-foreground">{log.duration}</td>
+                  {isLoadingLogs ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Icon name="Loader2" size={32} className="animate-spin text-primary" />
+                    </div>
+                  ) : logs.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Icon name="Inbox" size={48} className="mx-auto mb-3 opacity-50" />
+                      <p>Логов пока нет</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="border-b border-border">
+                          <tr className="text-left text-sm text-muted-foreground">
+                            <th className="pb-3 font-medium">ID Сообщения</th>
+                            <th className="pb-3 font-medium">Получатель</th>
+                            <th className="pb-3 font-medium">Провайдер</th>
+                            <th className="pb-3 font-medium">Статус</th>
+                            <th className="pb-3 font-medium">Попытки</th>
+                            <th className="pb-3 font-medium">Создано</th>
+                            <th className="pb-3 font-medium">Действия</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {logs.map((log) => (
+                            <tr key={log.message_id} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
+                              <td className="py-3 text-xs font-mono">{log.message_id}</td>
+                              <td className="py-3 text-sm">{log.recipient}</td>
+                              <td className="py-3 text-sm">{log.provider}</td>
+                              <td className="py-3">
+                                <Badge variant={log.status === 'delivered' ? 'default' : log.status === 'failed' ? 'destructive' : 'secondary'}>
+                                  {log.status}
+                                </Badge>
+                              </td>
+                              <td className="py-3 text-sm">{log.attempts} / {log.max_attempts}</td>
+                              <td className="py-3 text-sm text-muted-foreground">
+                                {new Date(log.created_at).toLocaleString('ru-RU')}
+                              </td>
+                              <td className="py-3">
+                                {log.status === 'failed' && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => retryMessage(log.message_id)}
+                                    disabled={retryingMessage === log.message_id}
+                                  >
+                                    {retryingMessage === log.message_id ? (
+                                      <Icon name="Loader2" size={14} className="animate-spin" />
+                                    ) : (
+                                      <>
+                                        <Icon name="RotateCw" size={14} className="mr-1" />
+                                        Переотправить
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </Card>
               )}
 

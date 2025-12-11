@@ -1,0 +1,56 @@
+{
+  "tests": [
+    {
+      "name": "Test missing API key",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "provider": "sms_gateway",
+        "recipient": "+79991234567",
+        "message": "Test message"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Missing API key"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test invalid provider",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
+      },
+      "body": {
+        "provider": "unknown_provider",
+        "recipient": "+79991234567",
+        "message": "Test message"
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "error": "Unknown provider"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test successful message delivery",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
+      },
+      "body": {
+        "provider": "sms_gateway",
+        "recipient": "+79991234567",
+        "message": "Test message"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "provider": "sms_gateway"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
