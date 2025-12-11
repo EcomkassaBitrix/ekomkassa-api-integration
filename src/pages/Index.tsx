@@ -33,6 +33,16 @@ const Index = () => {
   const [providerToDelete, setProviderToDelete] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [createKeyDialogOpen, setCreateKeyDialogOpen] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyExpiry, setNewKeyExpiry] = useState('never');
+  const [isCreatingKey, setIsCreatingKey] = useState(false);
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  
+  const [deleteKeyDialogOpen, setDeleteKeyDialogOpen] = useState(false);
+  const [keyToDelete, setKeyToDelete] = useState<any>(null);
+  const [isDeletingKey, setIsDeletingKey] = useState(false);
+
   const getProviderIcon = (providerType: string, providerCode: string) => {
     if (providerCode.includes('whatsapp')) return 'Phone';
     if (providerCode.includes('telegram')) return 'Send';
@@ -290,10 +300,18 @@ const Index = () => {
                   {activeSection === 'docs' && 'API справка и примеры интеграции'}
                 </p>
               </div>
-              <Button size="sm" className="gap-2" onClick={() => setAddProviderDialogOpen(true)}>
-                <Icon name="Plus" size={16} />
-                Добавить подключение
-              </Button>
+              {activeSection === 'integrations' && (
+                <Button size="sm" className="gap-2" onClick={() => setAddProviderDialogOpen(true)}>
+                  <Icon name="Plus" size={16} />
+                  Добавить подключение
+                </Button>
+              )}
+              {activeSection === 'keys' && (
+                <Button size="sm" className="gap-2" onClick={() => setCreateKeyDialogOpen(true)}>
+                  <Icon name="Plus" size={16} />
+                  Создать ключ
+                </Button>
+              )}
             </div>
           </header>
 
@@ -510,19 +528,59 @@ const Index = () => {
                       {apiKeys.map((key) => (
                         <div key={key.id} className="p-4 bg-background/50 rounded-lg border border-border">
                           <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h4 className="font-semibold">{key.name}</h4>
-                              <p className="text-sm text-muted-foreground mt-1">Создан: {key.created}</p>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-semibold">{key.name}</h4>
+                                <Badge variant="outline">Активен</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">Создан: {key.created}</p>
+                              <p className="text-xs text-muted-foreground mt-1">Последнее использование: {key.lastUsed}</p>
                             </div>
-                            <Badge variant="outline">Активен</Badge>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <Icon name="MoreVertical" size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  navigator.clipboard.writeText(key.key);
+                                }}>
+                                  <Icon name="Copy" size={14} className="mr-2" />
+                                  Копировать ключ
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  // TODO: Implement regenerate
+                                }}>
+                                  <Icon name="RefreshCw" size={14} className="mr-2" />
+                                  Перевыпустить
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    setKeyToDelete(key);
+                                    setDeleteKeyDialogOpen(true);
+                                  }}
+                                >
+                                  <Icon name="Trash2" size={14} className="mr-2" />
+                                  Удалить
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                           <div className="flex items-center gap-2 bg-background p-3 rounded-lg border border-border">
-                            <code className="text-sm font-mono flex-1">{key.key}</code>
-                            <Button size="sm" variant="ghost">
+                            <code className="text-sm font-mono flex-1 select-all">{key.key}</code>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => {
+                                navigator.clipboard.writeText(key.key);
+                              }}
+                            >
                               <Icon name="Copy" size={16} />
                             </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-2">Последнее использование: {key.lastUsed}</p>
                         </div>
                       ))}
                     </div>
@@ -1085,6 +1143,189 @@ const Index = () => {
                 <>
                   <Icon name="Trash2" size={16} className="mr-2" />
                   Удалить
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={createKeyDialogOpen} onOpenChange={setCreateKeyDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Icon name="Key" size={20} className="text-primary" />
+              </div>
+              <span>Создать API ключ</span>
+            </DialogTitle>
+            <DialogDescription>
+              Новый ключ будет использоваться для авторизации API запросов
+            </DialogDescription>
+          </DialogHeader>
+
+          {createdKey ? (
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                <div className="flex items-start gap-3">
+                  <Icon name="CheckCircle" size={20} className="text-green-500 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-green-500 mb-2">Ключ успешно создан!</p>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Скопируйте ключ сейчас. Вы не сможете увидеть его снова.
+                    </p>
+                    <div className="flex items-center gap-2 bg-background p-3 rounded-lg border border-border">
+                      <code className="text-sm font-mono flex-1 select-all break-all">{createdKey}</code>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        onClick={() => {
+                          navigator.clipboard.writeText(createdKey);
+                        }}
+                      >
+                        <Icon name="Copy" size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="key-name">Название ключа</Label>
+                <Input
+                  id="key-name"
+                  placeholder="Production Key"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Понятное имя для идентификации ключа
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="key-expiry">Срок действия</Label>
+                <Select value={newKeyExpiry} onValueChange={setNewKeyExpiry}>
+                  <SelectTrigger id="key-expiry">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="never">Без срока действия</SelectItem>
+                    <SelectItem value="30">30 дней</SelectItem>
+                    <SelectItem value="90">90 дней</SelectItem>
+                    <SelectItem value="180">180 дней</SelectItem>
+                    <SelectItem value="365">1 год</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  После истечения срока ключ автоматически деактивируется
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {createdKey ? (
+              <Button 
+                onClick={() => {
+                  setCreateKeyDialogOpen(false);
+                  setCreatedKey(null);
+                  setNewKeyName('');
+                  setNewKeyExpiry('never');
+                }}
+                className="w-full"
+              >
+                Закрыть
+              </Button>
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setCreateKeyDialogOpen(false);
+                    setNewKeyName('');
+                    setNewKeyExpiry('never');
+                  }}
+                  disabled={isCreatingKey}
+                >
+                  Отмена
+                </Button>
+                <Button 
+                  onClick={() => {
+                    // TODO: Implement API key creation
+                    setIsCreatingKey(true);
+                    setTimeout(() => {
+                      setCreatedKey('ek_live_' + Math.random().toString(36).substring(2, 18));
+                      setIsCreatingKey(false);
+                    }, 1000);
+                  }}
+                  disabled={!newKeyName || isCreatingKey}
+                >
+                  {isCreatingKey ? (
+                    <>
+                      <Icon name="Loader2" size={16} className="mr-2 animate-spin" />
+                      Создание...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="Plus" size={16} className="mr-2" />
+                      Создать ключ
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={deleteKeyDialogOpen} onOpenChange={setDeleteKeyDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">
+                <Icon name="AlertTriangle" size={20} className="text-destructive" />
+              </div>
+              <span>Удалить API ключ?</span>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {keyToDelete && (
+                <>
+                  Вы действительно хотите удалить API ключ <strong>{keyToDelete.name}</strong>?
+                  <br />
+                  <br />
+                  Все приложения, использующие этот ключ, потеряют доступ к API. Это действие нельзя отменить.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingKey}>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                // TODO: Implement key deletion
+                setIsDeletingKey(true);
+                setTimeout(() => {
+                  setDeleteKeyDialogOpen(false);
+                  setKeyToDelete(null);
+                  setIsDeletingKey(false);
+                }, 1000);
+              }}
+              disabled={isDeletingKey}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingKey ? (
+                <>
+                  <Icon name="Loader2" size={16} className="mr-2 animate-spin" />
+                  Удаление...
+                </>
+              ) : (
+                <>
+                  <Icon name="Trash2" size={16} className="mr-2" />
+                  Удалить ключ
                 </>
               )}
             </AlertDialogAction>
