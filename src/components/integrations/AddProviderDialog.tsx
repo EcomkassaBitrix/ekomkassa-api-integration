@@ -211,7 +211,6 @@ const AddProviderDialog = ({
             }}
             disabled={
               !newProviderName || 
-              !newProviderCode || 
               !newProviderType || 
               (newProviderType === 'wappi' && (!newProviderWappiToken || !newProviderWappiProfileId)) ||
               isSaving
