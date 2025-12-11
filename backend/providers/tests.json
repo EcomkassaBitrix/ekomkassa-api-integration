@@ -1,0 +1,45 @@
+{
+  "tests": [
+    {
+      "name": "Test get providers without auth",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Missing API key"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test get providers with valid API key",
+      "method": "GET",
+      "path": "/",
+      "headers": {
+        "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test save provider config",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
+      },
+      "body": {
+        "provider_code": "whatsapp_business",
+        "wappi_token": "test_token_123",
+        "wappi_profile_id": "12345"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

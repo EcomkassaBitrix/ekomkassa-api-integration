@@ -77,11 +77,26 @@ def update_message_status(message_id: str, status: str, attempts: int,
     conn.commit()
     cur.close()
 
-def send_via_wappi(recipient: str, message: str) -> Tuple[int, str]:
+def get_wappi_credentials(provider: str, conn) -> Tuple[Optional[str], Optional[str]]:
+    """Получает Wappi credentials из конфига провайдера"""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT config FROM providers WHERE provider_code = %s",
+        (provider,)
+    )
+    result = cur.fetchone()
+    cur.close()
+    
+    if not result or not result['config']:
+        return None, None
+    
+    config = result['config']
+    return config.get('wappi_token'), config.get('wappi_profile_id')
+
+def send_via_wappi(recipient: str, message: str, provider: str, conn) -> Tuple[int, str]:
     """Отправляет сообщение через Wappi API"""
     try:
-        wappi_token = os.environ.get('WAPPI_TOKEN')
-        wappi_profile_id = os.environ.get('WAPPI_PROFILE_ID')
+        wappi_token, wappi_profile_id = get_wappi_credentials(provider, conn)
         
         if not wappi_token or not wappi_profile_id:
             return 500, json.dumps({"error": "Wappi credentials not configured"})
@@ -217,7 +232,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if message['provider'] in ['whatsapp_business', 'telegram_bot', 'wappi']:
                 status_code, response_body = send_via_wappi(
                     message['recipient'], 
-                    message['message_text']
+                    message['message_text'],
+                    message['provider'],
+                    conn
                 )
             else:
                 status_code, response_body = simulate_provider_send(
