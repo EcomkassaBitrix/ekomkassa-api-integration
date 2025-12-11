@@ -350,6 +350,7 @@ const Index = () => {
                   wappiProfileId={wappiProfileId}
                   setWappiProfileId={setWappiProfileId}
                   isSaving={isSaving}
+                  setIsSaving={setIsSaving}
                   addProviderDialogOpen={addProviderDialogOpen}
                   setAddProviderDialogOpen={setAddProviderDialogOpen}
                   newProviderName={newProviderName}

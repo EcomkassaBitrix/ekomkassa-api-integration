@@ -17,6 +17,7 @@ interface IntegrationsSectionProps {
   wappiProfileId: string;
   setWappiProfileId: (id: string) => void;
   isSaving: boolean;
+  setIsSaving: (saving: boolean) => void;
   addProviderDialogOpen: boolean;
   setAddProviderDialogOpen: (open: boolean) => void;
   newProviderName: string;
@@ -50,6 +51,7 @@ const IntegrationsSection = ({
   wappiProfileId,
   setWappiProfileId,
   isSaving,
+  setIsSaving,
   addProviderDialogOpen,
   setAddProviderDialogOpen,
   newProviderName,
@@ -124,6 +126,7 @@ const IntegrationsSection = ({
         newProviderWappiProfileId={newProviderWappiProfileId}
         setNewProviderWappiProfileId={setNewProviderWappiProfileId}
         isSaving={isSaving}
+        setIsSaving={setIsSaving}
         loadProviders={loadProviders}
       />
 

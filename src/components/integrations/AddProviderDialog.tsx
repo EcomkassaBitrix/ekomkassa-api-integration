@@ -17,6 +17,7 @@ interface AddProviderDialogProps {
   newProviderWappiProfileId: string;
   setNewProviderWappiProfileId: (id: string) => void;
   isSaving: boolean;
+  setIsSaving: (saving: boolean) => void;
   loadProviders: () => void;
 }
 
@@ -32,6 +33,7 @@ const AddProviderDialog = ({
   newProviderWappiProfileId,
   setNewProviderWappiProfileId,
   isSaving,
+  setIsSaving,
   loadProviders
 }: AddProviderDialogProps) => {
   return (
