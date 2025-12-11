@@ -197,7 +197,14 @@ def attempt_delivery(message_id: str, provider: str, recipient: str,
     start_time = time.time()
     
     try:
-        if provider in ['whatsapp_business', 'telegram_bot', 'wappi', 'max']:
+        cur = conn.cursor()
+        cur.execute("SELECT provider_type FROM providers WHERE provider_code = %s", (provider,))
+        result = cur.fetchone()
+        cur.close()
+        
+        provider_type = result['provider_type'] if result else None
+        
+        if provider_type in ['whatsapp_business', 'telegram_bot', 'wappi', 'max']:
             status_code, response_body = send_via_wappi(recipient, message_text, provider, conn)
         else:
             status_code, response_body = simulate_provider_send(provider, recipient, message_text)
