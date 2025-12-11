@@ -10,8 +10,6 @@ interface AddProviderDialogProps {
   setAddProviderDialogOpen: (open: boolean) => void;
   newProviderName: string;
   setNewProviderName: (name: string) => void;
-  newProviderCode: string;
-  setNewProviderCode: (code: string) => void;
   newProviderType: string;
   setNewProviderType: (type: string) => void;
   newProviderWappiToken: string;
@@ -27,8 +25,6 @@ const AddProviderDialog = ({
   setAddProviderDialogOpen,
   newProviderName,
   setNewProviderName,
-  newProviderCode,
-  setNewProviderCode,
   newProviderType,
   setNewProviderType,
   newProviderWappiToken,
@@ -154,7 +150,6 @@ const AddProviderDialog = ({
             onClick={() => {
               setAddProviderDialogOpen(false);
               setNewProviderName('');
-              setNewProviderCode('');
               setNewProviderType('');
               setNewProviderWappiToken('');
               setNewProviderWappiProfileId('');
@@ -203,7 +198,6 @@ const AddProviderDialog = ({
                 if (data.success) {
                   setAddProviderDialogOpen(false);
                   setNewProviderName('');
-                  setNewProviderCode('');
                   setNewProviderType('');
                   setNewProviderWappiToken('');
                   setNewProviderWappiProfileId('');

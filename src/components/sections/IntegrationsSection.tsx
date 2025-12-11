@@ -21,8 +21,6 @@ interface IntegrationsSectionProps {
   setAddProviderDialogOpen: (open: boolean) => void;
   newProviderName: string;
   setNewProviderName: (name: string) => void;
-  newProviderCode: string;
-  setNewProviderCode: (code: string) => void;
   newProviderType: string;
   setNewProviderType: (type: string) => void;
   newProviderWappiToken: string;
@@ -56,8 +54,6 @@ const IntegrationsSection = ({
   setAddProviderDialogOpen,
   newProviderName,
   setNewProviderName,
-  newProviderCode,
-  setNewProviderCode,
   newProviderType,
   setNewProviderType,
   newProviderWappiToken,
@@ -121,8 +117,6 @@ const IntegrationsSection = ({
         setAddProviderDialogOpen={setAddProviderDialogOpen}
         newProviderName={newProviderName}
         setNewProviderName={setNewProviderName}
-        newProviderCode={newProviderCode}
-        setNewProviderCode={setNewProviderCode}
         newProviderType={newProviderType}
         setNewProviderType={setNewProviderType}
         newProviderWappiToken={newProviderWappiToken}

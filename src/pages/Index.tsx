@@ -17,7 +17,6 @@ const Index = () => {
   
   const [addProviderDialogOpen, setAddProviderDialogOpen] = useState(false);
   const [newProviderName, setNewProviderName] = useState('');
-  const [newProviderCode, setNewProviderCode] = useState('');
   const [newProviderType, setNewProviderType] = useState('');
   const [newProviderWappiToken, setNewProviderWappiToken] = useState('');
   const [newProviderWappiProfileId, setNewProviderWappiProfileId] = useState('');
@@ -355,8 +354,6 @@ const Index = () => {
                   setAddProviderDialogOpen={setAddProviderDialogOpen}
                   newProviderName={newProviderName}
                   setNewProviderName={setNewProviderName}
-                  newProviderCode={newProviderCode}
-                  setNewProviderCode={setNewProviderCode}
                   newProviderType={newProviderType}
                   setNewProviderType={setNewProviderType}
                   newProviderWappiToken={newProviderWappiToken}
