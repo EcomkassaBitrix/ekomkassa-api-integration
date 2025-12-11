@@ -21,6 +21,12 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
 
   const activeProviders = providers.filter(p => p.status === 'working' || p.status === 'configured');
 
+  const loadExample = () => {
+    setSelectedProvider('max');
+    setRecipient('+79689363395');
+    setMessage('тест макса из песочницы');
+  };
+
   const sendMessage = async () => {
     if (!selectedProvider || !recipient || !message) {
       return;
@@ -66,16 +72,29 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   return (
     <div className="max-w-4xl mx-auto">
       <Card className="p-6 bg-card/50 backdrop-blur-sm border-border">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-            <Icon name="Send" size={24} className="text-primary" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+              <Icon name="Send" size={24} className="text-primary" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold">Тестовая отправка</h3>
+              <p className="text-sm text-muted-foreground">
+                Отправьте тестовое сообщение через подключенные интеграции
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-semibold">Тестовая отправка</h3>
-            <p className="text-sm text-muted-foreground">
-              Отправьте тестовое сообщение через подключенные интеграции
-            </p>
-          </div>
+          {activeProviders.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadExample}
+              className="gap-2"
+            >
+              <Icon name="FileText" size={16} />
+              Пример
+            </Button>
+          )}
         </div>
 
         {activeProviders.length === 0 ? (
