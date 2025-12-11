@@ -205,11 +205,25 @@ def send_via_postbox(recipient: str, message: str, subject: str, provider: str, 
     try:
         import boto3
         from botocore.exceptions import ClientError
+        import logging
+        
+        # Включаем debug логирование boto3
+        logging.basicConfig(level=logging.DEBUG)
+        boto3.set_stream_logger('boto3.resources', logging.DEBUG)
+        boto3.set_stream_logger('botocore', logging.DEBUG)
         
         access_key, secret_key, from_email = get_postbox_credentials(provider, conn)
         
         if not access_key or not secret_key or not from_email:
             return 500, json.dumps({"error": "Postbox credentials not configured"})
+        
+        print(f"[POSTBOX DEBUG] =================================")
+        print(f"[POSTBOX DEBUG] AWS Credentials:")
+        print(f"[POSTBOX DEBUG] Access Key: {access_key[:8]}...{access_key[-4:]}")
+        print(f"[POSTBOX DEBUG] Secret Key: {secret_key[:8]}...{secret_key[-4:]}")
+        print(f"[POSTBOX DEBUG] Region: ru-central1")
+        print(f"[POSTBOX DEBUG] Endpoint: https://postbox.cloud.yandex.net")
+        print(f"[POSTBOX DEBUG] =================================")
         
         client = boto3.client(
             'sesv2',
@@ -220,53 +234,40 @@ def send_via_postbox(recipient: str, message: str, subject: str, provider: str, 
         )
         
         if template_name:
-            print(f"[POSTBOX] Sending templated email:")
-            print(f"[POSTBOX] Template: {template_name}")
-            print(f"[POSTBOX] From: {from_email}")
-            print(f"[POSTBOX] To: {recipient}")
-            print(f"[POSTBOX] Data: {template_data}")
-            
-            response = client.send_email(
-                FromEmailAddress=from_email,
-                Destination={
-                    'ToAddresses': [recipient]
-                },
-                Content={
+            request_params = {
+                'FromEmailAddress': from_email,
+                'Destination': {'ToAddresses': [recipient]},
+                'Content': {
                     'Template': {
                         'TemplateName': template_name,
                         'TemplateData': json.dumps(template_data or {})
                     }
                 }
-            )
-        else:
-            print(f"[POSTBOX] Sending simple email:")
-            print(f"[POSTBOX] From: {from_email}")
-            print(f"[POSTBOX] To: {recipient}")
-            print(f"[POSTBOX] Subject: {subject}")
+            }
+            print(f"[POSTBOX REQUEST] Templated email:")
+            print(f"[POSTBOX REQUEST] {json.dumps(request_params, indent=2, ensure_ascii=False)}")
             
-            response = client.send_email(
-                FromEmailAddress=from_email,
-                Destination={
-                    'ToAddresses': [recipient]
-                },
-                Content={
+            response = client.send_email(**request_params)
+        else:
+            request_params = {
+                'FromEmailAddress': from_email,
+                'Destination': {'ToAddresses': [recipient]},
+                'Content': {
                     'Simple': {
-                        'Subject': {
-                            'Data': subject,
-                            'Charset': 'UTF-8'
-                        },
-                        'Body': {
-                            'Text': {
-                                'Data': message,
-                                'Charset': 'UTF-8'
-                            }
-                        }
+                        'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                        'Body': {'Text': {'Data': message, 'Charset': 'UTF-8'}}
                     }
                 }
-            )
+            }
+            print(f"[POSTBOX REQUEST] Simple email:")
+            print(f"[POSTBOX REQUEST] {json.dumps(request_params, indent=2, ensure_ascii=False)}")
+            
+            response = client.send_email(**request_params)
+        
+        print(f"[POSTBOX RESPONSE] Success:")
+        print(f"[POSTBOX RESPONSE] {json.dumps(response, indent=2, ensure_ascii=False)}")
         
         message_id = response.get('MessageId', '')
-        print(f"[POSTBOX] Success! MessageId: {message_id}")
         
         return 200, json.dumps({
             "status": "sent",
@@ -274,12 +275,27 @@ def send_via_postbox(recipient: str, message: str, subject: str, provider: str, 
         })
         
     except ClientError as e:
-        error_msg = e.response['Error']['Message']
-        print(f"[POSTBOX] Error: {error_msg}")
-        return 500, json.dumps({"error": error_msg})
+        error_response = e.response
+        print(f"[POSTBOX ERROR] ClientError occurred:")
+        print(f"[POSTBOX ERROR] HTTP Status: {error_response.get('ResponseMetadata', {}).get('HTTPStatusCode')}")
+        print(f"[POSTBOX ERROR] Error Code: {error_response.get('Error', {}).get('Code')}")
+        print(f"[POSTBOX ERROR] Error Message: {error_response.get('Error', {}).get('Message')}")
+        print(f"[POSTBOX ERROR] Request ID: {error_response.get('ResponseMetadata', {}).get('RequestId')}")
+        print(f"[POSTBOX ERROR] Full response: {json.dumps(error_response, indent=2, default=str)}")
+        
+        return 500, json.dumps({
+            "error": error_response.get('Error', {}).get('Message', str(e)),
+            "code": error_response.get('Error', {}).get('Code', 'Unknown'),
+            "request_id": error_response.get('ResponseMetadata', {}).get('RequestId'),
+            "http_status": error_response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+        })
     except Exception as e:
-        print(f"[POSTBOX] Exception: {str(e)}")
-        return 500, json.dumps({"error": str(e)})
+        print(f"[POSTBOX ERROR] Unexpected exception:")
+        print(f"[POSTBOX ERROR] Type: {type(e).__name__}")
+        print(f"[POSTBOX ERROR] Message: {str(e)}")
+        import traceback
+        print(f"[POSTBOX ERROR] Traceback: {traceback.format_exc()}")
+        return 500, json.dumps({"error": str(e), "type": type(e).__name__})
 
 def simulate_provider_send(provider: str, recipient: str, message: str) -> Tuple[int, str]:
     """Симулирует отправку через провайдера (заглушка для не интегрированных провайдеров)"""
