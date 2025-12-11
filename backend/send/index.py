@@ -126,6 +126,15 @@ def send_via_wappi(recipient: str, message: str, provider: str, conn) -> Tuple[i
         if not wappi_token or not wappi_profile_id:
             return 500, json.dumps({"error": "Wappi credentials not configured"})
         
+        endpoint_map = {
+            'max': 'https://wappi.pro/maxapi/sync/message/send',
+            'telegram_bot': 'https://wappi.pro/tapi/sync/message/send',
+            'whatsapp_business': 'https://wappi.pro/api/sync/message/send',
+            'wappi': 'https://wappi.pro/api/sync/message/send'
+        }
+        
+        api_url = endpoint_map.get(provider, 'https://wappi.pro/api/sync/message/send')
+        
         recipient_clean = recipient.replace('+', '').replace('-', '').replace(' ', '')
         
         request_data = json.dumps({
@@ -134,12 +143,13 @@ def send_via_wappi(recipient: str, message: str, provider: str, conn) -> Tuple[i
         })
         
         print(f"[WAPPI] Sending request:")
-        print(f"[WAPPI] URL: https://wappi.pro/api/sync/message/send?profile_id={wappi_profile_id}")
+        print(f"[WAPPI] Provider: {provider}")
+        print(f"[WAPPI] URL: {api_url}?profile_id={wappi_profile_id}")
         print(f"[WAPPI] Headers: Authorization: {wappi_token[:10]}...")
         print(f"[WAPPI] Data: {request_data}")
         
         response = requests.post(
-            'https://wappi.pro/api/sync/message/send',
+            api_url,
             params={'profile_id': wappi_profile_id},
             headers={
                 'Authorization': wappi_token
