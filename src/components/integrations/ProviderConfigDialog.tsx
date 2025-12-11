@@ -9,6 +9,8 @@ interface ProviderConfigDialogProps {
   configDialogOpen: boolean;
   setConfigDialogOpen: (open: boolean) => void;
   selectedProvider: any;
+  editProviderCode: string;
+  setEditProviderCode: (code: string) => void;
   providerConfigs: Record<string, boolean>;
   wappiToken: string;
   setWappiToken: (token: string) => void;
@@ -22,6 +24,8 @@ const ProviderConfigDialog = ({
   configDialogOpen,
   setConfigDialogOpen,
   selectedProvider,
+  editProviderCode,
+  setEditProviderCode,
   providerConfigs,
   wappiToken,
   setWappiToken,
@@ -78,6 +82,20 @@ const ProviderConfigDialog = ({
 
         {selectedProvider?.usesWappi ? (
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-provider-code">Код провайдера (provider_code)</Label>
+              <Input
+                id="edit-provider-code"
+                value={editProviderCode}
+                onChange={(e) => setEditProviderCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                className="font-mono text-sm"
+                disabled
+              />
+              <p className="text-xs text-muted-foreground">
+                Используйте этот код в поле "provider" при отправке сообщений через API
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="wappi-token">API Token</Label>
               <Input

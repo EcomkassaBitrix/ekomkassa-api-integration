@@ -10,6 +10,8 @@ interface AddProviderDialogProps {
   setAddProviderDialogOpen: (open: boolean) => void;
   newProviderName: string;
   setNewProviderName: (name: string) => void;
+  newProviderCode: string;
+  setNewProviderCode: (code: string) => void;
   newProviderType: string;
   setNewProviderType: (type: string) => void;
   newProviderWappiToken: string;
@@ -26,6 +28,8 @@ const AddProviderDialog = ({
   setAddProviderDialogOpen,
   newProviderName,
   setNewProviderName,
+  newProviderCode,
+  setNewProviderCode,
   newProviderType,
   setNewProviderType,
   newProviderWappiToken,
@@ -62,6 +66,20 @@ const AddProviderDialog = ({
             />
             <p className="text-xs text-muted-foreground">
               Отображаемое имя подключения в интерфейсе
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="provider-code">Код провайдера (provider_code)</Label>
+            <Input
+              id="provider-code"
+              placeholder="ek_wa"
+              value={newProviderCode}
+              onChange={(e) => setNewProviderCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Уникальный идентификатор для использования в API (только латиница, цифры и _)
             </p>
           </div>
 
@@ -169,6 +187,7 @@ const AddProviderDialog = ({
             onClick={() => {
               setAddProviderDialogOpen(false);
               setNewProviderName('');
+              setNewProviderCode('');
               setNewProviderType('');
               setNewProviderWappiToken('');
               setNewProviderWappiProfileId('');
@@ -179,11 +198,9 @@ const AddProviderDialog = ({
           </Button>
           <Button 
             onClick={async () => {
-              if (!newProviderName || !newProviderType) {
+              if (!newProviderName || !newProviderCode || !newProviderType) {
                 return;
               }
-              
-              const generatedCode = newProviderName.toLowerCase().replace(/\s+/g, '_');
               
               const isWappiProvider = ['whatsapp_business', 'telegram_bot', 'max'].includes(newProviderType);
               
@@ -207,7 +224,7 @@ const AddProviderDialog = ({
                     'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
                   },
                   body: JSON.stringify({
-                    provider_code: generatedCode,
+                    provider_code: newProviderCode,
                     provider_name: newProviderName,
                     provider_type: newProviderType,
                     ...config
@@ -219,6 +236,7 @@ const AddProviderDialog = ({
                 if (data.success) {
                   setAddProviderDialogOpen(false);
                   setNewProviderName('');
+                  setNewProviderCode('');
                   setNewProviderType('');
                   setNewProviderWappiToken('');
                   setNewProviderWappiProfileId('');
@@ -232,6 +250,7 @@ const AddProviderDialog = ({
             }}
             disabled={
               !newProviderName || 
+              !newProviderCode || 
               !newProviderType || 
               (['whatsapp_business', 'telegram_bot', 'max'].includes(newProviderType) && (!newProviderWappiToken || !newProviderWappiProfileId)) ||
               isSaving

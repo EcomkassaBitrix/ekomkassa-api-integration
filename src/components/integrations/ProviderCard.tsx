@@ -61,6 +61,10 @@ const ProviderCard = ({
         </Badge>
       </div>
       <h3 className="text-xl font-bold mb-2">{provider.name}</h3>
+      <div className="mb-3 px-3 py-2 bg-muted/30 rounded border border-border">
+        <p className="text-xs text-muted-foreground mb-0.5">Код провайдера:</p>
+        <code className="text-sm font-mono font-semibold text-foreground">{provider.code}</code>
+      </div>
       <p className="text-sm text-muted-foreground mb-4">
         {provider.requests.toLocaleString()} запросов за сегодня
       </p>

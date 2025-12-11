@@ -12,12 +12,14 @@ const Index = () => {
   
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
+  const [editProviderCode, setEditProviderCode] = useState('');
   const [wappiToken, setWappiToken] = useState('');
   const [wappiProfileId, setWappiProfileId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
   const [addProviderDialogOpen, setAddProviderDialogOpen] = useState(false);
   const [newProviderName, setNewProviderName] = useState('');
+  const [newProviderCode, setNewProviderCode] = useState('');
   const [newProviderType, setNewProviderType] = useState('');
   const [newProviderWappiToken, setNewProviderWappiToken] = useState('');
   const [newProviderWappiProfileId, setNewProviderWappiProfileId] = useState('');
@@ -215,6 +217,7 @@ const Index = () => {
 
   const openProviderConfig = (provider: any) => {
     setSelectedProvider(provider);
+    setEditProviderCode(provider.code || '');
     setWappiToken('');
     setWappiProfileId('');
     setConfigDialogOpen(true);
@@ -351,6 +354,8 @@ const Index = () => {
                   configDialogOpen={configDialogOpen}
                   setConfigDialogOpen={setConfigDialogOpen}
                   selectedProvider={selectedProvider}
+                  editProviderCode={editProviderCode}
+                  setEditProviderCode={setEditProviderCode}
                   wappiToken={wappiToken}
                   setWappiToken={setWappiToken}
                   wappiProfileId={wappiProfileId}
@@ -361,6 +366,8 @@ const Index = () => {
                   setAddProviderDialogOpen={setAddProviderDialogOpen}
                   newProviderName={newProviderName}
                   setNewProviderName={setNewProviderName}
+                  newProviderCode={newProviderCode}
+                  setNewProviderCode={setNewProviderCode}
                   newProviderType={newProviderType}
                   setNewProviderType={setNewProviderType}
                   newProviderWappiToken={newProviderWappiToken}

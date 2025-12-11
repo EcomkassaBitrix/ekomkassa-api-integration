@@ -12,6 +12,8 @@ interface IntegrationsSectionProps {
   configDialogOpen: boolean;
   setConfigDialogOpen: (open: boolean) => void;
   selectedProvider: any;
+  editProviderCode: string;
+  setEditProviderCode: (code: string) => void;
   wappiToken: string;
   setWappiToken: (token: string) => void;
   wappiProfileId: string;
@@ -22,6 +24,8 @@ interface IntegrationsSectionProps {
   setAddProviderDialogOpen: (open: boolean) => void;
   newProviderName: string;
   setNewProviderName: (name: string) => void;
+  newProviderCode: string;
+  setNewProviderCode: (code: string) => void;
   newProviderType: string;
   setNewProviderType: (type: string) => void;
   newProviderWappiToken: string;
@@ -46,6 +50,8 @@ const IntegrationsSection = ({
   configDialogOpen,
   setConfigDialogOpen,
   selectedProvider,
+  editProviderCode,
+  setEditProviderCode,
   wappiToken,
   setWappiToken,
   wappiProfileId,
@@ -56,6 +62,8 @@ const IntegrationsSection = ({
   setAddProviderDialogOpen,
   newProviderName,
   setNewProviderName,
+  newProviderCode,
+  setNewProviderCode,
   newProviderType,
   setNewProviderType,
   newProviderWappiToken,
@@ -105,6 +113,8 @@ const IntegrationsSection = ({
         configDialogOpen={configDialogOpen}
         setConfigDialogOpen={setConfigDialogOpen}
         selectedProvider={selectedProvider}
+        editProviderCode={editProviderCode}
+        setEditProviderCode={setEditProviderCode}
         providerConfigs={providerConfigs}
         wappiToken={wappiToken}
         setWappiToken={setWappiToken}
@@ -119,6 +129,8 @@ const IntegrationsSection = ({
         setAddProviderDialogOpen={setAddProviderDialogOpen}
         newProviderName={newProviderName}
         setNewProviderName={setNewProviderName}
+        newProviderCode={newProviderCode}
+        setNewProviderCode={setNewProviderCode}
         newProviderType={newProviderType}
         setNewProviderType={setNewProviderType}
         newProviderWappiToken={newProviderWappiToken}
