@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -107,7 +106,7 @@ const Index = () => {
             </div>
           </header>
 
-          <ScrollArea className="h-[calc(100vh-80px)]">
+          <div className="h-[calc(100vh-80px)] overflow-y-auto">
             <div className="p-8">
               {activeSection === 'dashboard' && (
                 <div className="space-y-6">
@@ -378,7 +377,7 @@ const Index = () => {
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </main>
       </div>
     </div>
