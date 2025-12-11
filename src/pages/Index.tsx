@@ -33,6 +33,8 @@ const Index = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [retryingMessage, setRetryingMessage] = useState<string | null>(null);
+  const [providerConfigs, setProviderConfigs] = useState<Record<string, boolean>>({});
+  const [isLoadingConfigs, setIsLoadingConfigs] = useState(false);
 
   const loadLogs = async () => {
     setIsLoadingLogs(true);
@@ -75,11 +77,43 @@ const Index = () => {
     }
   };
 
+  const loadProviderConfigs = async () => {
+    setIsLoadingConfigs(true);
+    try {
+      const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
+        headers: {
+          'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.providers) {
+        const configs: Record<string, boolean> = {};
+        data.providers.forEach((provider: any) => {
+          if (provider.config && Object.keys(provider.config).length > 0) {
+            configs[provider.provider_code] = true;
+          }
+        });
+        setProviderConfigs(configs);
+      }
+    } catch (error) {
+      console.error('Failed to load provider configs:', error);
+    } finally {
+      setIsLoadingConfigs(false);
+    }
+  };
+
   useEffect(() => {
     if (activeSection === 'logs') {
       loadLogs();
     }
+    if (activeSection === 'providers') {
+      loadProviderConfigs();
+    }
   }, [activeSection]);
+
+  useEffect(() => {
+    loadProviderConfigs();
+  }, []);
 
   const openProviderConfig = (provider: any) => {
     setSelectedProvider(provider);
@@ -110,6 +144,7 @@ const Index = () => {
         setConfigDialogOpen(false);
         setWappiToken('');
         setWappiProfileId('');
+        await loadProviderConfigs();
       } else {
         console.error('Failed to save config:', data.error);
       }
@@ -288,6 +323,16 @@ const Index = () => {
                           <div className="flex items-center gap-2">
                             <Icon name="Zap" size={14} className="text-primary" />
                             <span className="text-xs font-medium text-primary">Работает через Wappi</span>
+                          </div>
+                        </div>
+                      )}
+                      {providerConfigs[provider.code] && (
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="flex-1 px-3 py-2 bg-green-500/10 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Icon name="CheckCircle" size={14} className="text-green-500" />
+                              <span className="text-xs font-medium text-green-500">Настроено</span>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -524,14 +569,25 @@ const Index = () => {
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                     <Icon name={selectedProvider.icon} size={20} className="text-primary" />
                   </div>
-                  <span>Настройка {selectedProvider.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span>Настройка {selectedProvider.name}</span>
+                    {providerConfigs[selectedProvider.code] && (
+                      <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
+                        <Icon name="CheckCircle" size={12} className="mr-1" />
+                        Настроено
+                      </Badge>
+                    )}
+                  </div>
                 </>
               )}
             </DialogTitle>
             <DialogDescription>
               {selectedProvider?.usesWappi ? (
                 <>
-                  Для работы {selectedProvider.name} требуется настроить интеграцию с Wappi.
+                  {providerConfigs[selectedProvider.code] 
+                    ? `Обновите настройки интеграции ${selectedProvider.name} с Wappi.`
+                    : `Для работы ${selectedProvider.name} требуется настроить интеграцию с Wappi.`
+                  }
                   <br />
                   <a 
                     href="https://wappi.pro" 
