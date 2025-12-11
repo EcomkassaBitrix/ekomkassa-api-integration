@@ -119,10 +119,26 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             else:
                 cur = conn.cursor()
                 cur.execute(
-                    """SELECT provider_code, provider_name, provider_type, is_active, 
-                       config, created_at, updated_at 
-                       FROM providers 
-                       ORDER BY provider_name"""
+                    """SELECT 
+                        p.provider_code, 
+                        p.provider_name, 
+                        p.provider_type, 
+                        p.is_active, 
+                        p.config, 
+                        p.created_at, 
+                        p.updated_at,
+                        da.status as last_attempt_status,
+                        da.response_code as last_response_code,
+                        da.attempted_at as last_attempt_at
+                    FROM providers p
+                    LEFT JOIN LATERAL (
+                        SELECT status, response_code, attempted_at
+                        FROM delivery_attempts
+                        WHERE provider = p.provider_code
+                        ORDER BY attempted_at DESC
+                        LIMIT 1
+                    ) da ON true
+                    ORDER BY p.provider_name"""
                 )
                 providers = cur.fetchall()
                 cur.close()
@@ -130,12 +146,29 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 
                 result = []
                 for p in providers:
+                    has_config = p['config'] and len(p['config']) > 0
+                    last_status = p['last_attempt_status']
+                    last_code = p['last_response_code']
+                    
+                    if not has_config:
+                        connection_status = 'not_configured'
+                    elif not last_status:
+                        connection_status = 'configured'
+                    elif last_status == 'success' and last_code == 200:
+                        connection_status = 'working'
+                    else:
+                        connection_status = 'error'
+                    
                     result.append({
                         'provider_code': p['provider_code'],
                         'provider_name': p['provider_name'],
                         'provider_type': p['provider_type'],
                         'is_active': p['is_active'],
                         'config': p['config'],
+                        'connection_status': connection_status,
+                        'last_attempt_status': last_status,
+                        'last_response_code': last_code,
+                        'last_attempt_at': p['last_attempt_at'].isoformat() if p['last_attempt_at'] else None,
                         'created_at': p['created_at'].isoformat() if p['created_at'] else None,
                         'updated_at': p['updated_at'].isoformat() if p['updated_at'] else None
                     })

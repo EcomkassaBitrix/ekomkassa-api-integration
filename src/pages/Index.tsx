@@ -111,14 +111,25 @@ const Index = () => {
           if (hasConfig) {
             configs[p.provider_code] = true;
           }
+          
+          let connectionStatus = 'not_configured';
+          if (p.connection_status === 'configured') {
+            connectionStatus = 'configured';
+          } else if (p.connection_status === 'working') {
+            connectionStatus = 'working';
+          } else if (p.connection_status === 'error') {
+            connectionStatus = 'error';
+          }
+          
           return {
             id: index + 1,
             name: p.provider_name,
             icon: getProviderIcon(p.provider_type, p.provider_code),
-            status: p.is_active ? 'active' : 'inactive',
+            status: connectionStatus,
             requests: 0,
             code: p.provider_code,
-            usesWappi: p.provider_type === 'wappi'
+            usesWappi: p.provider_type === 'wappi',
+            lastAttemptAt: p.last_attempt_at
           };
         });
         setProviders(providersData);
@@ -380,8 +391,41 @@ const Index = () => {
                         <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center">
                           <Icon name={provider.icon} size={28} className="text-primary" />
                         </div>
-                        <Badge variant={provider.status === 'active' ? 'default' : 'secondary'}>
-                          {provider.status === 'active' ? 'Активен' : 'Не активен'}
+                        <Badge 
+                          variant={
+                            provider.status === 'working' ? 'default' : 
+                            provider.status === 'configured' ? 'secondary' : 
+                            provider.status === 'error' ? 'destructive' : 
+                            'outline'
+                          }
+                          className={
+                            provider.status === 'configured' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' : ''
+                          }
+                        >
+                          {provider.status === 'working' && (
+                            <>
+                              <Icon name="CheckCircle" size={12} className="mr-1" />
+                              Работает
+                            </>
+                          )}
+                          {provider.status === 'configured' && (
+                            <>
+                              <Icon name="Settings" size={12} className="mr-1" />
+                              Настроен
+                            </>
+                          )}
+                          {provider.status === 'error' && (
+                            <>
+                              <Icon name="AlertCircle" size={12} className="mr-1" />
+                              Ошибка
+                            </>
+                          )}
+                          {provider.status === 'not_configured' && (
+                            <>
+                              <Icon name="AlertTriangle" size={12} className="mr-1" />
+                              Не настроен
+                            </>
+                          )}
                         </Badge>
                       </div>
                       <h3 className="text-xl font-bold mb-2">{provider.name}</h3>
@@ -396,14 +440,16 @@ const Index = () => {
                           </div>
                         </div>
                       )}
-                      {providerConfigs[provider.code] && (
-                        <div className="mb-3 flex items-center gap-2">
-                          <div className="flex-1 px-3 py-2 bg-green-500/10 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <Icon name="CheckCircle" size={14} className="text-green-500" />
-                              <span className="text-xs font-medium text-green-500">Настроено</span>
-                            </div>
-                          </div>
+                      {provider.lastAttemptAt && (
+                        <div className="mb-3">
+                          <p className="text-xs text-muted-foreground">
+                            Последний запрос: {new Date(provider.lastAttemptAt).toLocaleString('ru-RU', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
                         </div>
                       )}
                       <div className="flex gap-2">
