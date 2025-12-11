@@ -135,7 +135,7 @@ const Index = () => {
     if (activeSection === 'logs') {
       loadLogs();
     }
-    if (activeSection === 'providers') {
+    if (activeSection === 'integrations') {
       loadProviders();
     }
   }, [activeSection]);
@@ -236,7 +236,7 @@ const Index = () => {
           <nav className="p-4 space-y-1">
             {[
               { id: 'dashboard', label: 'Дашборд', icon: 'LayoutDashboard' },
-              { id: 'providers', label: 'Провайдеры', icon: 'Plug' },
+              { id: 'integrations', label: 'Интеграции', icon: 'Plug' },
               { id: 'keys', label: 'API Ключи', icon: 'Key' },
               { id: 'logs', label: 'Логи', icon: 'FileText' },
               { id: 'settings', label: 'Настройки', icon: 'Settings' },
@@ -264,7 +264,7 @@ const Index = () => {
               <div>
                 <h2 className="text-2xl font-bold">
                   {activeSection === 'dashboard' && 'Дашборд'}
-                  {activeSection === 'providers' && 'Провайдеры'}
+                  {activeSection === 'integrations' && 'Интеграции'}
                   {activeSection === 'keys' && 'API Ключи'}
                   {activeSection === 'logs' && 'Логи запросов'}
                   {activeSection === 'settings' && 'Настройки'}
@@ -272,7 +272,7 @@ const Index = () => {
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   {activeSection === 'dashboard' && 'Общая статистика и мониторинг системы'}
-                  {activeSection === 'providers' && 'Управление интеграциями с каналами связи'}
+                  {activeSection === 'integrations' && 'Подключения к каналам коммуникации'}
                   {activeSection === 'keys' && 'Управление доступом к API'}
                   {activeSection === 'logs' && 'История запросов и событий'}
                   {activeSection === 'settings' && 'Конфигурация системы'}
@@ -281,7 +281,7 @@ const Index = () => {
               </div>
               <Button size="sm" className="gap-2" onClick={() => setAddProviderDialogOpen(true)}>
                 <Icon name="Plus" size={16} />
-                Добавить провайдер
+                Добавить подключение
               </Button>
             </div>
           </header>
@@ -357,7 +357,7 @@ const Index = () => {
                 </div>
               )}
 
-              {activeSection === 'providers' && (
+              {activeSection === 'integrations' && (
                 <>
                   {isLoadingProviders ? (
                     <div className="flex items-center justify-center py-12">
@@ -366,10 +366,10 @@ const Index = () => {
                   ) : providers.length === 0 ? (
                     <div className="text-center py-12">
                       <Icon name="Inbox" size={48} className="mx-auto mb-3 opacity-50 text-muted-foreground" />
-                      <p className="text-muted-foreground mb-4">Провайдеры не найдены</p>
+                      <p className="text-muted-foreground mb-4">Подключения не найдены</p>
                       <Button onClick={() => setAddProviderDialogOpen(true)}>
                         <Icon name="Plus" size={16} className="mr-2" />
-                        Добавить первого провайдера
+                        Добавить первое подключение
                       </Button>
                     </div>
                   ) : (
@@ -795,16 +795,16 @@ const Index = () => {
               <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                 <Icon name="Plus" size={20} className="text-primary" />
               </div>
-              <span>Добавить нового провайдера</span>
+              <span>Добавить подключение</span>
             </DialogTitle>
             <DialogDescription>
-              Настройте параметры нового канала связи для отправки сообщений
+              Выберите провайдера и настройте подключение к каналу связи
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="provider-name">Название провайдера</Label>
+              <Label htmlFor="provider-name">Название подключения</Label>
               <Input
                 id="provider-name"
                 placeholder="WhatsApp Business"
@@ -812,7 +812,7 @@ const Index = () => {
                 onChange={(e) => setNewProviderName(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Отображаемое имя провайдера в интерфейсе
+                Отображаемое имя подключения в интерфейсе
               </p>
             </div>
 
@@ -831,10 +831,10 @@ const Index = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="provider-type">Тип провайдера</Label>
+              <Label htmlFor="provider-type">Провайдер</Label>
               <Select value={newProviderType} onValueChange={setNewProviderType}>
                 <SelectTrigger id="provider-type">
-                  <SelectValue placeholder="Выберите тип провайдера" />
+                  <SelectValue placeholder="Выберите провайдера" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="wappi">Wappi (WhatsApp, Telegram, MAX)</SelectItem>
@@ -845,7 +845,7 @@ const Index = () => {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Выберите технологию для отправки сообщений
+                Провайдер для отправки сообщений
               </p>
             </div>
 
@@ -901,9 +901,9 @@ const Index = () => {
                 <div className="flex items-start gap-3">
                   <Icon name="AlertCircle" size={20} className="text-yellow-500 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-medium mb-1">Дополнительные настройки:</p>
+                    <p className="font-medium mb-1">Дополнительная интеграция:</p>
                     <p className="text-muted-foreground">
-                      Для этого типа провайдера потребуется дополнительная интеграция в коде бэкенда
+                      Для работы с этим провайдером потребуется дополнительная настройка в коде бэкенда
                     </p>
                   </div>
                 </div>
@@ -992,7 +992,7 @@ const Index = () => {
               ) : (
                 <>
                   <Icon name="Check" size={16} className="mr-2" />
-                  Добавить провайдер
+                  Добавить подключение
                 </>
               )}
             </Button>
@@ -1007,12 +1007,12 @@ const Index = () => {
               <div className="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">
                 <Icon name="AlertTriangle" size={20} className="text-destructive" />
               </div>
-              <span>Удалить провайдера?</span>
+              <span>Удалить подключение?</span>
             </AlertDialogTitle>
             <AlertDialogDescription>
               {providerToDelete && (
                 <>
-                  Вы действительно хотите удалить провайдера <strong>{providerToDelete.name}</strong>?
+                  Вы действительно хотите удалить подключение <strong>{providerToDelete.name}</strong>?
                   <br />
                   <br />
                   Это действие нельзя отменить. Все настройки и история отправок будут утеряны.
