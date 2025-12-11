@@ -68,20 +68,6 @@ const AddProviderDialog = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="provider-code">Код для API</Label>
-            <Input
-              id="provider-code"
-              placeholder="whatsapp_business"
-              value={newProviderCode}
-              onChange={(e) => setNewProviderCode(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              Уникальный идентификатор для использования в API запросах
-            </p>
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="provider-type">Провайдер</Label>
             <Select value={newProviderType} onValueChange={setNewProviderType}>
               <SelectTrigger id="provider-type">
@@ -179,9 +165,11 @@ const AddProviderDialog = ({
           </Button>
           <Button 
             onClick={async () => {
-              if (!newProviderName || !newProviderCode || !newProviderType) {
+              if (!newProviderName || !newProviderType) {
                 return;
               }
+              
+              const generatedCode = newProviderName.toLowerCase().replace(/\s+/g, '_');
               
               if (newProviderType === 'wappi' && (!newProviderWappiToken || !newProviderWappiProfileId)) {
                 return;
@@ -203,7 +191,7 @@ const AddProviderDialog = ({
                     'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
                   },
                   body: JSON.stringify({
-                    provider_code: newProviderCode,
+                    provider_code: generatedCode,
                     provider_name: newProviderName,
                     provider_type: newProviderType,
                     ...config
