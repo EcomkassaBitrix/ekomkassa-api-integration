@@ -298,7 +298,6 @@ def send_via_postbox(recipient: str, message: str, subject: str, provider: str, 
             endpoint,
             headers=headers,
             data=body,
-            auth=(access_key, secret_key),
             timeout=30
         )
         
