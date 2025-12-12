@@ -17,6 +17,8 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   const [recipient, setRecipient] = useState('');
   const [message, setMessage] = useState('');
   const [subject, setSubject] = useState('');
+  const [pushTitle, setPushTitle] = useState('');
+  const [deviceToken, setDeviceToken] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [response, setResponse] = useState<any>(null);
 
@@ -29,6 +31,9 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
 
   const selectedProviderData = activeProviders.find(p => p.code === selectedProvider);
   const isEmailProvider = selectedProviderData?.usesPostbox;
+  const isFcmProvider = selectedProviderData?.usesFcm;
+  const isApnsProvider = selectedProviderData?.usesApns;
+  const isPushProvider = isFcmProvider || isApnsProvider;
 
   const handleProviderChange = (providerCode: string) => {
     setSelectedProvider(providerCode);
@@ -40,14 +45,26 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
       setRecipient('example@domain.com');
       setMessage('Привет! Это тестовое письмо из Integration Hub.');
       setSubject('Тестовое сообщение');
+      setPushTitle('');
+      setDeviceToken('');
+    } else if (provider.usesFcm || provider.usesApns) {
+      setRecipient('');
+      setDeviceToken('example_device_token_here');
+      setPushTitle('Тестовое уведомление');
+      setMessage('Это тестовое push-уведомление из Integration Hub.');
+      setSubject('');
     } else if (provider.usesWappi || provider.code.includes('max')) {
       setRecipient('+79689363395');
       setMessage('Привет! Это тестовое сообщение.');
       setSubject('');
+      setPushTitle('');
+      setDeviceToken('');
     } else {
       setRecipient('');
       setMessage('');
       setSubject('');
+      setPushTitle('');
+      setDeviceToken('');
     }
   };
 
@@ -62,7 +79,15 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   };
 
   const sendMessage = async () => {
-    if (!selectedProvider || !recipient || !message) {
+    if (!selectedProvider || !message) {
+      return;
+    }
+
+    if (isPushProvider && !deviceToken) {
+      return;
+    }
+
+    if (!isPushProvider && !recipient) {
       return;
     }
 
@@ -72,9 +97,17 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
     try {
       const requestBody: any = {
         provider: selectedProvider,
-        recipient: recipient,
         message: message
       };
+
+      if (isPushProvider) {
+        requestBody.device_token = deviceToken;
+        if (pushTitle) {
+          requestBody.title = pushTitle;
+        }
+      } else {
+        requestBody.recipient = recipient;
+      }
 
       if (isEmailProvider && subject) {
         requestBody.subject = subject;
@@ -97,6 +130,8 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
           setRecipient('');
           setMessage('');
           setSubject('');
+          setPushTitle('');
+          setDeviceToken('');
         }, 2000);
       }
     } catch (error) {
@@ -166,6 +201,12 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
                         {provider.usesPostbox && (
                           <Badge variant="outline" className="ml-2 text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">Postbox</Badge>
                         )}
+                        {provider.usesFcm && (
+                          <Badge variant="outline" className="ml-2 text-xs bg-orange-500/10 text-orange-500 border-orange-500/20">FCM</Badge>
+                        )}
+                        {provider.usesApns && (
+                          <Badge variant="outline" className="ml-2 text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">APNs</Badge>
+                        )}
                       </div>
                     </SelectItem>
                   ))}
@@ -176,19 +217,35 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="recipient">Получатель</Label>
-              <Input
-                id="recipient"
-                placeholder={isEmailProvider ? "email@example.com" : "+79991234567"}
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                {isEmailProvider ? "Email адрес получателя" : "Номер телефона или идентификатор получателя"}
-              </p>
-            </div>
+            {isPushProvider ? (
+              <div className="space-y-2">
+                <Label htmlFor="device-token">Device Token</Label>
+                <Input
+                  id="device-token"
+                  placeholder="Device token для push-уведомления"
+                  value={deviceToken}
+                  onChange={(e) => setDeviceToken(e.target.value)}
+                  className="font-mono text-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isFcmProvider ? "FCM токен устройства Android" : "APNs токен устройства iOS"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="recipient">Получатель</Label>
+                <Input
+                  id="recipient"
+                  placeholder={isEmailProvider ? "email@example.com" : "+79991234567"}
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isEmailProvider ? "Email адрес получателя" : "Номер телефона или идентификатор получателя"}
+                </p>
+              </div>
+            )}
 
             {isEmailProvider && (
               <div className="space-y-2">
@@ -205,24 +262,56 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
               </div>
             )}
 
+            {isPushProvider && (
+              <div className="space-y-2">
+                <Label htmlFor="push-title">Заголовок уведомления</Label>
+                <Input
+                  id="push-title"
+                  placeholder="Заголовок push-уведомления"
+                  value={pushTitle}
+                  onChange={(e) => setPushTitle(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Заголовок push-уведомления (опционально)
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="message">Сообщение</Label>
+              <Label htmlFor="message">{isPushProvider ? "Текст уведомления" : "Сообщение"}</Label>
               <Textarea
                 id="message"
-                placeholder={isEmailProvider ? "Текст email сообщения..." : "Введите текст сообщения..."}
+                placeholder={
+                  isPushProvider 
+                    ? "Текст push-уведомления..." 
+                    : isEmailProvider 
+                      ? "Текст email сообщения..." 
+                      : "Введите текст сообщения..."
+                }
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={5}
                 className="resize-none"
               />
               <p className="text-xs text-muted-foreground">
-                {isEmailProvider ? "Текст email сообщения" : "Текст сообщения для отправки"}
+                {isPushProvider 
+                  ? "Текст (body) push-уведомления" 
+                  : isEmailProvider 
+                    ? "Текст email сообщения" 
+                    : "Текст сообщения для отправки"
+                }
               </p>
             </div>
 
             <Button
               onClick={sendMessage}
-              disabled={!selectedProvider || !recipient || !message || isSending}
+              disabled={
+                !selectedProvider || 
+                !message || 
+                (isPushProvider && !deviceToken) ||
+                (!isPushProvider && !recipient) ||
+                isSending
+              }
               className="w-full"
               size="lg"
             >
