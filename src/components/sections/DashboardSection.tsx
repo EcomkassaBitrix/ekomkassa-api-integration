@@ -195,9 +195,9 @@ const DashboardSection = ({
           <Tabs defaultValue="auth" className="w-full">
             <TabsList className="mb-4">
               <TabsTrigger value="auth">Аутентификация</TabsTrigger>
-              <TabsTrigger value="send">Отправка</TabsTrigger>
+              <TabsTrigger value="send">Мессенджеры</TabsTrigger>
               <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="push">Push (FCM)</TabsTrigger>
+              <TabsTrigger value="push">Push</TabsTrigger>
               <TabsTrigger value="response">Ответы</TabsTrigger>
             </TabsList>
 
