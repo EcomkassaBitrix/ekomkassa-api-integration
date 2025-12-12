@@ -66,7 +66,7 @@ const AddProviderDialog = ({
 }: AddProviderDialogProps) => {
   return (
     <Dialog open={addProviderDialogOpen} onOpenChange={setAddProviderDialogOpen}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
