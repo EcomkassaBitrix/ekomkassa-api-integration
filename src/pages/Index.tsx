@@ -177,6 +177,14 @@ const Index = () => {
                   setNewProviderFcmPrivateKey={providers.setNewProviderFcmPrivateKey}
                   newProviderFcmClientEmail={providers.newProviderFcmClientEmail}
                   setNewProviderFcmClientEmail={providers.setNewProviderFcmClientEmail}
+                  newProviderApnsTeamId={providers.newProviderApnsTeamId}
+                  setNewProviderApnsTeamId={providers.setNewProviderApnsTeamId}
+                  newProviderApnsKeyId={providers.newProviderApnsKeyId}
+                  setNewProviderApnsKeyId={providers.setNewProviderApnsKeyId}
+                  newProviderApnsPrivateKey={providers.newProviderApnsPrivateKey}
+                  setNewProviderApnsPrivateKey={providers.setNewProviderApnsPrivateKey}
+                  newProviderApnsBundleId={providers.newProviderApnsBundleId}
+                  setNewProviderApnsBundleId={providers.setNewProviderApnsBundleId}
                   deleteDialogOpen={providers.deleteDialogOpen}
                   setDeleteDialogOpen={providers.setDeleteDialogOpen}
                   providerToDelete={providers.providerToDelete}

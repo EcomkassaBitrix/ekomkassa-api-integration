@@ -56,6 +56,14 @@ interface IntegrationsSectionProps {
   setNewProviderFcmPrivateKey: (key: string) => void;
   newProviderFcmClientEmail: string;
   setNewProviderFcmClientEmail: (email: string) => void;
+  newProviderApnsTeamId: string;
+  setNewProviderApnsTeamId: (id: string) => void;
+  newProviderApnsKeyId: string;
+  setNewProviderApnsKeyId: (id: string) => void;
+  newProviderApnsPrivateKey: string;
+  setNewProviderApnsPrivateKey: (key: string) => void;
+  newProviderApnsBundleId: string;
+  setNewProviderApnsBundleId: (id: string) => void;
   deleteDialogOpen: boolean;
   setDeleteDialogOpen: (open: boolean) => void;
   providerToDelete: any;
@@ -118,6 +126,14 @@ const IntegrationsSection = ({
   setNewProviderFcmPrivateKey,
   newProviderFcmClientEmail,
   setNewProviderFcmClientEmail,
+  newProviderApnsTeamId,
+  setNewProviderApnsTeamId,
+  newProviderApnsKeyId,
+  setNewProviderApnsKeyId,
+  newProviderApnsPrivateKey,
+  setNewProviderApnsPrivateKey,
+  newProviderApnsBundleId,
+  setNewProviderApnsBundleId,
   deleteDialogOpen,
   setDeleteDialogOpen,
   providerToDelete,
@@ -209,6 +225,14 @@ const IntegrationsSection = ({
         setNewProviderFcmPrivateKey={setNewProviderFcmPrivateKey}
         newProviderFcmClientEmail={newProviderFcmClientEmail}
         setNewProviderFcmClientEmail={setNewProviderFcmClientEmail}
+        newProviderApnsTeamId={newProviderApnsTeamId}
+        setNewProviderApnsTeamId={setNewProviderApnsTeamId}
+        newProviderApnsKeyId={newProviderApnsKeyId}
+        setNewProviderApnsKeyId={setNewProviderApnsKeyId}
+        newProviderApnsPrivateKey={newProviderApnsPrivateKey}
+        setNewProviderApnsPrivateKey={setNewProviderApnsPrivateKey}
+        newProviderApnsBundleId={newProviderApnsBundleId}
+        setNewProviderApnsBundleId={setNewProviderApnsBundleId}
         isSaving={isSaving}
         setIsSaving={setIsSaving}
         loadProviders={loadProviders}
