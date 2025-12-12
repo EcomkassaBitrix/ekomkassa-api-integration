@@ -16,11 +16,49 @@ const DashboardSection = ({
   providers,
   logs
 }: DashboardSectionProps) => {
+  const totalRequests = logs.length;
+  const activeProviders = providers.filter(p => p.status === 'working' || p.status === 'configured').length;
+  const totalProviders = providers.length;
+  
+  const deliveredCount = logs.filter(l => l.status === 'delivered').length;
+  const deliveryRate = totalRequests > 0 ? ((deliveredCount / totalRequests) * 100).toFixed(1) : '0.0';
+  
+  const responseTimes = logs
+    .filter(l => l.response_time && typeof l.response_time === 'number')
+    .map(l => l.response_time);
+  const avgResponseTime = responseTimes.length > 0 
+    ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
+    : 0;
+  
   const stats = [
-    { label: 'Всего запросов', value: '4,929', change: '+12.5%', icon: 'TrendingUp', color: 'text-primary' },
-    { label: 'Активных провайдеров', value: '4/5', change: '80%', icon: 'Activity', color: 'text-secondary' },
-    { label: 'Успешных доставок', value: '98.2%', change: '+2.1%', icon: 'CheckCircle', color: 'text-green-400' },
-    { label: 'Средняя скорость', value: '245ms', change: '-15ms', icon: 'Zap', color: 'text-yellow-400' },
+    { 
+      label: 'Всего запросов', 
+      value: totalRequests.toLocaleString('ru-RU'), 
+      change: totalRequests > 0 ? `${totalRequests} сообщений` : 'Нет данных', 
+      icon: 'TrendingUp', 
+      color: 'text-primary' 
+    },
+    { 
+      label: 'Активных провайдеров', 
+      value: `${activeProviders}/${totalProviders}`, 
+      change: totalProviders > 0 ? `${Math.round((activeProviders/totalProviders)*100)}%` : '0%', 
+      icon: 'Activity', 
+      color: 'text-secondary' 
+    },
+    { 
+      label: 'Успешных доставок', 
+      value: `${deliveryRate}%`, 
+      change: `${deliveredCount} из ${totalRequests}`, 
+      icon: 'CheckCircle', 
+      color: 'text-green-400' 
+    },
+    { 
+      label: 'Средняя скорость', 
+      value: avgResponseTime > 0 ? `${avgResponseTime}ms` : 'N/A', 
+      change: responseTimes.length > 0 ? `${responseTimes.length} измерений` : 'Нет данных', 
+      icon: 'Zap', 
+      color: 'text-yellow-400' 
+    },
   ];
 
   if (activeSection === 'dashboard') {
@@ -50,22 +88,33 @@ const DashboardSection = ({
               Активность провайдеров
             </h3>
             <div className="space-y-4">
-              {providers.map((provider) => (
-                <div key={provider.id} className="flex items-center justify-between p-4 bg-background/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                      <Icon name={provider.icon} size={20} className="text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{provider.name}</p>
-                      <p className="text-sm text-muted-foreground">{provider.requests.toLocaleString()} запросов</p>
-                    </div>
-                  </div>
-                  <Badge variant={provider.status === 'active' ? 'default' : 'secondary'}>
-                    {provider.status === 'active' ? 'Активен' : 'Не активен'}
-                  </Badge>
+              {providers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">Нет провайдеров</p>
                 </div>
-              ))}
+              ) : (
+                providers.map((provider) => {
+                  const providerLogs = logs.filter(l => l.provider === provider.code);
+                  const isActive = provider.status === 'working' || provider.status === 'configured';
+                  
+                  return (
+                    <div key={provider.id} className="flex items-center justify-between p-4 bg-background/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Icon name={provider.icon} size={20} className="text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{provider.name}</p>
+                          <p className="text-sm text-muted-foreground">{providerLogs.length} запросов</p>
+                        </div>
+                      </div>
+                      <Badge variant={isActive ? 'default' : 'secondary'}>
+                        {isActive ? 'Активен' : 'Не настроен'}
+                      </Badge>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </Card>
 
