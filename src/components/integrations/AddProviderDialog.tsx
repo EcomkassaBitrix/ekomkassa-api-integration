@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import WappiConfigFields from './provider-configs/WappiConfigFields';
 import PostboxConfigFields from './provider-configs/PostboxConfigFields';
 import FcmConfigFields from './provider-configs/FcmConfigFields';
+import ApnsConfigFields from './provider-configs/ApnsConfigFields';
 
 interface AddProviderDialogProps {
   addProviderDialogOpen: boolean;
@@ -33,6 +34,14 @@ interface AddProviderDialogProps {
   setNewProviderFcmPrivateKey: (key: string) => void;
   newProviderFcmClientEmail: string;
   setNewProviderFcmClientEmail: (email: string) => void;
+  newProviderApnsTeamId: string;
+  setNewProviderApnsTeamId: (id: string) => void;
+  newProviderApnsKeyId: string;
+  setNewProviderApnsKeyId: (id: string) => void;
+  newProviderApnsPrivateKey: string;
+  setNewProviderApnsPrivateKey: (key: string) => void;
+  newProviderApnsBundleId: string;
+  setNewProviderApnsBundleId: (id: string) => void;
   isSaving: boolean;
   setIsSaving: (saving: boolean) => void;
   loadProviders: () => void;
@@ -63,6 +72,14 @@ const AddProviderDialog = ({
   setNewProviderFcmPrivateKey,
   newProviderFcmClientEmail,
   setNewProviderFcmClientEmail,
+  newProviderApnsTeamId,
+  setNewProviderApnsTeamId,
+  newProviderApnsKeyId,
+  setNewProviderApnsKeyId,
+  newProviderApnsPrivateKey,
+  setNewProviderApnsPrivateKey,
+  newProviderApnsBundleId,
+  setNewProviderApnsBundleId,
   isSaving,
   setIsSaving,
   loadProviders
@@ -93,6 +110,13 @@ const AddProviderDialog = ({
         requestBody.fcm_client_email = newProviderFcmClientEmail;
       }
 
+      if (newProviderType === 'apns') {
+        requestBody.apns_team_id = newProviderApnsTeamId;
+        requestBody.apns_key_id = newProviderApnsKeyId;
+        requestBody.apns_private_key = newProviderApnsPrivateKey;
+        requestBody.apns_bundle_id = newProviderApnsBundleId;
+      }
+
       const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
         method: 'PUT',
         headers: {
@@ -117,6 +141,10 @@ const AddProviderDialog = ({
         setNewProviderFcmProjectId('');
         setNewProviderFcmPrivateKey('');
         setNewProviderFcmClientEmail('');
+        setNewProviderApnsTeamId('');
+        setNewProviderApnsKeyId('');
+        setNewProviderApnsPrivateKey('');
+        setNewProviderApnsBundleId('');
         await loadProviders();
       } else {
         console.error('Failed to create provider:', data.error);
@@ -141,6 +169,10 @@ const AddProviderDialog = ({
 
     if (newProviderType === 'fcm') {
       return newProviderFcmProjectId && newProviderFcmPrivateKey && newProviderFcmClientEmail;
+    }
+
+    if (newProviderType === 'apns') {
+      return newProviderApnsTeamId && newProviderApnsKeyId && newProviderApnsPrivateKey && newProviderApnsBundleId;
     }
 
     return true;
@@ -226,6 +258,12 @@ const AddProviderDialog = ({
                     <span>Firebase Cloud Messaging (Android Push)</span>
                   </div>
                 </SelectItem>
+                <SelectItem value="apns">
+                  <div className="flex items-center gap-2">
+                    <Icon name="Apple" size={16} />
+                    <span>Apple Push Notification (iOS Push)</span>
+                  </div>
+                </SelectItem>
                 <SelectItem value="sms">SMS Gateway</SelectItem>
                 <SelectItem value="email">Email SMTP</SelectItem>
                 <SelectItem value="custom">Другой / Custom</SelectItem>
@@ -265,6 +303,20 @@ const AddProviderDialog = ({
               fcmPrivateKey={newProviderFcmPrivateKey}
               setFcmPrivateKey={setNewProviderFcmPrivateKey}
               uploadInputId="fcm-upload"
+            />
+          )}
+
+          {newProviderType === 'apns' && (
+            <ApnsConfigFields
+              apnsTeamId={newProviderApnsTeamId}
+              setApnsTeamId={setNewProviderApnsTeamId}
+              apnsKeyId={newProviderApnsKeyId}
+              setApnsKeyId={setNewProviderApnsKeyId}
+              apnsPrivateKey={newProviderApnsPrivateKey}
+              setApnsPrivateKey={setNewProviderApnsPrivateKey}
+              apnsBundleId={newProviderApnsBundleId}
+              setApnsBundleId={setNewProviderApnsBundleId}
+              uploadInputId="apns-upload"
             />
           )}
         </div>

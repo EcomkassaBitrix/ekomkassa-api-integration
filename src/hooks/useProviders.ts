@@ -3,6 +3,7 @@ import { useState } from 'react';
 const getProviderIcon = (providerType: string, providerCode: string) => {
   if (providerType === 'yandex_postbox') return 'Mail';
   if (providerType === 'fcm') return 'Bell';
+  if (providerType === 'apns') return 'Apple';
   if (providerCode.includes('whatsapp')) return 'Phone';
   if (providerCode.includes('telegram')) return 'Send';
   if (providerCode.includes('sms')) return 'MessageSquare';
@@ -24,6 +25,10 @@ export const useProviders = () => {
   const [fcmProjectId, setFcmProjectId] = useState('');
   const [fcmPrivateKey, setFcmPrivateKey] = useState('');
   const [fcmClientEmail, setFcmClientEmail] = useState('');
+  const [apnsTeamId, setApnsTeamId] = useState('');
+  const [apnsKeyId, setApnsKeyId] = useState('');
+  const [apnsPrivateKey, setApnsPrivateKey] = useState('');
+  const [apnsBundleId, setApnsBundleId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
   const [addProviderDialogOpen, setAddProviderDialogOpen] = useState(false);
@@ -38,6 +43,10 @@ export const useProviders = () => {
   const [newProviderFcmProjectId, setNewProviderFcmProjectId] = useState('');
   const [newProviderFcmPrivateKey, setNewProviderFcmPrivateKey] = useState('');
   const [newProviderFcmClientEmail, setNewProviderFcmClientEmail] = useState('');
+  const [newProviderApnsTeamId, setNewProviderApnsTeamId] = useState('');
+  const [newProviderApnsKeyId, setNewProviderApnsKeyId] = useState('');
+  const [newProviderApnsPrivateKey, setNewProviderApnsPrivateKey] = useState('');
+  const [newProviderApnsBundleId, setNewProviderApnsBundleId] = useState('');
   
   const [providers, setProviders] = useState<any[]>([]);
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
@@ -77,6 +86,7 @@ export const useProviders = () => {
           const usesWappi = ['whatsapp_business', 'telegram_bot', 'max', 'wappi'].includes(p.provider_type);
           const usesPostbox = p.provider_type === 'yandex_postbox';
           const usesFcm = p.provider_type === 'fcm';
+          const usesApns = p.provider_type === 'apns';
           
           return {
             id: index + 1,
@@ -88,6 +98,7 @@ export const useProviders = () => {
             usesWappi: usesWappi,
             usesPostbox: usesPostbox,
             usesFcm: usesFcm,
+            usesApns: usesApns,
             lastAttemptAt: p.last_attempt_at
           };
         });
@@ -138,6 +149,10 @@ export const useProviders = () => {
     setFcmProjectId('');
     setFcmPrivateKey('');
     setFcmClientEmail('');
+    setApnsTeamId('');
+    setApnsKeyId('');
+    setApnsPrivateKey('');
+    setApnsBundleId('');
     setConfigDialogOpen(true);
   };
 
@@ -165,6 +180,13 @@ export const useProviders = () => {
         requestBody.fcm_client_email = fcmClientEmail;
       }
 
+      if (selectedProvider.usesApns) {
+        requestBody.apns_team_id = apnsTeamId;
+        requestBody.apns_key_id = apnsKeyId;
+        requestBody.apns_private_key = apnsPrivateKey;
+        requestBody.apns_bundle_id = apnsBundleId;
+      }
+
       const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
         method: 'POST',
         headers: {
@@ -186,6 +208,10 @@ export const useProviders = () => {
         setFcmProjectId('');
         setFcmPrivateKey('');
         setFcmClientEmail('');
+        setApnsTeamId('');
+        setApnsKeyId('');
+        setApnsPrivateKey('');
+        setApnsBundleId('');
         await loadProviders();
       } else {
         console.error('Failed to save config:', data.error);
@@ -219,6 +245,14 @@ export const useProviders = () => {
     setFcmPrivateKey,
     fcmClientEmail,
     setFcmClientEmail,
+    apnsTeamId,
+    setApnsTeamId,
+    apnsKeyId,
+    setApnsKeyId,
+    apnsPrivateKey,
+    setApnsPrivateKey,
+    apnsBundleId,
+    setApnsBundleId,
     isSaving,
     setIsSaving,
     addProviderDialogOpen,
@@ -245,6 +279,14 @@ export const useProviders = () => {
     setNewProviderFcmPrivateKey,
     newProviderFcmClientEmail,
     setNewProviderFcmClientEmail,
+    newProviderApnsTeamId,
+    setNewProviderApnsTeamId,
+    newProviderApnsKeyId,
+    setNewProviderApnsKeyId,
+    newProviderApnsPrivateKey,
+    setNewProviderApnsPrivateKey,
+    newProviderApnsBundleId,
+    setNewProviderApnsBundleId,
     providers,
     isLoadingProviders,
     deleteDialogOpen,

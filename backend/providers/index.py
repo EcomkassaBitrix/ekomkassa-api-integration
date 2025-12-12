@@ -197,6 +197,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             fcm_project_id = body_data.get('fcm_project_id')
             fcm_private_key = body_data.get('fcm_private_key')
             fcm_client_email = body_data.get('fcm_client_email')
+            apns_team_id = body_data.get('apns_team_id')
+            apns_key_id = body_data.get('apns_key_id')
+            apns_private_key = body_data.get('apns_private_key')
+            apns_bundle_id = body_data.get('apns_bundle_id')
             
             if not provider_code:
                 conn.close()
@@ -224,6 +228,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 config['fcm_private_key'] = fcm_private_key
             if fcm_client_email:
                 config['fcm_client_email'] = fcm_client_email
+            if apns_team_id:
+                config['apns_team_id'] = apns_team_id
+            if apns_key_id:
+                config['apns_key_id'] = apns_key_id
+            if apns_private_key:
+                config['apns_private_key'] = apns_private_key
+            if apns_bundle_id:
+                config['apns_bundle_id'] = apns_bundle_id
             
             cur = conn.cursor()
             

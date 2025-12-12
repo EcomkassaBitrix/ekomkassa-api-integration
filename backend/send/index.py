@@ -317,6 +317,195 @@ def send_via_postbox(recipient: str, message: str, subject: str, provider: str, 
         print(f"[POSTBOX ERROR] Traceback: {traceback.format_exc()}")
         return 500, json.dumps({"error": str(e), "type": type(e).__name__})
 
+def get_apns_credentials(provider: str, conn) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+    """Получает APNs credentials из конфига"""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT config FROM providers WHERE provider_code = %s",
+        (provider,)
+    )
+    result = cur.fetchone()
+    cur.close()
+    
+    if not result or not result['config']:
+        return None, None, None, None
+    
+    config = result['config']
+    return (config.get('apns_team_id'), config.get('apns_key_id'), 
+            config.get('apns_private_key'), config.get('apns_bundle_id'))
+
+def send_via_apns(recipient: str, message: str, provider: str, conn, 
+                  title: Optional[str] = None, data: Optional[Dict] = None) -> Tuple[int, str]:
+    """Отправляет push-уведомление через Apple Push Notification service (APNs)"""
+    try:
+        import jwt
+        from datetime import datetime, timedelta
+        
+        team_id, key_id, private_key, bundle_id = get_apns_credentials(provider, conn)
+        
+        if not team_id or not key_id or not private_key or not bundle_id:
+            return 500, json.dumps({"error": "APNs credentials not configured"})
+        
+        print(f"[APNS] Sending push notification")
+        print(f"[APNS] Team ID: {team_id}")
+        print(f"[APNS] Key ID: {key_id}")
+        print(f"[APNS] Bundle ID: {bundle_id}")
+        print(f"[APNS] Device Token: {recipient[:20]}...")
+        
+        token_claims = {
+            'iss': team_id,
+            'iat': datetime.utcnow()
+        }
+        
+        token_headers = {
+            'alg': 'ES256',
+            'kid': key_id
+        }
+        
+        auth_token = jwt.encode(
+            token_claims,
+            private_key,
+            algorithm='ES256',
+            headers=token_headers
+        )
+        
+        apns_url = f"https://api.push.apple.com/3/device/{recipient}"
+        
+        payload = {
+            "aps": {
+                "alert": {
+                    "body": message
+                },
+                "sound": "default"
+            }
+        }
+        
+        if title:
+            payload["aps"]["alert"]["title"] = title
+        
+        if data:
+            payload.update(data)
+        
+        print(f"[APNS] URL: {apns_url}")
+        print(f"[APNS] Payload: {json.dumps(payload)}")
+        
+        response = requests.post(
+            apns_url,
+            headers={
+                'authorization': f'bearer {auth_token}',
+                'apns-topic': bundle_id,
+                'apns-push-type': 'alert',
+                'apns-priority': '10'
+            },
+            json=payload,
+            timeout=10
+        )
+        
+        print(f"[APNS] Response status: {response.status_code}")
+        print(f"[APNS] Response body: {response.text}")
+        
+        if response.status_code == 200:
+            return 200, json.dumps({"success": True, "apns_id": response.headers.get('apns-id')})
+        else:
+            return response.status_code, response.text
+        
+    except ImportError:
+        return 500, json.dumps({"error": "PyJWT library not installed"})
+    except Exception as e:
+        print(f"[APNS ERROR] {str(e)}")
+        return 500, json.dumps({"error": str(e)})
+
+def get_fcm_credentials(provider: str, conn) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Получает FCM credentials из конфига"""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT config FROM providers WHERE provider_code = %s",
+        (provider,)
+    )
+    result = cur.fetchone()
+    cur.close()
+    
+    if not result or not result['config']:
+        return None, None, None
+    
+    config = result['config']
+    return (config.get('fcm_project_id'), config.get('fcm_private_key'), 
+            config.get('fcm_client_email'))
+
+def send_via_fcm(recipient: str, message: str, provider: str, conn,
+                 title: Optional[str] = None, data: Optional[Dict] = None) -> Tuple[int, str]:
+    """Отправляет push-уведомление через Firebase Cloud Messaging (FCM)"""
+    try:
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request
+        
+        project_id, private_key, client_email = get_fcm_credentials(provider, conn)
+        
+        if not project_id or not private_key or not client_email:
+            return 500, json.dumps({"error": "FCM credentials not configured"})
+        
+        print(f"[FCM] Sending push notification")
+        print(f"[FCM] Project ID: {project_id}")
+        print(f"[FCM] Device Token: {recipient[:20]}...")
+        
+        credentials_dict = {
+            "type": "service_account",
+            "project_id": project_id,
+            "private_key": private_key,
+            "client_email": client_email,
+            "token_uri": "https://oauth2.googleapis.com/token"
+        }
+        
+        credentials = service_account.Credentials.from_service_account_info(
+            credentials_dict,
+            scopes=['https://www.googleapis.com/auth/firebase.messaging']
+        )
+        credentials.refresh(Request())
+        
+        fcm_url = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
+        
+        payload = {
+            "message": {
+                "token": recipient,
+                "notification": {
+                    "body": message
+                }
+            }
+        }
+        
+        if title:
+            payload["message"]["notification"]["title"] = title
+        
+        if data:
+            payload["message"]["data"] = {k: str(v) for k, v in data.items()}
+        
+        print(f"[FCM] URL: {fcm_url}")
+        print(f"[FCM] Payload: {json.dumps(payload)}")
+        
+        response = requests.post(
+            fcm_url,
+            headers={
+                'Authorization': f'Bearer {credentials.token}',
+                'Content-Type': 'application/json'
+            },
+            json=payload,
+            timeout=10
+        )
+        
+        print(f"[FCM] Response status: {response.status_code}")
+        print(f"[FCM] Response body: {response.text}")
+        
+        if response.status_code == 200:
+            return 200, response.text
+        else:
+            return response.status_code, response.text
+        
+    except ImportError:
+        return 500, json.dumps({"error": "Google libraries not installed"})
+    except Exception as e:
+        print(f"[FCM ERROR] {str(e)}")
+        return 500, json.dumps({"error": str(e)})
+
 def simulate_provider_send(provider: str, recipient: str, message: str) -> Tuple[int, str]:
     """Симулирует отправку через провайдера (заглушка для не интегрированных провайдеров)"""
     time.sleep(0.1)
@@ -332,7 +521,8 @@ def simulate_provider_send(provider: str, recipient: str, message: str) -> Tuple
 def attempt_delivery(message_id: str, provider: str, recipient: str, 
                     message_text: str, attempt_number: int, conn,
                     template_name: Optional[str] = None, template_data: Optional[Dict] = None,
-                    subject: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+                    subject: Optional[str] = None, title: Optional[str] = None,
+                    data: Optional[Dict] = None) -> Tuple[bool, Optional[str]]:
     """Пытается доставить сообщение"""
     start_time = time.time()
     
@@ -352,6 +542,12 @@ def attempt_delivery(message_id: str, provider: str, recipient: str,
                 recipient, message_text, email_subject, provider, conn,
                 template_name=template_name, template_data=template_data
             )
+        elif provider_type == 'fcm':
+            status_code, response_body = send_via_fcm(recipient, message_text, provider, conn, 
+                                                      title=title, data=data)
+        elif provider_type == 'apns':
+            status_code, response_body = send_via_apns(recipient, message_text, provider, conn,
+                                                       title=title, data=data)
         else:
             status_code, response_body = simulate_provider_send(provider, recipient, message_text)
         
@@ -453,6 +649,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         template_name = body_data.get('template_name')
         template_data = body_data.get('template_data')
         subject = body_data.get('subject')
+        title = body_data.get('title')
+        data = body_data.get('data')
         
         if not all([provider, recipient, message_text]):
             conn.close()
@@ -509,7 +707,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             
             success, error = attempt_delivery(
                 message_id, provider, recipient, message_text, attempt, conn,
-                template_name=template_name, template_data=template_data, subject=subject
+                template_name=template_name, template_data=template_data, subject=subject,
+                title=title, data=data
             )
             
             if success:

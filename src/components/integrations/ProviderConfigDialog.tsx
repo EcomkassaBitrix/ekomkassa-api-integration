@@ -29,6 +29,14 @@ interface ProviderConfigDialogProps {
   setFcmPrivateKey: (key: string) => void;
   fcmClientEmail: string;
   setFcmClientEmail: (email: string) => void;
+  apnsTeamId: string;
+  setApnsTeamId: (id: string) => void;
+  apnsKeyId: string;
+  setApnsKeyId: (id: string) => void;
+  apnsPrivateKey: string;
+  setApnsPrivateKey: (key: string) => void;
+  apnsBundleId: string;
+  setApnsBundleId: (id: string) => void;
   isSaving: boolean;
   saveProviderConfig: () => void;
 }
@@ -56,6 +64,14 @@ const ProviderConfigDialog = ({
   setFcmPrivateKey,
   fcmClientEmail,
   setFcmClientEmail,
+  apnsTeamId,
+  setApnsTeamId,
+  apnsKeyId,
+  setApnsKeyId,
+  apnsPrivateKey,
+  setApnsPrivateKey,
+  apnsBundleId,
+  setApnsBundleId,
   isSaving,
   saveProviderConfig
 }: ProviderConfigDialogProps) => {
@@ -74,6 +90,22 @@ const ProviderConfigDialog = ({
         if (json.client_email) setFcmClientEmail(json.client_email);
       } catch (error) {
         console.error('Ошибка парсинга JSON:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleApnsKeyUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        setApnsPrivateKey(content);
+      } catch (error) {
+        console.error('Ошибка чтения файла:', error);
       }
     };
     reader.readAsText(file);
@@ -395,6 +427,130 @@ const ProviderConfigDialog = ({
               </div>
             </div>
           </div>
+        ) : selectedProvider?.usesApns ? (
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-provider-code">Код провайдера (provider_code)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-provider-code"
+                  value={editProviderCode}
+                  className="font-mono text-sm flex-1"
+                  disabled
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyProviderCode}
+                  className="px-3"
+                >
+                  <Icon name={copied ? "Check" : "Copy"} size={16} className={copied ? "text-green-500" : ""} />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Используйте этот код в поле "provider" при отправке push-уведомлений через API
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="apns-upload-edit">Загрузить .p8 ключ (опционально)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="apns-upload-edit"
+                  type="file"
+                  accept=".p8"
+                  onChange={handleApnsKeyUpload}
+                  className="cursor-pointer"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const input = document.getElementById('apns-upload-edit') as HTMLInputElement;
+                    if (input) input.value = '';
+                    setApnsPrivateKey('');
+                  }}
+                >
+                  <Icon name="X" size={16} />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Загрузите .p8 файл из Apple Developer для автозаполнения
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="apns-team-id">Team ID</Label>
+              <Input
+                id="apns-team-id"
+                placeholder="ABC1234DEF"
+                value={apnsTeamId}
+                onChange={(e) => setApnsTeamId(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                10-символьный Team ID из Apple Developer Account
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="apns-key-id">Key ID</Label>
+              <Input
+                id="apns-key-id"
+                placeholder="AB12CD34EF"
+                value={apnsKeyId}
+                onChange={(e) => setApnsKeyId(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                10-символьный Key ID из APNs ключа
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="apns-bundle-id">Bundle ID</Label>
+              <Input
+                id="apns-bundle-id"
+                placeholder="com.example.app"
+                value={apnsBundleId}
+                onChange={(e) => setApnsBundleId(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Bundle ID вашего iOS приложения
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="apns-private-key">Private Key (.p8)</Label>
+              <textarea
+                id="apns-private-key"
+                placeholder="-----BEGIN PRIVATE KEY-----&#10;MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEH...&#10;-----END PRIVATE KEY-----"
+                value={apnsPrivateKey}
+                onChange={(e) => setApnsPrivateKey(e.target.value)}
+                className="w-full min-h-[120px] px-3 py-2 text-sm font-mono bg-background border border-input rounded-md resize-y"
+              />
+              <p className="text-xs text-muted-foreground">
+                Приватный ключ из .p8 файла
+              </p>
+            </div>
+
+            <div className="p-4 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-start gap-3">
+                <Icon name="Info" size={20} className="text-primary mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium mb-1">Как получить данные:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                    <li>Откройте Apple Developer Account</li>
+                    <li>Перейдите в Certificates, Identifiers & Profiles</li>
+                    <li>Создайте APNs Auth Key (.p8)</li>
+                    <li>Скачайте ключ и скопируйте Team ID, Key ID</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
@@ -411,13 +567,14 @@ const ProviderConfigDialog = ({
           >
             Отмена
           </Button>
-          {(selectedProvider?.usesWappi || selectedProvider?.usesPostbox || selectedProvider?.usesFcm) && (
+          {(selectedProvider?.usesWappi || selectedProvider?.usesPostbox || selectedProvider?.usesFcm || selectedProvider?.usesApns) && (
             <Button 
               onClick={saveProviderConfig}
               disabled={
                 (selectedProvider?.usesWappi && (!wappiToken || !wappiProfileId)) ||
                 (selectedProvider?.usesPostbox && (!postboxAccessKey || !postboxSecretKey || !postboxFromEmail)) ||
                 (selectedProvider?.usesFcm && (!fcmProjectId || !fcmPrivateKey || !fcmClientEmail)) ||
+                (selectedProvider?.usesApns && (!apnsTeamId || !apnsKeyId || !apnsPrivateKey || !apnsBundleId)) ||
                 isSaving
               }
             >

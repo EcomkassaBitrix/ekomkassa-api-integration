@@ -278,7 +278,7 @@ X-Api-Key: ek_live_your_api_key_here`}
 
             <TabsContent value="push" className="space-y-4">
               <div className="bg-background/50 p-4 rounded-lg border border-border">
-                <h4 className="font-semibold mb-2">Отправка Push-уведомлений (Android)</h4>
+                <h4 className="font-semibold mb-2">Отправка Push-уведомлений (Android FCM)</h4>
                 <p className="text-sm text-muted-foreground mb-3">POST https://functions.poehali.dev/ace36e55-b169-41f2-9d2b-546f92221bb7</p>
                 <div className="mb-3">
                   <p className="text-sm font-medium mb-2">Headers:</p>
@@ -307,6 +307,35 @@ X-Api-Key: ek_live_your_api_key_here`}
               </div>
 
               <div className="bg-background/50 p-4 rounded-lg border border-border">
+                <h4 className="font-semibold mb-2">Отправка Push-уведомлений (iOS APNs)</h4>
+                <p className="text-sm text-muted-foreground mb-3">POST https://functions.poehali.dev/ace36e55-b169-41f2-9d2b-546f92221bb7</p>
+                <div className="mb-3">
+                  <p className="text-sm font-medium mb-2">Headers:</p>
+                  <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`Content-Type: application/json
+X-Api-Key: ek_live_your_api_key_here`}
+                  </code>
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-2">Body:</p>
+                  <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{
+  "provider": "ek_push_ios",
+  "recipient": "device_apns_token_here",
+  "message": "Ваш заказ доставлен!",
+  "title": "Новое уведомление"
+}`}
+                  </code>
+                </div>
+                <p className="text-sm text-muted-foreground mt-3">
+                  provider: код вашего APNs провайдера (например: ek_push_ios)<br/>
+                  recipient: APNs Device Token пользователя (hex string)<br/>
+                  message: текст уведомления (обязательно)<br/>
+                  title: заголовок уведомления (опционально)
+                </p>
+              </div>
+
+              <div className="bg-background/50 p-4 rounded-lg border border-border">
                 <h4 className="font-semibold mb-2">Пример с дополнительными данными</h4>
                 <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
 {`{
@@ -321,7 +350,8 @@ X-Api-Key: ek_live_your_api_key_here`}
 }`}
                 </code>
                 <p className="text-sm text-muted-foreground mt-3">
-                  data: дополнительные данные для обработки в приложении (опционально)
+                  data: дополнительные данные для обработки в приложении (опционально)<br/>
+                  Работает для Android (FCM) и iOS (APNs)
                 </p>
               </div>
             </TabsContent>
