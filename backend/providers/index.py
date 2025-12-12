@@ -194,6 +194,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             postbox_access_key = body_data.get('postbox_access_key')
             postbox_secret_key = body_data.get('postbox_secret_key')
             postbox_from_email = body_data.get('postbox_from_email')
+            fcm_project_id = body_data.get('fcm_project_id')
+            fcm_private_key = body_data.get('fcm_private_key')
+            fcm_client_email = body_data.get('fcm_client_email')
             
             if not provider_code:
                 conn.close()
@@ -215,6 +218,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 config['postbox_secret_key'] = postbox_secret_key
             if postbox_from_email:
                 config['postbox_from_email'] = postbox_from_email
+            if fcm_project_id:
+                config['fcm_project_id'] = fcm_project_id
+            if fcm_private_key:
+                config['fcm_private_key'] = fcm_private_key
+            if fcm_client_email:
+                config['fcm_client_email'] = fcm_client_email
             
             cur = conn.cursor()
             
