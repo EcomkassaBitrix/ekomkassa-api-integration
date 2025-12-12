@@ -64,6 +64,23 @@ const AddProviderDialog = ({
   setIsSaving,
   loadProviders
 }: AddProviderDialogProps) => {
+  const handleFcmConfigUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+        if (json.project_id) setNewProviderFcmProjectId(json.project_id);
+        if (json.private_key) setNewProviderFcmPrivateKey(json.private_key);
+        if (json.client_email) setNewProviderFcmClientEmail(json.client_email);
+      } catch (error) {
+        console.error('Ошибка парсинга JSON:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
   return (
     <Dialog open={addProviderDialogOpen} onOpenChange={setAddProviderDialogOpen}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -272,7 +289,7 @@ const AddProviderDialog = ({
                   <div className="text-sm">
                     <p className="font-medium mb-1">Настройки Firebase Cloud Messaging (FCM):</p>
                     <p className="text-muted-foreground mb-2">
-                      Для отправки push-уведомлений на Android необходимы данные из Service Account JSON файла
+                      Загрузите JSON-файл с конфигурацией или заполните поля вручную
                     </p>
                     <a 
                       href="https://console.firebase.google.com/" 
@@ -285,6 +302,36 @@ const AddProviderDialog = ({
                     </a>
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fcm-upload">Загрузить конфиг из файла (опционально)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="fcm-upload"
+                    type="file"
+                    accept=".json"
+                    onChange={handleFcmConfigUpload}
+                    className="cursor-pointer"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const input = document.getElementById('fcm-upload') as HTMLInputElement;
+                      if (input) input.value = '';
+                      setNewProviderFcmProjectId('');
+                      setNewProviderFcmPrivateKey('');
+                      setNewProviderFcmClientEmail('');
+                    }}
+                  >
+                    <Icon name="X" size={16} />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Загрузите JSON-файл из Firebase Console для автозаполнения
+                </p>
               </div>
 
               <div className="space-y-2">

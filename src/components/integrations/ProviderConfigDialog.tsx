@@ -61,6 +61,24 @@ const ProviderConfigDialog = ({
 }: ProviderConfigDialogProps) => {
   const [copied, setCopied] = useState(false);
 
+  const handleFcmConfigUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target?.result as string);
+        if (json.project_id) setFcmProjectId(json.project_id);
+        if (json.private_key) setFcmPrivateKey(json.private_key);
+        if (json.client_email) setFcmClientEmail(json.client_email);
+      } catch (error) {
+        console.error('Ошибка парсинга JSON:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const copyProviderCode = () => {
     navigator.clipboard.writeText(editProviderCode);
     setCopied(true);
@@ -286,6 +304,36 @@ const ProviderConfigDialog = ({
               </div>
               <p className="text-xs text-muted-foreground">
                 Используйте этот код в поле "provider" при отправке push-уведомлений через API
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fcm-upload-edit">Загрузить конфиг из файла (опционально)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="fcm-upload-edit"
+                  type="file"
+                  accept=".json"
+                  onChange={handleFcmConfigUpload}
+                  className="cursor-pointer"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const input = document.getElementById('fcm-upload-edit') as HTMLInputElement;
+                    if (input) input.value = '';
+                    setFcmProjectId('');
+                    setFcmPrivateKey('');
+                    setFcmClientEmail('');
+                  }}
+                >
+                  <Icon name="X" size={16} />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Загрузите JSON-файл из Firebase Console для автозаполнения
               </p>
             </div>
 
