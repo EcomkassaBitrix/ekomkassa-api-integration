@@ -1,0 +1,29 @@
+{
+  "tests": [
+    {
+      "name": "Get messages with valid API key",
+      "method": "GET",
+      "path": "/?limit=10",
+      "headers": {
+        "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "messages": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Reject request without API key",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "success": false,
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

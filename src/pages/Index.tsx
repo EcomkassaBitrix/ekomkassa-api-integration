@@ -92,7 +92,7 @@ const Index = () => {
   const loadLogs = async () => {
     setIsLoadingLogs(true);
     try {
-      const response = await fetch('https://functions.poehali.dev/60b2409b-4db8-4c49-b6a6-58fab1e62a2f?limit=50', {
+      const response = await fetch('https://functions.poehali.dev/3f1bb824-7d73-4f4b-aa7a-dcbb53e38309?limit=50', {
         headers: {
           'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
         }
