@@ -44,6 +44,18 @@ interface IntegrationsSectionProps {
   setNewProviderPostboxSecretKey: (key: string) => void;
   newProviderPostboxFromEmail: string;
   setNewProviderPostboxFromEmail: (email: string) => void;
+  fcmProjectId: string;
+  setFcmProjectId: (id: string) => void;
+  fcmPrivateKey: string;
+  setFcmPrivateKey: (key: string) => void;
+  fcmClientEmail: string;
+  setFcmClientEmail: (email: string) => void;
+  newProviderFcmProjectId: string;
+  setNewProviderFcmProjectId: (id: string) => void;
+  newProviderFcmPrivateKey: string;
+  setNewProviderFcmPrivateKey: (key: string) => void;
+  newProviderFcmClientEmail: string;
+  setNewProviderFcmClientEmail: (email: string) => void;
   deleteDialogOpen: boolean;
   setDeleteDialogOpen: (open: boolean) => void;
   providerToDelete: any;
@@ -94,6 +106,18 @@ const IntegrationsSection = ({
   setNewProviderPostboxSecretKey,
   newProviderPostboxFromEmail,
   setNewProviderPostboxFromEmail,
+  fcmProjectId,
+  setFcmProjectId,
+  fcmPrivateKey,
+  setFcmPrivateKey,
+  fcmClientEmail,
+  setFcmClientEmail,
+  newProviderFcmProjectId,
+  setNewProviderFcmProjectId,
+  newProviderFcmPrivateKey,
+  setNewProviderFcmPrivateKey,
+  newProviderFcmClientEmail,
+  setNewProviderFcmClientEmail,
   deleteDialogOpen,
   setDeleteDialogOpen,
   providerToDelete,
@@ -150,6 +174,12 @@ const IntegrationsSection = ({
         setPostboxSecretKey={setPostboxSecretKey}
         postboxFromEmail={postboxFromEmail}
         setPostboxFromEmail={setPostboxFromEmail}
+        fcmProjectId={fcmProjectId}
+        setFcmProjectId={setFcmProjectId}
+        fcmPrivateKey={fcmPrivateKey}
+        setFcmPrivateKey={setFcmPrivateKey}
+        fcmClientEmail={fcmClientEmail}
+        setFcmClientEmail={setFcmClientEmail}
         isSaving={isSaving}
         saveProviderConfig={saveProviderConfig}
       />
@@ -173,6 +203,12 @@ const IntegrationsSection = ({
         setNewProviderPostboxSecretKey={setNewProviderPostboxSecretKey}
         newProviderPostboxFromEmail={newProviderPostboxFromEmail}
         setNewProviderPostboxFromEmail={setNewProviderPostboxFromEmail}
+        newProviderFcmProjectId={newProviderFcmProjectId}
+        setNewProviderFcmProjectId={setNewProviderFcmProjectId}
+        newProviderFcmPrivateKey={newProviderFcmPrivateKey}
+        setNewProviderFcmPrivateKey={setNewProviderFcmPrivateKey}
+        newProviderFcmClientEmail={newProviderFcmClientEmail}
+        setNewProviderFcmClientEmail={setNewProviderFcmClientEmail}
         isSaving={isSaving}
         setIsSaving={setIsSaving}
         loadProviders={loadProviders}

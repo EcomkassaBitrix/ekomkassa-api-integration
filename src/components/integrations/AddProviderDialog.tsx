@@ -24,6 +24,12 @@ interface AddProviderDialogProps {
   setNewProviderPostboxSecretKey: (key: string) => void;
   newProviderPostboxFromEmail: string;
   setNewProviderPostboxFromEmail: (email: string) => void;
+  newProviderFcmProjectId: string;
+  setNewProviderFcmProjectId: (id: string) => void;
+  newProviderFcmPrivateKey: string;
+  setNewProviderFcmPrivateKey: (key: string) => void;
+  newProviderFcmClientEmail: string;
+  setNewProviderFcmClientEmail: (email: string) => void;
   isSaving: boolean;
   setIsSaving: (saving: boolean) => void;
   loadProviders: () => void;
@@ -48,6 +54,12 @@ const AddProviderDialog = ({
   setNewProviderPostboxSecretKey,
   newProviderPostboxFromEmail,
   setNewProviderPostboxFromEmail,
+  newProviderFcmProjectId,
+  setNewProviderFcmProjectId,
+  newProviderFcmPrivateKey,
+  setNewProviderFcmPrivateKey,
+  newProviderFcmClientEmail,
+  setNewProviderFcmClientEmail,
   isSaving,
   setIsSaving,
   loadProviders
@@ -126,9 +138,14 @@ const AddProviderDialog = ({
                     <span>Яндекс Postbox API</span>
                   </div>
                 </SelectItem>
+                <SelectItem value="fcm">
+                  <div className="flex items-center gap-2">
+                    <Icon name="Bell" size={16} />
+                    <span>Firebase Cloud Messaging (Android Push)</span>
+                  </div>
+                </SelectItem>
                 <SelectItem value="sms">SMS Gateway</SelectItem>
                 <SelectItem value="email">Email SMTP</SelectItem>
-                <SelectItem value="push">Push Notifications</SelectItem>
                 <SelectItem value="custom">Другой / Custom</SelectItem>
               </SelectContent>
             </Select>
@@ -247,7 +264,75 @@ const AddProviderDialog = ({
             </>
           )}
 
-          {newProviderType && !['whatsapp_business', 'telegram_bot', 'max', 'yandex_postbox'].includes(newProviderType) && (
+          {newProviderType === 'fcm' && (
+            <>
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <div className="flex items-start gap-3">
+                  <Icon name="Info" size={20} className="text-primary mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium mb-1">Настройки Firebase Cloud Messaging (FCM):</p>
+                    <p className="text-muted-foreground mb-2">
+                      Для отправки push-уведомлений на Android необходимы данные из Service Account JSON файла
+                    </p>
+                    <a 
+                      href="https://console.firebase.google.com/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      Открыть Firebase Console
+                      <Icon name="ExternalLink" size={12} />
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-fcm-project-id">Project ID</Label>
+                <Input
+                  id="new-fcm-project-id"
+                  placeholder="my-firebase-project"
+                  value={newProviderFcmProjectId}
+                  onChange={(e) => setNewProviderFcmProjectId(e.target.value)}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Идентификатор проекта Firebase (например: my-app-12345)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-fcm-client-email">Client Email</Label>
+                <Input
+                  id="new-fcm-client-email"
+                  type="email"
+                  placeholder="firebase-adminsdk-xxxxx@my-project.iam.gserviceaccount.com"
+                  value={newProviderFcmClientEmail}
+                  onChange={(e) => setNewProviderFcmClientEmail(e.target.value)}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Email сервисного аккаунта из JSON файла
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-fcm-private-key">Private Key</Label>
+                <textarea
+                  id="new-fcm-private-key"
+                  placeholder="-----BEGIN PRIVATE KEY-----&#10;MIIEvQIBADANBg...&#10;-----END PRIVATE KEY-----"
+                  value={newProviderFcmPrivateKey}
+                  onChange={(e) => setNewProviderFcmPrivateKey(e.target.value)}
+                  className="w-full min-h-[120px] px-3 py-2 text-sm font-mono bg-background border border-input rounded-md resize-y"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Приватный ключ из JSON файла (включая BEGIN/END теги)
+                </p>
+              </div>
+            </>
+          )}
+
+          {newProviderType && !['whatsapp_business', 'telegram_bot', 'max', 'yandex_postbox', 'fcm'].includes(newProviderType) && (
             <div className="p-4 bg-muted/50 rounded-lg border border-border">
               <div className="flex items-start gap-3">
                 <Icon name="AlertCircle" size={20} className="text-yellow-500 mt-0.5" />
@@ -275,6 +360,9 @@ const AddProviderDialog = ({
               setNewProviderPostboxAccessKey('');
               setNewProviderPostboxSecretKey('');
               setNewProviderPostboxFromEmail('');
+              setNewProviderFcmProjectId('');
+              setNewProviderFcmPrivateKey('');
+              setNewProviderFcmClientEmail('');
             }}
             disabled={isSaving}
           >
@@ -288,12 +376,17 @@ const AddProviderDialog = ({
               
               const isWappiProvider = ['whatsapp_business', 'telegram_bot', 'max'].includes(newProviderType);
               const isPostboxProvider = newProviderType === 'yandex_postbox';
+              const isFcmProvider = newProviderType === 'fcm';
               
               if (isWappiProvider && (!newProviderWappiToken || !newProviderWappiProfileId)) {
                 return;
               }
               
               if (isPostboxProvider && (!newProviderPostboxAccessKey || !newProviderPostboxSecretKey || !newProviderPostboxFromEmail)) {
+                return;
+              }
+              
+              if (isFcmProvider && (!newProviderFcmProjectId || !newProviderFcmPrivateKey || !newProviderFcmClientEmail)) {
                 return;
               }
 
@@ -310,6 +403,12 @@ const AddProviderDialog = ({
                   config.postbox_access_key = newProviderPostboxAccessKey;
                   config.postbox_secret_key = newProviderPostboxSecretKey;
                   config.postbox_from_email = newProviderPostboxFromEmail;
+                }
+                
+                if (isFcmProvider) {
+                  config.fcm_project_id = newProviderFcmProjectId;
+                  config.fcm_private_key = newProviderFcmPrivateKey;
+                  config.fcm_client_email = newProviderFcmClientEmail;
                 }
 
                 const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
@@ -338,6 +437,9 @@ const AddProviderDialog = ({
                   setNewProviderPostboxAccessKey('');
                   setNewProviderPostboxSecretKey('');
                   setNewProviderPostboxFromEmail('');
+                  setNewProviderFcmProjectId('');
+                  setNewProviderFcmPrivateKey('');
+                  setNewProviderFcmClientEmail('');
                   await loadProviders();
                 }
               } catch (error) {
@@ -352,6 +454,7 @@ const AddProviderDialog = ({
               !newProviderType || 
               (['whatsapp_business', 'telegram_bot', 'max'].includes(newProviderType) && (!newProviderWappiToken || !newProviderWappiProfileId)) ||
               (newProviderType === 'yandex_postbox' && (!newProviderPostboxAccessKey || !newProviderPostboxSecretKey || !newProviderPostboxFromEmail)) ||
+              (newProviderType === 'fcm' && (!newProviderFcmProjectId || !newProviderFcmPrivateKey || !newProviderFcmClientEmail)) ||
               isSaving
             }
           >

@@ -23,6 +23,12 @@ interface ProviderConfigDialogProps {
   setPostboxSecretKey: (key: string) => void;
   postboxFromEmail: string;
   setPostboxFromEmail: (email: string) => void;
+  fcmProjectId: string;
+  setFcmProjectId: (id: string) => void;
+  fcmPrivateKey: string;
+  setFcmPrivateKey: (key: string) => void;
+  fcmClientEmail: string;
+  setFcmClientEmail: (email: string) => void;
   isSaving: boolean;
   saveProviderConfig: () => void;
 }
@@ -44,6 +50,12 @@ const ProviderConfigDialog = ({
   setPostboxSecretKey,
   postboxFromEmail,
   setPostboxFromEmail,
+  fcmProjectId,
+  setFcmProjectId,
+  fcmPrivateKey,
+  setFcmPrivateKey,
+  fcmClientEmail,
+  setFcmClientEmail,
   isSaving,
   saveProviderConfig
 }: ProviderConfigDialogProps) => {
@@ -252,6 +264,89 @@ const ProviderConfigDialog = ({
               </div>
             </div>
           </div>
+        ) : selectedProvider?.usesFcm ? (
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-provider-code">Код провайдера (provider_code)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-provider-code"
+                  value={editProviderCode}
+                  className="font-mono text-sm flex-1"
+                  disabled
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyProviderCode}
+                  className="px-3"
+                >
+                  <Icon name={copied ? "Check" : "Copy"} size={16} className={copied ? "text-green-500" : ""} />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Используйте этот код в поле "provider" при отправке push-уведомлений через API
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fcm-project-id">Project ID</Label>
+              <Input
+                id="fcm-project-id"
+                placeholder="my-firebase-project"
+                value={fcmProjectId}
+                onChange={(e) => setFcmProjectId(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Идентификатор проекта Firebase
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fcm-client-email">Client Email</Label>
+              <Input
+                id="fcm-client-email"
+                type="email"
+                placeholder="firebase-adminsdk-xxxxx@my-project.iam.gserviceaccount.com"
+                value={fcmClientEmail}
+                onChange={(e) => setFcmClientEmail(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Email сервисного аккаунта
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fcm-private-key">Private Key</Label>
+              <textarea
+                id="fcm-private-key"
+                placeholder="-----BEGIN PRIVATE KEY-----&#10;MIIEvQIBADANBg...&#10;-----END PRIVATE KEY-----"
+                value={fcmPrivateKey}
+                onChange={(e) => setFcmPrivateKey(e.target.value)}
+                className="w-full min-h-[120px] px-3 py-2 text-sm font-mono bg-background border border-input rounded-md resize-y"
+              />
+              <p className="text-xs text-muted-foreground">
+                Приватный ключ из Service Account JSON файла
+              </p>
+            </div>
+
+            <div className="p-4 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-start gap-3">
+                <Icon name="Info" size={20} className="text-primary mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium mb-1">Как получить данные:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                    <li>Откройте Firebase Console</li>
+                    <li>Перейдите в Project Settings → Service Accounts</li>
+                    <li>Нажмите "Generate new private key"</li>
+                    <li>Скопируйте нужные поля из JSON файла</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
@@ -268,12 +363,13 @@ const ProviderConfigDialog = ({
           >
             Отмена
           </Button>
-          {(selectedProvider?.usesWappi || selectedProvider?.usesPostbox) && (
+          {(selectedProvider?.usesWappi || selectedProvider?.usesPostbox || selectedProvider?.usesFcm) && (
             <Button 
               onClick={saveProviderConfig}
               disabled={
                 (selectedProvider?.usesWappi && (!wappiToken || !wappiProfileId)) ||
                 (selectedProvider?.usesPostbox && (!postboxAccessKey || !postboxSecretKey || !postboxFromEmail)) ||
+                (selectedProvider?.usesFcm && (!fcmProjectId || !fcmPrivateKey || !fcmClientEmail)) ||
                 isSaving
               }
             >
