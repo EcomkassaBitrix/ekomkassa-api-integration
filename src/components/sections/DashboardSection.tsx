@@ -156,33 +156,6 @@ const DashboardSection = ({
     );
   }
 
-  if (activeSection === 'settings') {
-    return (
-      <div className="max-w-2xl">
-        <Card className="p-6 bg-card/50 backdrop-blur-sm border-border">
-          <h3 className="text-lg font-semibold mb-6">Общие настройки</h3>
-          <div className="space-y-6">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Название проекта</label>
-              <Input defaultValue="Ekomkassa Integration Hub" />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Webhook URL</label>
-              <Input defaultValue="https://api.ekomkassa.com/webhooks" />
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block">Timeout (мс)</label>
-              <Input type="number" defaultValue="5000" />
-            </div>
-            <div className="pt-4">
-              <Button>Сохранить изменения</Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   if (activeSection === 'docs') {
     return (
       <div className="max-w-4xl">

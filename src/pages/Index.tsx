@@ -58,7 +58,6 @@ const Index = () => {
               { id: 'keys', label: 'API Ключи', icon: 'Key' },
               { id: 'sandbox', label: 'Песочница', icon: 'Send' },
               { id: 'logs', label: 'Логи', icon: 'FileText' },
-              { id: 'settings', label: 'Настройки', icon: 'Settings' },
               { id: 'docs', label: 'Документация', icon: 'BookOpen' },
             ].map((item) => (
               <button
@@ -87,7 +86,6 @@ const Index = () => {
                   {activeSection === 'keys' && 'API Ключи'}
                   {activeSection === 'sandbox' && 'Песочница'}
                   {activeSection === 'logs' && 'Логи запросов'}
-                  {activeSection === 'settings' && 'Настройки'}
                   {activeSection === 'docs' && 'Документация API'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -96,7 +94,6 @@ const Index = () => {
                   {activeSection === 'keys' && 'Управление доступом к API'}
                   {activeSection === 'sandbox' && 'Тестирование отправки сообщений'}
                   {activeSection === 'logs' && 'История запросов и событий'}
-                  {activeSection === 'settings' && 'Конфигурация системы'}
                   {activeSection === 'docs' && 'API справка и примеры интеграции'}
                 </p>
               </div>
@@ -117,7 +114,7 @@ const Index = () => {
 
           <div className="h-[calc(100vh-80px)] overflow-y-auto">
             <div className="p-8">
-              {(activeSection === 'dashboard' || activeSection === 'settings' || activeSection === 'docs') && (
+              {(activeSection === 'dashboard' || activeSection === 'docs') && (
                 <DashboardSection 
                   activeSection={activeSection}
                   providers={providers.providers}
