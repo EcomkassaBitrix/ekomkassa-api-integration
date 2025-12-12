@@ -126,6 +126,13 @@ const AddProviderDialog = ({
         body: JSON.stringify(requestBody)
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('HTTP', response.status, ':', response.url);
+        console.error('Failed to create provider:', errorText);
+        return;
+      }
+
       const data = await response.json();
 
       if (data.success) {
