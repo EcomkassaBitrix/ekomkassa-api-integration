@@ -104,6 +104,22 @@ const ProviderCard = ({
           </div>
         </div>
       )}
+      {provider.usesFcm && (
+        <div className="mb-3 px-3 py-2 bg-orange-500/10 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Icon name="Bell" size={14} className="text-orange-500" />
+            <span className="text-xs font-medium text-orange-500">Firebase Cloud Messaging</span>
+          </div>
+        </div>
+      )}
+      {provider.usesApns && (
+        <div className="mb-3 px-3 py-2 bg-purple-500/10 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Icon name="Apple" size={14} className="text-purple-500" />
+            <span className="text-xs font-medium text-purple-500">Apple Push Notification</span>
+          </div>
+        </div>
+      )}
       {provider.lastAttemptAt && (
         <div className="mb-3">
           <p className="text-xs text-muted-foreground">
