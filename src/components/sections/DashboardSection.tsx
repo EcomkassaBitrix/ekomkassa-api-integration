@@ -75,18 +75,31 @@ const DashboardSection = ({
               Последние логи
             </h3>
             <div className="space-y-3">
-              {logs.slice(0, 5).map((log, index) => (
-                <div key={log.message_id || `log-${index}`} className="p-3 bg-background/50 rounded-lg border border-border">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-mono text-muted-foreground">{log.time}</span>
-                    <Badge variant={log.status === 200 ? 'default' : 'destructive'} className="text-xs">
-                      {log.status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm font-medium">{log.provider}</p>
-                  <p className="text-xs text-muted-foreground">{log.duration}</p>
+              {logs.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <p className="text-sm">Логов пока нет</p>
                 </div>
-              ))}
+              ) : (
+                logs.slice(0, 5).map((log, index) => (
+                  <div key={log.message_id || `log-${index}`} className="p-3 bg-background/50 rounded-lg border border-border">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {new Date(log.created_at).toLocaleString('ru-RU', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                      <Badge variant={log.status === 'delivered' ? 'default' : log.status === 'failed' ? 'destructive' : 'secondary'} className="text-xs">
+                        {log.status}
+                      </Badge>
+                    </div>
+                    <p className="text-sm font-medium">{log.provider}</p>
+                    <p className="text-xs text-muted-foreground truncate">{log.recipient}</p>
+                  </div>
+                ))
+              )}
             </div>
           </Card>
         </div>

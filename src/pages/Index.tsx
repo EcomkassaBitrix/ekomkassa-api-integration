@@ -196,6 +196,7 @@ const Index = () => {
   useEffect(() => {
     loadProviders();
     loadApiKeys();
+    loadLogs();
   }, []);
 
   const deleteProvider = async () => {
