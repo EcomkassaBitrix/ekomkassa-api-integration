@@ -42,7 +42,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'statusCode': 200,
             'headers': {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
                 'Access-Control-Allow-Headers': 'Content-Type, X-Api-Key',
                 'Access-Control-Max-Age': '86400'
             },
@@ -183,7 +183,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'isBase64Encoded': False
                 }
         
-        elif method == 'POST':
+        elif method == 'PUT':
             body_data = json.loads(event.get('body', '{}'))
             
             provider_code = body_data.get('provider_code')
@@ -237,39 +237,23 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if apns_bundle_id:
                 config['apns_bundle_id'] = apns_bundle_id
             
+            if not provider_name:
+                conn.close()
+                return {
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'Missing provider_name for new provider'}),
+                    'isBase64Encoded': False
+                }
+            
             cur = conn.cursor()
-            
             cur.execute(
-                "SELECT provider_code FROM providers WHERE provider_code = %s",
-                (provider_code,)
+                """INSERT INTO providers 
+                (provider_code, provider_name, provider_type, config, is_active, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, true, NOW(), NOW())
+                RETURNING provider_code, provider_name, is_active""",
+                (provider_code, provider_name, provider_type or 'custom', json.dumps(config))
             )
-            existing = cur.fetchone()
-            
-            if existing:
-                cur.execute(
-                    """UPDATE providers 
-                    SET config = %s, updated_at = NOW(), is_active = true
-                    WHERE provider_code = %s
-                    RETURNING provider_code, provider_name, is_active""",
-                    (json.dumps(config), provider_code)
-                )
-            else:
-                if not provider_name:
-                    conn.close()
-                    return {
-                        'statusCode': 400,
-                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                        'body': json.dumps({'error': 'Missing provider_name for new provider'}),
-                        'isBase64Encoded': False
-                    }
-                
-                cur.execute(
-                    """INSERT INTO providers 
-                    (provider_code, provider_name, provider_type, config, is_active, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, true, NOW(), NOW())
-                    RETURNING provider_code, provider_name, is_active""",
-                    (provider_code, provider_name, provider_type or 'custom', json.dumps(config))
-                )
             
             result = cur.fetchone()
             conn.commit()
@@ -292,7 +276,94 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'provider_code': result['provider_code'],
                     'provider_name': result['provider_name'],
                     'is_active': result['is_active'],
-                    'message': 'Provider configuration saved successfully'
+                    'message': 'Provider created successfully'
+                }),
+                'isBase64Encoded': False
+            }
+        
+        elif method == 'POST':
+            body_data = json.loads(event.get('body', '{}'))
+            
+            provider_code = body_data.get('provider_code')
+            wappi_token = body_data.get('wappi_token')
+            wappi_profile_id = body_data.get('wappi_profile_id')
+            postbox_access_key = body_data.get('postbox_access_key')
+            postbox_secret_key = body_data.get('postbox_secret_key')
+            postbox_from_email = body_data.get('postbox_from_email')
+            fcm_project_id = body_data.get('fcm_project_id')
+            fcm_private_key = body_data.get('fcm_private_key')
+            fcm_client_email = body_data.get('fcm_client_email')
+            apns_team_id = body_data.get('apns_team_id')
+            apns_key_id = body_data.get('apns_key_id')
+            apns_private_key = body_data.get('apns_private_key')
+            apns_bundle_id = body_data.get('apns_bundle_id')
+            
+            if not provider_code:
+                conn.close()
+                return {
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'Missing provider_code'}),
+                    'isBase64Encoded': False
+                }
+            
+            config = {}
+            if wappi_token:
+                config['wappi_token'] = wappi_token
+            if wappi_profile_id:
+                config['wappi_profile_id'] = wappi_profile_id
+            if postbox_access_key:
+                config['postbox_access_key'] = postbox_access_key
+            if postbox_secret_key:
+                config['postbox_secret_key'] = postbox_secret_key
+            if postbox_from_email:
+                config['postbox_from_email'] = postbox_from_email
+            if fcm_project_id:
+                config['fcm_project_id'] = fcm_project_id
+            if fcm_private_key:
+                config['fcm_private_key'] = fcm_private_key
+            if fcm_client_email:
+                config['fcm_client_email'] = fcm_client_email
+            if apns_team_id:
+                config['apns_team_id'] = apns_team_id
+            if apns_key_id:
+                config['apns_key_id'] = apns_key_id
+            if apns_private_key:
+                config['apns_private_key'] = apns_private_key
+            if apns_bundle_id:
+                config['apns_bundle_id'] = apns_bundle_id
+            
+            cur = conn.cursor()
+            cur.execute(
+                """UPDATE providers 
+                SET config = %s, updated_at = NOW(), is_active = true
+                WHERE provider_code = %s
+                RETURNING provider_code, provider_name, is_active""",
+                (json.dumps(config), provider_code)
+            )
+            
+            result = cur.fetchone()
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            if not result:
+                return {
+                    'statusCode': 404,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'Provider not found'}),
+                    'isBase64Encoded': False
+                }
+            
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({
+                    'success': True,
+                    'provider_code': result['provider_code'],
+                    'provider_name': result['provider_name'],
+                    'is_active': result['is_active'],
+                    'message': 'Provider configuration updated successfully'
                 }),
                 'isBase64Encoded': False
             }

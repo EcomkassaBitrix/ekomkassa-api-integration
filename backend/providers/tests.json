@@ -24,26 +24,8 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "Test update existing provider config",
-      "method": "POST",
-      "path": "/",
-      "headers": {
-        "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
-      },
-      "body": {
-        "provider_code": "whatsapp_business",
-        "wappi_token": "test_token_123",
-        "wappi_profile_id": "12345"
-      },
-      "expectedStatus": 200,
-      "expectedBody": {
-        "success": true
-      },
-      "bodyMatcher": "partial"
-    },
-    {
       "name": "Test create new provider",
-      "method": "POST",
+      "method": "PUT",
       "path": "/",
       "headers": {
         "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
@@ -54,6 +36,24 @@
         "provider_type": "wappi",
         "wappi_token": "new_token_456",
         "wappi_profile_id": "67890"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test update existing provider config",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-Api-Key": "ek_live_j8h3k2n4m5p6q7r8"
+      },
+      "body": {
+        "provider_code": "test_provider_new",
+        "wappi_token": "updated_token_999",
+        "wappi_profile_id": "99999"
       },
       "expectedStatus": 200,
       "expectedBody": {
