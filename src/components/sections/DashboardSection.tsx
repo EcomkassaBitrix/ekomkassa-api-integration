@@ -197,6 +197,7 @@ const DashboardSection = ({
               <TabsTrigger value="auth">Аутентификация</TabsTrigger>
               <TabsTrigger value="send">Отправка</TabsTrigger>
               <TabsTrigger value="email">Email</TabsTrigger>
+              <TabsTrigger value="push">Push (FCM)</TabsTrigger>
               <TabsTrigger value="response">Ответы</TabsTrigger>
             </TabsList>
 
@@ -271,6 +272,56 @@ X-Api-Key: ek_live_your_api_key_here`}
                   recipient: email адрес получателя<br/>
                   message: текст письма<br/>
                   subject: тема (опционально, по умолчанию "Уведомление")
+                </p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="push" className="space-y-4">
+              <div className="bg-background/50 p-4 rounded-lg border border-border">
+                <h4 className="font-semibold mb-2">Отправка Push-уведомлений (Android)</h4>
+                <p className="text-sm text-muted-foreground mb-3">POST https://functions.poehali.dev/ace36e55-b169-41f2-9d2b-546f92221bb7</p>
+                <div className="mb-3">
+                  <p className="text-sm font-medium mb-2">Headers:</p>
+                  <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`Content-Type: application/json
+X-Api-Key: ek_live_your_api_key_here`}
+                  </code>
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-2">Body:</p>
+                  <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{
+  "provider": "ek_push_android",
+  "recipient": "device_fcm_token_here",
+  "message": "Ваш заказ доставлен!",
+  "title": "Новое уведомление"
+}`}
+                  </code>
+                </div>
+                <p className="text-sm text-muted-foreground mt-3">
+                  provider: код вашего FCM провайдера (например: ek_push_android)<br/>
+                  recipient: FCM Device Token пользователя<br/>
+                  message: текст уведомления (обязательно)<br/>
+                  title: заголовок уведомления (опционально)
+                </p>
+              </div>
+
+              <div className="bg-background/50 p-4 rounded-lg border border-border">
+                <h4 className="font-semibold mb-2">Пример с дополнительными данными</h4>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{
+  "provider": "ek_push_android",
+  "recipient": "eXAmPlE_tOkEn_123...",
+  "message": "Заказ #12345 доставлен",
+  "title": "Статус заказа",
+  "data": {
+    "order_id": "12345",
+    "action": "order_delivered"
+  }
+}`}
+                </code>
+                <p className="text-sm text-muted-foreground mt-3">
+                  data: дополнительные данные для обработки в приложении (опционально)
                 </p>
               </div>
             </TabsContent>
