@@ -1,10 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { useState } from 'react';
+import EditWappiConfig from './provider-edit-configs/EditWappiConfig';
+import EditPostboxConfig from './provider-edit-configs/EditPostboxConfig';
+import EditFcmConfig from './provider-edit-configs/EditFcmConfig';
+import EditApnsConfig from './provider-edit-configs/EditApnsConfig';
 
 interface ProviderConfigDialogProps {
   configDialogOpen: boolean;
@@ -75,8 +76,6 @@ const ProviderConfigDialog = ({
   isSaving,
   saveProviderConfig
 }: ProviderConfigDialogProps) => {
-  const [copied, setCopied] = useState(false);
-
   const handleFcmConfigUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -111,11 +110,6 @@ const ProviderConfigDialog = ({
     reader.readAsText(file);
   };
 
-  const copyProviderCode = () => {
-    navigator.clipboard.writeText(editProviderCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
   return (
     <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
@@ -162,435 +156,86 @@ const ProviderConfigDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        {selectedProvider?.usesWappi ? (
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-provider-code">Код провайдера (provider_code)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edit-provider-code"
-                  value={editProviderCode}
-                  onChange={(e) => setEditProviderCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                  className="font-mono text-sm flex-1"
-                  disabled
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyProviderCode}
-                  className="px-3"
-                >
-                  <Icon name={copied ? "Check" : "Copy"} size={16} className={copied ? "text-green-500" : ""} />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Используйте этот код в поле "provider" при отправке сообщений через API
-              </p>
-            </div>
+        {selectedProvider?.usesWappi && (
+          <EditWappiConfig
+            editProviderCode={editProviderCode}
+            setEditProviderCode={setEditProviderCode}
+            wappiToken={wappiToken}
+            setWappiToken={setWappiToken}
+            wappiProfileId={wappiProfileId}
+            setWappiProfileId={setWappiProfileId}
+          />
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="wappi-token">API Token</Label>
-              <Input
-                id="wappi-token"
-                placeholder="Введите токен Wappi"
-                value={wappiToken}
-                onChange={(e) => setWappiToken(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Токен авторизации из личного кабинета wappi.pro
-              </p>
-            </div>
+        {selectedProvider?.usesPostbox && (
+          <EditPostboxConfig
+            editProviderCode={editProviderCode}
+            setEditProviderCode={setEditProviderCode}
+            postboxAccessKey={postboxAccessKey}
+            setPostboxAccessKey={setPostboxAccessKey}
+            postboxSecretKey={postboxSecretKey}
+            setPostboxSecretKey={setPostboxSecretKey}
+            postboxFromEmail={postboxFromEmail}
+            setPostboxFromEmail={setPostboxFromEmail}
+          />
+        )}
 
-            <div className="space-y-2">
-              <Label htmlFor="wappi-profile">Profile ID</Label>
-              <Input
-                id="wappi-profile"
-                placeholder="Введите ID профиля"
-                value={wappiProfileId}
-                onChange={(e) => setWappiProfileId(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Идентификатор профиля для работы с API
-              </p>
-            </div>
+        {selectedProvider?.usesFcm && (
+          <EditFcmConfig
+            editProviderCode={editProviderCode}
+            setEditProviderCode={setEditProviderCode}
+            fcmProjectId={fcmProjectId}
+            setFcmProjectId={setFcmProjectId}
+            fcmPrivateKey={fcmPrivateKey}
+            setFcmPrivateKey={setFcmPrivateKey}
+            fcmClientEmail={fcmClientEmail}
+            setFcmClientEmail={setFcmClientEmail}
+            handleFcmConfigUpload={handleFcmConfigUpload}
+          />
+        )}
 
-            <div className="p-4 bg-muted/50 rounded-lg border border-border">
-              <div className="flex items-start gap-3">
-                <Icon name="Info" size={20} className="text-primary mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Как получить данные:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                    <li>Зайдите на wappi.pro</li>
-                    <li>Откройте раздел "Настройки API"</li>
-                    <li>Скопируйте Token и Profile ID</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : selectedProvider?.usesPostbox ? (
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-provider-code">Код провайдера (provider_code)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edit-provider-code"
-                  value={editProviderCode}
-                  className="font-mono text-sm flex-1"
-                  disabled
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyProviderCode}
-                  className="px-3"
-                >
-                  <Icon name={copied ? "Check" : "Copy"} size={16} className={copied ? "text-green-500" : ""} />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Используйте этот код в поле "provider" при отправке сообщений через API
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="postbox-access-key">Access Key ID</Label>
-              <Input
-                id="postbox-access-key"
-                placeholder="Введите Access Key ID"
-                value={postboxAccessKey}
-                onChange={(e) => setPostboxAccessKey(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Ключ доступа из Yandex Cloud Postbox
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="postbox-secret-key">Secret Access Key</Label>
-              <Input
-                id="postbox-secret-key"
-                type="password"
-                placeholder="Введите Secret Access Key"
-                value={postboxSecretKey}
-                onChange={(e) => setPostboxSecretKey(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Секретный ключ для доступа к API
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="postbox-from-email">Адрес отправителя</Label>
-              <Input
-                id="postbox-from-email"
-                type="email"
-                placeholder="noreply@example.com"
-                value={postboxFromEmail}
-                onChange={(e) => setPostboxFromEmail(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Верифицированный адрес отправителя в Postbox
-              </p>
-            </div>
-
-            <div className="p-4 bg-muted/50 rounded-lg border border-border">
-              <div className="flex items-start gap-3">
-                <Icon name="Info" size={20} className="text-primary mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Как получить данные:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                    <li>Откройте Yandex Cloud Console</li>
-                    <li>Перейдите в Postbox → Настройки</li>
-                    <li>Создайте Access Key</li>
-                    <li>Верифицируйте адрес отправителя</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : selectedProvider?.usesFcm ? (
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-provider-code">Код провайдера (provider_code)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edit-provider-code"
-                  value={editProviderCode}
-                  className="font-mono text-sm flex-1"
-                  disabled
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyProviderCode}
-                  className="px-3"
-                >
-                  <Icon name={copied ? "Check" : "Copy"} size={16} className={copied ? "text-green-500" : ""} />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Используйте этот код в поле "provider" при отправке push-уведомлений через API
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fcm-upload-edit">Загрузить конфиг из файла (опционально)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="fcm-upload-edit"
-                  type="file"
-                  accept=".json"
-                  onChange={handleFcmConfigUpload}
-                  className="cursor-pointer"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const input = document.getElementById('fcm-upload-edit') as HTMLInputElement;
-                    if (input) input.value = '';
-                    setFcmProjectId('');
-                    setFcmPrivateKey('');
-                    setFcmClientEmail('');
-                  }}
-                >
-                  <Icon name="X" size={16} />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Загрузите JSON-файл из Firebase Console для автозаполнения
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fcm-project-id">Project ID</Label>
-              <Input
-                id="fcm-project-id"
-                placeholder="my-firebase-project"
-                value={fcmProjectId}
-                onChange={(e) => setFcmProjectId(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Идентификатор проекта Firebase
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fcm-client-email">Client Email</Label>
-              <Input
-                id="fcm-client-email"
-                type="email"
-                placeholder="firebase-adminsdk-xxxxx@my-project.iam.gserviceaccount.com"
-                value={fcmClientEmail}
-                onChange={(e) => setFcmClientEmail(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Email сервисного аккаунта
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fcm-private-key">Private Key</Label>
-              <textarea
-                id="fcm-private-key"
-                placeholder="-----BEGIN PRIVATE KEY-----&#10;MIIEvQIBADANBg...&#10;-----END PRIVATE KEY-----"
-                value={fcmPrivateKey}
-                onChange={(e) => setFcmPrivateKey(e.target.value)}
-                className="w-full min-h-[120px] px-3 py-2 text-sm font-mono bg-background border border-input rounded-md resize-y"
-              />
-              <p className="text-xs text-muted-foreground">
-                Приватный ключ из Service Account JSON файла
-              </p>
-            </div>
-
-            <div className="p-4 bg-muted/50 rounded-lg border border-border">
-              <div className="flex items-start gap-3">
-                <Icon name="Info" size={20} className="text-primary mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Как получить данные:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                    <li>Откройте Firebase Console</li>
-                    <li>Перейдите в Project Settings → Service Accounts</li>
-                    <li>Нажмите "Generate new private key"</li>
-                    <li>Скопируйте нужные поля из JSON файла</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : selectedProvider?.usesApns ? (
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-provider-code">Код провайдера (provider_code)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="edit-provider-code"
-                  value={editProviderCode}
-                  className="font-mono text-sm flex-1"
-                  disabled
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={copyProviderCode}
-                  className="px-3"
-                >
-                  <Icon name={copied ? "Check" : "Copy"} size={16} className={copied ? "text-green-500" : ""} />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Используйте этот код в поле "provider" при отправке push-уведомлений через API
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apns-upload-edit">Загрузить .p8 ключ (опционально)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="apns-upload-edit"
-                  type="file"
-                  accept=".p8"
-                  onChange={handleApnsKeyUpload}
-                  className="cursor-pointer"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const input = document.getElementById('apns-upload-edit') as HTMLInputElement;
-                    if (input) input.value = '';
-                    setApnsPrivateKey('');
-                  }}
-                >
-                  <Icon name="X" size={16} />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Загрузите .p8 файл из Apple Developer для автозаполнения
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apns-team-id">Team ID</Label>
-              <Input
-                id="apns-team-id"
-                placeholder="ABC1234DEF"
-                value={apnsTeamId}
-                onChange={(e) => setApnsTeamId(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                10-символьный Team ID из Apple Developer Account
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apns-key-id">Key ID</Label>
-              <Input
-                id="apns-key-id"
-                placeholder="AB12CD34EF"
-                value={apnsKeyId}
-                onChange={(e) => setApnsKeyId(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                10-символьный Key ID из APNs ключа
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apns-bundle-id">Bundle ID</Label>
-              <Input
-                id="apns-bundle-id"
-                placeholder="com.example.app"
-                value={apnsBundleId}
-                onChange={(e) => setApnsBundleId(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Bundle ID вашего iOS приложения
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apns-private-key">Private Key (.p8)</Label>
-              <textarea
-                id="apns-private-key"
-                placeholder="-----BEGIN PRIVATE KEY-----&#10;MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEH...&#10;-----END PRIVATE KEY-----"
-                value={apnsPrivateKey}
-                onChange={(e) => setApnsPrivateKey(e.target.value)}
-                className="w-full min-h-[120px] px-3 py-2 text-sm font-mono bg-background border border-input rounded-md resize-y"
-              />
-              <p className="text-xs text-muted-foreground">
-                Приватный ключ из .p8 файла
-              </p>
-            </div>
-
-            <div className="p-4 bg-muted/50 rounded-lg border border-border">
-              <div className="flex items-start gap-3">
-                <Icon name="Info" size={20} className="text-primary mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Как получить данные:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                    <li>Откройте Apple Developer Account</li>
-                    <li>Перейдите в Certificates, Identifiers & Profiles</li>
-                    <li>Создайте APNs Auth Key (.p8)</li>
-                    <li>Скачайте ключ и скопируйте Team ID, Key ID</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-              Настройки для этого провайдера будут доступны позже.
-            </p>
-          </div>
+        {selectedProvider?.usesApns && (
+          <EditApnsConfig
+            editProviderCode={editProviderCode}
+            setEditProviderCode={setEditProviderCode}
+            apnsTeamId={apnsTeamId}
+            setApnsTeamId={setApnsTeamId}
+            apnsKeyId={apnsKeyId}
+            setApnsKeyId={setApnsKeyId}
+            apnsPrivateKey={apnsPrivateKey}
+            setApnsPrivateKey={setApnsPrivateKey}
+            apnsBundleId={apnsBundleId}
+            setApnsBundleId={setApnsBundleId}
+            handleApnsKeyUpload={handleApnsKeyUpload}
+          />
         )}
 
         <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={() => setConfigDialogOpen(false)}
-            disabled={isSaving}
-          >
+          <Button variant="outline" onClick={() => setConfigDialogOpen(false)} disabled={isSaving}>
             Отмена
           </Button>
-          {(selectedProvider?.usesWappi || selectedProvider?.usesPostbox || selectedProvider?.usesFcm || selectedProvider?.usesApns) && (
-            <Button 
-              onClick={saveProviderConfig}
-              disabled={
-                (selectedProvider?.usesWappi && (!wappiToken || !wappiProfileId)) ||
-                (selectedProvider?.usesPostbox && (!postboxAccessKey || !postboxSecretKey || !postboxFromEmail)) ||
-                (selectedProvider?.usesFcm && (!fcmProjectId || !fcmPrivateKey || !fcmClientEmail)) ||
-                (selectedProvider?.usesApns && (!apnsTeamId || !apnsKeyId || !apnsPrivateKey || !apnsBundleId)) ||
-                isSaving
-              }
-            >
-              {isSaving ? (
-                <>
-                  <Icon name="Loader2" size={16} className="mr-2 animate-spin" />
-                  Сохранение...
-                </>
-              ) : (
-                <>
-                  <Icon name="Check" size={16} className="mr-2" />
-                  Сохранить
-                </>
-              )}
-            </Button>
-          )}
+          <Button 
+            onClick={saveProviderConfig} 
+            disabled={
+              isSaving || 
+              (selectedProvider?.usesWappi && (!wappiToken || !wappiProfileId)) ||
+              (selectedProvider?.usesPostbox && (!postboxAccessKey || !postboxSecretKey || !postboxFromEmail)) ||
+              (selectedProvider?.usesFcm && (!fcmProjectId || !fcmPrivateKey || !fcmClientEmail)) ||
+              (selectedProvider?.usesApns && (!apnsTeamId || !apnsKeyId || !apnsPrivateKey || !apnsBundleId))
+            }
+          >
+            {isSaving ? (
+              <>
+                <Icon name="Loader2" size={16} className="mr-2 animate-spin" />
+                Сохранение...
+              </>
+            ) : (
+              <>
+                <Icon name="Save" size={16} className="mr-2" />
+                Сохранить настройки
+              </>
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
