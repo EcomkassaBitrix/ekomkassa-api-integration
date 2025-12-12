@@ -30,19 +30,34 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   const selectedProviderData = activeProviders.find(p => p.code === selectedProvider);
   const isEmailProvider = selectedProviderData?.usesPostbox;
 
+  const handleProviderChange = (providerCode: string) => {
+    setSelectedProvider(providerCode);
+    
+    const provider = activeProviders.find(p => p.code === providerCode);
+    if (!provider) return;
+    
+    if (provider.usesPostbox) {
+      setRecipient('example@domain.com');
+      setMessage('Привет! Это тестовое письмо из Integration Hub.');
+      setSubject('Тестовое сообщение');
+    } else if (provider.usesWappi || provider.code.includes('max')) {
+      setRecipient('+79689363395');
+      setMessage('Привет! Это тестовое сообщение.');
+      setSubject('');
+    } else {
+      setRecipient('');
+      setMessage('');
+      setSubject('');
+    }
+  };
+
   const loadExample = () => {
     const hasEmailProvider = activeProviders.some(p => p.usesPostbox);
     
     if (hasEmailProvider) {
-      setSelectedProvider('ek_email');
-      setRecipient('test@example.com');
-      setMessage('Это тестовое письмо из песочницы Ekomkassa Integration Hub.');
-      setSubject('Тестовое письмо');
+      handleProviderChange('ek_email');
     } else {
-      setSelectedProvider('max');
-      setRecipient('+79689363395');
-      setMessage('тест макса из песочницы');
-      setSubject('');
+      handleProviderChange('max');
     }
   };
 
@@ -135,7 +150,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
           <div className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="provider-select">Интеграция</Label>
-              <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+              <Select value={selectedProvider} onValueChange={handleProviderChange}>
                 <SelectTrigger id="provider-select">
                   <SelectValue placeholder="Выберите интеграцию" />
                 </SelectTrigger>
