@@ -188,7 +188,7 @@ export const useProviders = () => {
       }
 
       const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
