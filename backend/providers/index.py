@@ -124,7 +124,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         p.provider_name, 
                         p.provider_type, 
                         p.is_active, 
-                        p.config, 
+                        p.config,
+                        p.connection_status, 
                         p.created_at, 
                         p.updated_at,
                         da.status as last_attempt_status,
@@ -150,14 +151,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     last_status = p['last_attempt_status']
                     last_code = p['last_response_code']
                     
+                    # Use stored connection_status as base, but update based on delivery attempts
+                    connection_status = p.get('connection_status', 'not_configured')
+                    
                     if not has_config:
                         connection_status = 'not_configured'
-                    elif not last_status:
-                        connection_status = 'configured'
-                    elif last_status == 'success' and last_code == 200:
-                        connection_status = 'working'
-                    else:
-                        connection_status = 'error'
+                    elif last_status:
+                        # If we have delivery attempts, prioritize their status
+                        if last_status == 'success' and last_code == 200:
+                            connection_status = 'working'
+                        else:
+                            connection_status = 'error'
+                    # Otherwise keep stored connection_status (configured/not_configured)
                     
                     result.append({
                         'provider_code': p['provider_code'],
@@ -336,7 +341,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             cur = conn.cursor()
             cur.execute(
                 """UPDATE providers 
-                SET config = %s, updated_at = NOW(), is_active = true
+                SET config = %s, updated_at = NOW(), is_active = true, connection_status = 'configured'
                 WHERE provider_code = %s
                 RETURNING provider_code, provider_name, is_active""",
                 (json.dumps(config), provider_code)
