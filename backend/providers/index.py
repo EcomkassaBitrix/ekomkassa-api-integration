@@ -171,12 +171,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                                 # Check if error is about recipient, not provider configuration
                                 is_recipient_error = any(phrase in (last_error or '').lower() for phrase in [
                                     'contact not found',
-                                    'not found by phone',
-                                    'profile not paid',
-                                    'insufficient balance'
+                                    'not found by phone'
                                 ])
                                 
-                                # If it's a recipient/payment error, provider is still working
+                                # If it's a recipient error, provider is still configured correctly
+                                # Errors like "profile not paid" or "insufficient balance" are integration issues
                                 if is_recipient_error:
                                     connection_status = 'configured'
                                 else:
