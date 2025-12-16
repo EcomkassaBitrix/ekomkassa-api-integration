@@ -4,6 +4,9 @@ export const useLogs = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [retryingMessage, setRetryingMessage] = useState<string | null>(null);
+  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [logDetailsDialogOpen, setLogDetailsDialogOpen] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const loadLogs = async () => {
     setIsLoadingLogs(true);
@@ -46,11 +49,38 @@ export const useLogs = () => {
     }
   };
 
+  const openLogDetails = async (log: any) => {
+    setSelectedLog(log);
+    setLogDetailsDialogOpen(true);
+    setLoadingDetails(true);
+    
+    try {
+      const response = await fetch(`https://functions.poehali.dev/3f1bb824-7d73-4f4b-aa7a-dcbb53e38309?message_id=${log.message_id}`, {
+        headers: {
+          'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.message) {
+        setSelectedLog({ ...log, details: data.message });
+      }
+    } catch (error) {
+      console.error('Failed to load log details:', error);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   return {
     logs,
     isLoadingLogs,
     retryingMessage,
+    selectedLog,
+    logDetailsDialogOpen,
+    loadingDetails,
     loadLogs,
     retryMessage,
+    openLogDetails,
+    setLogDetailsDialogOpen,
   };
 };

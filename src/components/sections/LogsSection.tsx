@@ -2,24 +2,42 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
+import LogDetailsDialog from '@/components/logs/LogDetailsDialog';
 
 interface LogsSectionProps {
   logs: any[];
   isLoadingLogs: boolean;
   retryingMessage: string | null;
+  selectedLog: any;
+  logDetailsDialogOpen: boolean;
+  loadingDetails: boolean;
   loadLogs: () => void;
   retryMessage: (messageId: string) => void;
+  openLogDetails: (log: any) => void;
+  setLogDetailsDialogOpen: (open: boolean) => void;
 }
 
 const LogsSection = ({
   logs,
   isLoadingLogs,
   retryingMessage,
+  selectedLog,
+  logDetailsDialogOpen,
+  loadingDetails,
   loadLogs,
-  retryMessage
+  retryMessage,
+  openLogDetails,
+  setLogDetailsDialogOpen
 }: LogsSectionProps) => {
   return (
-    <Card className="p-6 bg-card/50 backdrop-blur-sm border-border">
+    <>
+      <LogDetailsDialog 
+        open={logDetailsDialogOpen}
+        onOpenChange={setLogDetailsDialogOpen}
+        log={selectedLog}
+        loading={loadingDetails}
+      />
+      <Card className="p-6 bg-card/50 backdrop-blur-sm border-border">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">История запросов</h3>
         <div className="flex gap-2">
@@ -54,7 +72,11 @@ const LogsSection = ({
             </thead>
             <tbody>
               {logs.map((log) => (
-                <tr key={log.message_id} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
+                <tr 
+                  key={log.message_id} 
+                  className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => openLogDetails(log)}
+                >
                   <td className="py-3 text-xs font-mono">{log.message_id}</td>
                   <td className="py-3 text-sm">{log.recipient}</td>
                   <td className="py-3 text-sm">{log.provider}</td>
@@ -68,23 +90,39 @@ const LogsSection = ({
                     {new Date(log.created_at).toLocaleString('ru-RU')}
                   </td>
                   <td className="py-3">
-                    {log.status === 'failed' && (
+                    <div className="flex gap-2">
                       <Button 
                         size="sm" 
-                        variant="outline"
-                        onClick={() => retryMessage(log.message_id)}
-                        disabled={retryingMessage === log.message_id}
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openLogDetails(log);
+                        }}
                       >
-                        {retryingMessage === log.message_id ? (
-                          <Icon name="Loader2" size={14} className="animate-spin" />
-                        ) : (
-                          <>
-                            <Icon name="RotateCw" size={14} className="mr-1" />
-                            Переотправить
-                          </>
-                        )}
+                        <Icon name="Eye" size={14} className="mr-1" />
+                        Детали
                       </Button>
-                    )}
+                      {log.status === 'failed' && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            retryMessage(log.message_id);
+                          }}
+                          disabled={retryingMessage === log.message_id}
+                        >
+                          {retryingMessage === log.message_id ? (
+                            <Icon name="Loader2" size={14} className="animate-spin" />
+                          ) : (
+                            <>
+                              <Icon name="RotateCw" size={14} className="mr-1" />
+                              Переотправить
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

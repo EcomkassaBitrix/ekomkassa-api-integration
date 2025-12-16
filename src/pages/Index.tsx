@@ -237,8 +237,13 @@ const Index = () => {
                   logs={logs.logs}
                   isLoadingLogs={logs.isLoadingLogs}
                   retryingMessage={logs.retryingMessage}
+                  selectedLog={logs.selectedLog}
+                  logDetailsDialogOpen={logs.logDetailsDialogOpen}
+                  loadingDetails={logs.loadingDetails}
                   loadLogs={logs.loadLogs}
                   retryMessage={logs.retryMessage}
+                  openLogDetails={logs.openLogDetails}
+                  setLogDetailsDialogOpen={logs.setLogDetailsDialogOpen}
                 />
               )}
             </div>

@@ -51,6 +51,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     query_params = event.get('queryStringParameters') or {}
     limit = int(query_params.get('limit', 50))
     limit = min(max(limit, 1), 100)
+    message_id = query_params.get('message_id')
     
     conn = psycopg2.connect(
         os.environ['DATABASE_URL'],
@@ -81,6 +82,79 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         f"UPDATE api_keys SET last_used_at = NOW() WHERE api_key = '{api_key_escaped}'"
     )
     conn.commit()
+    
+    if message_id:
+        message_id_escaped = message_id.replace("'", "''")
+        cursor.execute(
+            f"""
+            SELECT message_id, recipient, provider, message_text, status, attempts, max_attempts, created_at 
+            FROM messages 
+            WHERE message_id = '{message_id_escaped}'
+            """
+        )
+        msg_row = cursor.fetchone()
+        
+        if not msg_row:
+            cursor.close()
+            conn.close()
+            return {
+                'statusCode': 404,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({'success': False, 'error': 'Message not found'}),
+                'isBase64Encoded': False
+            }
+        
+        cursor.execute(
+            f"""
+            SELECT id, status, response_code, response_body, error_message, attempted_at 
+            FROM delivery_attempts 
+            WHERE message_id = '{message_id_escaped}'
+            ORDER BY attempted_at
+            """
+        )
+        attempts_rows = cursor.fetchall()
+        
+        delivery_attempts = []
+        for att in attempts_rows:
+            delivery_attempts.append({
+                'id': att['id'],
+                'status': att['status'],
+                'response_code': att['response_code'],
+                'response_body': att['response_body'],
+                'error_message': att['error_message'],
+                'attempted_at': att['attempted_at'].isoformat() if att['attempted_at'] else None
+            })
+        
+        message_detail = {
+            'message_id': msg_row['message_id'],
+            'recipient': msg_row['recipient'],
+            'provider': msg_row['provider'],
+            'message_text': msg_row['message_text'],
+            'status': msg_row['status'],
+            'attempts': msg_row['attempts'],
+            'max_attempts': msg_row['max_attempts'],
+            'created_at': msg_row['created_at'].isoformat() if msg_row['created_at'] else None,
+            'delivery_attempts': delivery_attempts
+        }
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'success': True,
+                'message': message_detail
+            }),
+            'isBase64Encoded': False
+        }
     
     cursor.execute(
         f"""
