@@ -131,6 +131,7 @@ const LogsSection = ({
         </div>
       )}
     </Card>
+    </>
   );
 };
 
