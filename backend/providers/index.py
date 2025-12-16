@@ -150,18 +150,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     has_config = p['config'] and len(p['config']) > 0
                     last_status = p['last_attempt_status']
                     last_code = p['last_response_code']
+                    last_attempt_at = p['last_attempt_at']
+                    updated_at = p['updated_at']
                     
                     # Use stored connection_status as base, but update based on delivery attempts
                     connection_status = p.get('connection_status', 'not_configured')
                     
                     if not has_config:
                         connection_status = 'not_configured'
-                    elif last_status:
-                        # If we have delivery attempts, prioritize their status
-                        if last_status == 'success' and last_code == 200:
-                            connection_status = 'working'
-                        else:
-                            connection_status = 'error'
+                    elif last_status and last_attempt_at:
+                        # Only use delivery attempt status if it's newer than config update
+                        if last_attempt_at > updated_at:
+                            if last_status == 'success' and last_code == 200:
+                                connection_status = 'working'
+                            else:
+                                connection_status = 'error'
+                        # Otherwise keep stored connection_status (configured after recent update)
                     # Otherwise keep stored connection_status (configured/not_configured)
                     
                     result.append({
