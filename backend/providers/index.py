@@ -130,10 +130,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         p.updated_at,
                         da.status as last_attempt_status,
                         da.response_code as last_response_code,
+                        da.error_message as last_error_message,
+                        da.response_body as last_response_body,
                         da.attempted_at as last_attempt_at
                     FROM providers p
                     LEFT JOIN LATERAL (
-                        SELECT status, response_code, attempted_at
+                        SELECT status, response_code, error_message, response_body, attempted_at
                         FROM delivery_attempts
                         WHERE provider = p.provider_code
                         ORDER BY attempted_at DESC
@@ -150,6 +152,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     has_config = p['config'] and len(p['config']) > 0
                     last_status = p['last_attempt_status']
                     last_code = p['last_response_code']
+                    last_error = p.get('last_error_message', '')
+                    last_response = p.get('last_response_body', '')
                     last_attempt_at = p['last_attempt_at']
                     updated_at = p['updated_at']
                     
@@ -164,7 +168,19 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             if last_status == 'success' and last_code == 200:
                                 connection_status = 'working'
                             else:
-                                connection_status = 'error'
+                                # Check if error is about recipient, not provider configuration
+                                is_recipient_error = any(phrase in (last_error or '').lower() for phrase in [
+                                    'contact not found',
+                                    'not found by phone',
+                                    'profile not paid',
+                                    'insufficient balance'
+                                ])
+                                
+                                # If it's a recipient/payment error, provider is still working
+                                if is_recipient_error:
+                                    connection_status = 'configured'
+                                else:
+                                    connection_status = 'error'
                         # Otherwise keep stored connection_status (configured after recent update)
                     # Otherwise keep stored connection_status (configured/not_configured)
                     
