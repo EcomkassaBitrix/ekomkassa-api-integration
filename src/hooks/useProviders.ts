@@ -203,6 +203,7 @@ export const useProviders = () => {
   };
 
   const saveProviderConfig = async (): Promise<string | null> => {
+    if (!selectedProvider) return 'Провайдер не выбран';
     setIsSaving(true);
     try {
       const requestBody: Record<string, string> = {

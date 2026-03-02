@@ -163,7 +163,7 @@ const AddProviderDialog = ({
       } else {
         setSaveError(data.error || 'Не удалось сохранить провайдера');
       }
-    } catch (error) {
+    } catch {
       setSaveError('Ошибка соединения');
     } finally {
       setIsSaving(false);
