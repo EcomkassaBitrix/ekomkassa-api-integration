@@ -1,22 +1,9 @@
 import json
 import os
-import asyncio
 from typing import Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-async def _check_tg_credentials(api_id: int, api_hash: str) -> bool:
-    """Проверяет API ID и API Hash через подключение к Telegram (без авторизации)"""
-    from telethon import TelegramClient
-    from telethon.sessions import StringSession
-    client = TelegramClient(StringSession(), api_id, api_hash)
-    await client.connect()
-    is_valid = client.is_connected()
-    await client.disconnect()
-    return is_valid
-
-def check_tg_credentials(api_id: int, api_hash: str) -> bool:
-    return asyncio.get_event_loop().run_until_complete(_check_tg_credentials(api_id, api_hash))
 
 def get_db_connection():
     """Создает подключение к базе данных"""
@@ -484,35 +471,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'body': json.dumps({'error': 'Missing provider_code'}),
                     'isBase64Encoded': False
                 }
-
-            # Проверяем Telegram API ID/Hash если переданы новые credentials
-            if tg_api_id and tg_api_hash:
-                # Получаем тип провайдера из БД
-                cur = conn.cursor()
-                cur.execute("SELECT provider_type FROM providers WHERE provider_code = %s", (provider_code,))
-                prow = cur.fetchone()
-                cur.close()
-                if prow and prow['provider_type'] == 'telegram_otp':
-                    try:
-                        valid = check_tg_credentials(int(tg_api_id), tg_api_hash)
-                        if not valid:
-                            conn.close()
-                            return {
-                                'statusCode': 400,
-                                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                                'body': json.dumps({'error': 'Неверные API ID или API Hash — не удалось подключиться к Telegram'}),
-                                'isBase64Encoded': False
-                            }
-                        print(f"[TG AUTH] API ID/Hash valid for {provider_code}")
-                    except Exception as e:
-                        conn.close()
-                        print(f"[TG AUTH] Error: {e}")
-                        return {
-                            'statusCode': 400,
-                            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                            'body': json.dumps({'error': f'Ошибка проверки Telegram credentials: {str(e)}'}),
-                            'isBase64Encoded': False
-                        }
 
             config = {}
             if wappi_token:
