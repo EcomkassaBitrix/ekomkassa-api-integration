@@ -1,5 +1,14 @@
 import { useState } from 'react';
 
+interface ApiKey {
+  key_id: string;
+  name: string;
+  key_prefix: string;
+  created_at: string;
+  expires_at: string | null;
+  is_active: boolean;
+}
+
 export const useApiKeys = () => {
   const [createKeyDialogOpen, setCreateKeyDialogOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
@@ -8,13 +17,13 @@ export const useApiKeys = () => {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   
   const [deleteKeyDialogOpen, setDeleteKeyDialogOpen] = useState(false);
-  const [keyToDelete, setKeyToDelete] = useState<any>(null);
+  const [keyToDelete, setKeyToDelete] = useState<ApiKey | null>(null);
   const [isDeletingKey, setIsDeletingKey] = useState(false);
 
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [isLoadingKeys, setIsLoadingKeys] = useState(false);
   const [regenerateKeyDialogOpen, setRegenerateKeyDialogOpen] = useState(false);
-  const [keyToRegenerate, setKeyToRegenerate] = useState<any>(null);
+  const [keyToRegenerate, setKeyToRegenerate] = useState<ApiKey | null>(null);
   const [isRegeneratingKey, setIsRegeneratingKey] = useState(false);
   const [regeneratedKey, setRegeneratedKey] = useState<string | null>(null);
 

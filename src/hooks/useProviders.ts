@@ -13,9 +13,23 @@ const getProviderIcon = (providerType: string, providerCode: string) => {
   return 'Plug';
 };
 
+interface Provider {
+  id: number;
+  name: string;
+  icon: string;
+  status: string;
+  requests: number;
+  code: string;
+  usesWappi: boolean;
+  usesPostbox: boolean;
+  usesFcm: boolean;
+  usesApns: boolean;
+  lastAttemptAt: string | null;
+}
+
 export const useProviders = () => {
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<any>(null);
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [editProviderCode, setEditProviderCode] = useState('');
   const [wappiToken, setWappiToken] = useState('');
   const [wappiProfileId, setWappiProfileId] = useState('');
@@ -48,11 +62,11 @@ export const useProviders = () => {
   const [newProviderApnsPrivateKey, setNewProviderApnsPrivateKey] = useState('');
   const [newProviderApnsBundleId, setNewProviderApnsBundleId] = useState('');
   
-  const [providers, setProviders] = useState<any[]>([]);
+  const [providers, setProviders] = useState<Provider[]>([]);
   const [isLoadingProviders, setIsLoadingProviders] = useState(false);
   
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [providerToDelete, setProviderToDelete] = useState<any>(null);
+  const [providerToDelete, setProviderToDelete] = useState<Provider | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
   const [providerConfigs, setProviderConfigs] = useState<Record<string, boolean>>({});
@@ -68,7 +82,7 @@ export const useProviders = () => {
       const data = await response.json();
       if (data.success && data.providers) {
         const configs: Record<string, boolean> = {};
-        const providersData = data.providers.map((p: any, index: number) => {
+        const providersData = data.providers.map((p: Record<string, unknown>, index: number) => {
           const hasConfig = p.config && Object.keys(p.config).length > 0;
           if (hasConfig) {
             configs[p.provider_code] = true;
@@ -138,7 +152,7 @@ export const useProviders = () => {
     }
   };
 
-  const openProviderConfig = (provider: any) => {
+  const openProviderConfig = (provider: Provider) => {
     setSelectedProvider(provider);
     setEditProviderCode(provider.code || '');
     setWappiToken('');
@@ -159,7 +173,7 @@ export const useProviders = () => {
   const saveProviderConfig = async () => {
     setIsSaving(true);
     try {
-      const requestBody: any = {
+      const requestBody: Record<string, string> = {
         provider_code: selectedProvider.code
       };
 

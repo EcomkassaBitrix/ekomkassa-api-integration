@@ -5,10 +5,38 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+interface Provider {
+  id: number;
+  name: string;
+  icon: string;
+  status: string;
+  requests: number;
+  code: string;
+  usesWappi: boolean;
+  usesPostbox: boolean;
+  usesFcm: boolean;
+  usesApns: boolean;
+  lastAttemptAt: string | null;
+}
+
+interface LogMessage {
+  message_id: string;
+  recipient: string;
+  provider: string;
+  status: string;
+  attempts: number;
+  max_attempts: number;
+  created_at: string;
+  message?: string;
+  last_error?: string;
+  details?: LogMessage;
+  [key: string]: unknown;
+}
+
 interface DashboardSectionProps {
   activeSection: string;
-  providers: any[];
-  logs: any[];
+  providers: Provider[];
+  logs: LogMessage[];
 }
 
 const DashboardSection = ({
@@ -25,7 +53,7 @@ const DashboardSection = ({
   
   const responseTimes = logs
     .filter(l => l.response_time && typeof l.response_time === 'number')
-    .map(l => l.response_time);
+    .map(l => l.response_time as number);
   const avgResponseTime = responseTimes.length > 0 
     ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
     : 0;

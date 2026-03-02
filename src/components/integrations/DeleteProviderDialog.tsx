@@ -2,10 +2,24 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
+interface Provider {
+  id: number;
+  name: string;
+  icon: string;
+  status: string;
+  requests: number;
+  code: string;
+  usesWappi: boolean;
+  usesPostbox: boolean;
+  usesFcm: boolean;
+  usesApns: boolean;
+  lastAttemptAt: string | null;
+}
+
 interface DeleteProviderDialogProps {
   deleteDialogOpen: boolean;
   setDeleteDialogOpen: (open: boolean) => void;
-  providerToDelete: any;
+  providerToDelete: Provider | null;
   isDeleting: boolean;
   deleteProvider: () => void;
 }

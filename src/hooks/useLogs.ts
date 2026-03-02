@@ -1,10 +1,23 @@
 import { useState } from 'react';
 
+interface LogMessage {
+  message_id: string;
+  recipient: string;
+  provider: string;
+  status: string;
+  attempts: number;
+  max_attempts: number;
+  created_at: string;
+  message?: string;
+  last_error?: string;
+  details?: LogMessage;
+}
+
 export const useLogs = () => {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<LogMessage[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [retryingMessage, setRetryingMessage] = useState<string | null>(null);
-  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [selectedLog, setSelectedLog] = useState<LogMessage | null>(null);
   const [logDetailsDialogOpen, setLogDetailsDialogOpen] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
@@ -49,7 +62,7 @@ export const useLogs = () => {
     }
   };
 
-  const openLogDetails = async (log: any) => {
+  const openLogDetails = async (log: LogMessage) => {
     setSelectedLog(log);
     setLogDetailsDialogOpen(true);
     setLoadingDetails(true);

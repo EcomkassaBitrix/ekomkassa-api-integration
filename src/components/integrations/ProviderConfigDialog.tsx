@@ -7,10 +7,24 @@ import EditPostboxConfig from './provider-edit-configs/EditPostboxConfig';
 import EditFcmConfig from './provider-edit-configs/EditFcmConfig';
 import EditApnsConfig from './provider-edit-configs/EditApnsConfig';
 
+interface Provider {
+  id: number;
+  name: string;
+  icon: string;
+  status: string;
+  requests: number;
+  code: string;
+  usesWappi: boolean;
+  usesPostbox: boolean;
+  usesFcm: boolean;
+  usesApns: boolean;
+  lastAttemptAt: string | null;
+}
+
 interface ProviderConfigDialogProps {
   configDialogOpen: boolean;
   setConfigDialogOpen: (open: boolean) => void;
-  selectedProvider: any;
+  selectedProvider: Provider | null;
   editProviderCode: string;
   setEditProviderCode: (code: string) => void;
   providerConfigs: Record<string, boolean>;

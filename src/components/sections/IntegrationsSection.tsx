@@ -5,13 +5,27 @@ import ProviderConfigDialog from '@/components/integrations/ProviderConfigDialog
 import AddProviderDialog from '@/components/integrations/AddProviderDialog';
 import DeleteProviderDialog from '@/components/integrations/DeleteProviderDialog';
 
+interface Provider {
+  id: number;
+  name: string;
+  icon: string;
+  status: string;
+  requests: number;
+  code: string;
+  usesWappi: boolean;
+  usesPostbox: boolean;
+  usesFcm: boolean;
+  usesApns: boolean;
+  lastAttemptAt: string | null;
+}
+
 interface IntegrationsSectionProps {
-  providers: any[];
+  providers: Provider[];
   isLoadingProviders: boolean;
   providerConfigs: Record<string, boolean>;
   configDialogOpen: boolean;
   setConfigDialogOpen: (open: boolean) => void;
-  selectedProvider: any;
+  selectedProvider: Provider | null;
   editProviderCode: string;
   setEditProviderCode: (code: string) => void;
   wappiToken: string;
@@ -66,10 +80,10 @@ interface IntegrationsSectionProps {
   setNewProviderApnsBundleId: (id: string) => void;
   deleteDialogOpen: boolean;
   setDeleteDialogOpen: (open: boolean) => void;
-  providerToDelete: any;
-  setProviderToDelete: (provider: any) => void;
+  providerToDelete: Provider | null;
+  setProviderToDelete: (provider: Provider | null) => void;
   isDeleting: boolean;
-  openProviderConfig: (provider: any) => void;
+  openProviderConfig: (provider: Provider) => void;
   saveProviderConfig: () => void;
   deleteProvider: () => void;
   loadProviders: () => void;

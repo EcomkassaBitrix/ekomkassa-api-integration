@@ -8,8 +8,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Icon from '@/components/ui/icon';
 import { Badge } from '@/components/ui/badge';
 
+interface Provider {
+  id: number;
+  name: string;
+  icon: string;
+  status: string;
+  requests: number;
+  code: string;
+  usesWappi: boolean;
+  usesPostbox: boolean;
+  usesFcm: boolean;
+  usesApns: boolean;
+  lastAttemptAt: string | null;
+}
+
 interface SandboxSectionProps {
-  providers: any[];
+  providers: Provider[];
 }
 
 const SandboxSection = ({ providers }: SandboxSectionProps) => {
@@ -20,7 +34,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   const [pushTitle, setPushTitle] = useState('');
   const [deviceToken, setDeviceToken] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<Record<string, unknown> | null>(null);
 
   const activeProviders = providers
     .filter(p => p.status === 'working' || p.status === 'configured')
@@ -95,7 +109,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
     setResponse(null);
 
     try {
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         provider: selectedProvider,
         message: message
       };

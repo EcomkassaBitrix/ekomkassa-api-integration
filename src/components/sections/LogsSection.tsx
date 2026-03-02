@@ -4,16 +4,29 @@ import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import LogDetailsDialog from '@/components/logs/LogDetailsDialog';
 
+interface LogMessage {
+  message_id: string;
+  recipient: string;
+  provider: string;
+  status: string;
+  attempts: number;
+  max_attempts: number;
+  created_at: string;
+  message?: string;
+  last_error?: string;
+  details?: LogMessage;
+}
+
 interface LogsSectionProps {
-  logs: any[];
+  logs: LogMessage[];
   isLoadingLogs: boolean;
   retryingMessage: string | null;
-  selectedLog: any;
+  selectedLog: LogMessage | null;
   logDetailsDialogOpen: boolean;
   loadingDetails: boolean;
   loadLogs: () => void;
   retryMessage: (messageId: string) => void;
-  openLogDetails: (log: any) => void;
+  openLogDetails: (log: LogMessage) => void;
   setLogDetailsDialogOpen: (open: boolean) => void;
 }
 

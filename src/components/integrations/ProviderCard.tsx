@@ -5,10 +5,24 @@ import Icon from '@/components/ui/icon';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useState } from 'react';
 
+interface Provider {
+  id: number;
+  name: string;
+  icon: string;
+  status: string;
+  requests: number;
+  code: string;
+  usesWappi: boolean;
+  usesPostbox: boolean;
+  usesFcm: boolean;
+  usesApns: boolean;
+  lastAttemptAt: string | null;
+}
+
 interface ProviderCardProps {
-  provider: any;
-  openProviderConfig: (provider: any) => void;
-  setProviderToDelete: (provider: any) => void;
+  provider: Provider;
+  openProviderConfig: (provider: Provider) => void;
+  setProviderToDelete: (provider: Provider) => void;
   setDeleteDialogOpen: (open: boolean) => void;
 }
 

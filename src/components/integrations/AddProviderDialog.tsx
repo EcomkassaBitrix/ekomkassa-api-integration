@@ -87,7 +87,7 @@ const AddProviderDialog = ({
   const handleCreateProvider = async () => {
     setIsSaving(true);
     try {
-      const requestBody: any = {
+      const requestBody: Record<string, string> = {
         provider_name: newProviderName,
         provider_code: newProviderCode,
         provider_type: newProviderType

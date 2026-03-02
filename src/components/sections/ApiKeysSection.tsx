@@ -9,8 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
+interface ApiKey {
+  key_id: string;
+  name: string;
+  key_prefix: string;
+  created_at: string;
+  expires_at: string | null;
+  is_active: boolean;
+  [key: string]: unknown;
+}
+
 interface ApiKeysSectionProps {
-  apiKeys: any[];
+  apiKeys: ApiKey[];
   isLoadingKeys: boolean;
   createKeyDialogOpen: boolean;
   setCreateKeyDialogOpen: (open: boolean) => void;
@@ -24,16 +34,16 @@ interface ApiKeysSectionProps {
   setCreatedKey: (key: string | null) => void;
   regenerateKeyDialogOpen: boolean;
   setRegenerateKeyDialogOpen: (open: boolean) => void;
-  keyToRegenerate: any;
-  setKeyToRegenerate: (key: any) => void;
+  keyToRegenerate: ApiKey | null;
+  setKeyToRegenerate: (key: ApiKey | null) => void;
   isRegeneratingKey: boolean;
   setIsRegeneratingKey: (regenerating: boolean) => void;
   regeneratedKey: string | null;
   setRegeneratedKey: (key: string | null) => void;
   deleteKeyDialogOpen: boolean;
   setDeleteKeyDialogOpen: (open: boolean) => void;
-  keyToDelete: any;
-  setKeyToDelete: (key: any) => void;
+  keyToDelete: ApiKey | null;
+  setKeyToDelete: (key: ApiKey | null) => void;
   isDeletingKey: boolean;
   setIsDeletingKey: (deleting: boolean) => void;
   loadApiKeys: () => void;
