@@ -82,6 +82,7 @@ const AddProviderDialog = ({
   const [newProviderSmsAeroEmail, setNewProviderSmsAeroEmail] = useState('');
   const [newProviderSmsAeroApiKey, setNewProviderSmsAeroApiKey] = useState('');
   const [newProviderSmsAeroSign, setNewProviderSmsAeroSign] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   const resetForm = () => {
     setNewProviderName('');
@@ -106,6 +107,7 @@ const AddProviderDialog = ({
 
   const handleCreateProvider = async () => {
     setIsSaving(true);
+    setSaveError('');
     try {
       const requestBody: Record<string, string> = {
         provider_name: newProviderName,
@@ -145,21 +147,16 @@ const AddProviderDialog = ({
         body: JSON.stringify(requestBody)
       });
 
-      if (!response.ok) {
-        console.error('HTTP', response.status, ':', await response.text());
-        return;
-      }
-
       const data = await response.json();
       if (data.success) {
         setAddProviderDialogOpen(false);
         resetForm();
         await loadProviders();
       } else {
-        console.error('Failed to create provider:', data.error);
+        setSaveError(data.error || 'Не удалось сохранить провайдера');
       }
     } catch (error) {
-      console.error('Failed to create provider:', error);
+      setSaveError('Ошибка соединения');
     } finally {
       setIsSaving(false);
     }
@@ -238,6 +235,10 @@ const AddProviderDialog = ({
           newProviderSmsAeroSign={newProviderSmsAeroSign}
           setNewProviderSmsAeroSign={setNewProviderSmsAeroSign}
         />
+
+        {saveError && (
+          <p className="text-sm text-destructive px-1">{saveError}</p>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setAddProviderDialogOpen(false)} disabled={isSaving}>

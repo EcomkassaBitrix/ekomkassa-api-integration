@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
@@ -61,7 +62,7 @@ interface ProviderConfigDialogProps {
   smsAeroSign: string;
   setSmsAeroSign: (val: string) => void;
   isSaving: boolean;
-  saveProviderConfig: () => void;
+  saveProviderConfig: () => Promise<string | null>;
 }
 
 const ProviderConfigDialog = ({
@@ -104,6 +105,14 @@ const ProviderConfigDialog = ({
   isSaving,
   saveProviderConfig
 }: ProviderConfigDialogProps) => {
+  const [saveError, setSaveError] = useState('');
+
+  const handleSave = async () => {
+    setSaveError('');
+    const error = await saveProviderConfig();
+    if (error) setSaveError(error);
+  };
+
   const handleFcmConfigUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -250,21 +259,15 @@ const ProviderConfigDialog = ({
           />
         )}
 
+        {saveError && (
+          <p className="text-sm text-destructive px-1">{saveError}</p>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setConfigDialogOpen(false)} disabled={isSaving}>
             Отмена
           </Button>
-          <Button
-            onClick={saveProviderConfig}
-            disabled={
-              isSaving ||
-              (selectedProvider?.usesWappi && (!wappiToken || !wappiProfileId)) ||
-              (selectedProvider?.usesPostbox && (!postboxAccessKey || !postboxSecretKey || !postboxFromEmail)) ||
-              (selectedProvider?.usesFcm && (!fcmProjectId || !fcmPrivateKey || !fcmClientEmail)) ||
-              (selectedProvider?.usesApns && (!apnsTeamId || !apnsKeyId || !apnsPrivateKey || !apnsBundleId)) ||
-              (selectedProvider?.usesSmsAero && (!smsAeroEmail || !smsAeroApiKey || !smsAeroSign))
-            }
-          >
+          <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Сохранение...' : 'Сохранить'}
           </Button>
         </DialogFooter>

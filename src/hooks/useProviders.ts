@@ -197,7 +197,7 @@ export const useProviders = () => {
     setConfigDialogOpen(true);
   };
 
-  const saveProviderConfig = async () => {
+  const saveProviderConfig = async (): Promise<string | null> => {
     setIsSaving(true);
     try {
       const requestBody: Record<string, string> = {
@@ -263,11 +263,12 @@ export const useProviders = () => {
         setSmsAeroApiKey('');
         setSmsAeroSign('');
         await loadProviders();
+        return null;
       } else {
-        console.error('Failed to save config:', data.error);
+        return data.error || 'Не удалось сохранить настройки';
       }
-    } catch (error) {
-      console.error('Failed to save config:', error);
+    } catch {
+      return 'Ошибка соединения';
     } finally {
       setIsSaving(false);
     }
