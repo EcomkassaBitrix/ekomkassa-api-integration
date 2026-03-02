@@ -79,6 +79,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             
             if '/signs' in path:
                 provider_code = params.get('provider_code')
+                smsaero_email = params.get('smsaero_email')
+                smsaero_api_key = params.get('smsaero_api_key')
+
                 if not provider_code:
                     conn.close()
                     return {
@@ -87,28 +90,23 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         'body': json.dumps({'error': 'Missing provider_code parameter'}),
                         'isBase64Encoded': False
                     }
-                
-                cur = conn.cursor()
-                cur.execute(
-                    "SELECT config FROM providers WHERE provider_code = %s",
-                    (provider_code,)
-                )
-                result = cur.fetchone()
-                cur.close()
+
+                # Если credentials не переданы явно — читаем из БД
+                if not smsaero_email or not smsaero_api_key:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "SELECT config FROM providers WHERE provider_code = %s",
+                        (provider_code,)
+                    )
+                    result = cur.fetchone()
+                    cur.close()
+                    if result and result['config']:
+                        config = result['config']
+                        smsaero_email = smsaero_email or config.get('smsaero_email')
+                        smsaero_api_key = smsaero_api_key or config.get('smsaero_api_key')
+
                 conn.close()
-                
-                if not result or not result['config']:
-                    return {
-                        'statusCode': 404,
-                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-                        'body': json.dumps({'error': 'Provider not found or not configured'}),
-                        'isBase64Encoded': False
-                    }
-                
-                config = result['config']
-                smsaero_email = config.get('smsaero_email')
-                smsaero_api_key = config.get('smsaero_api_key')
-                
+
                 if not smsaero_email or not smsaero_api_key:
                     return {
                         'statusCode': 400,

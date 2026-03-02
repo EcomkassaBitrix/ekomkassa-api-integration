@@ -44,10 +44,11 @@ const EditSmsAeroConfig = ({
     setIsLoadingSigns(true);
     setSignsError('');
     try {
-      const resp = await fetch(
-        `https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e/signs?provider_code=${editProviderCode}`,
-        { headers: { 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' } }
-      );
+      const url = new URL('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e/signs');
+      url.searchParams.set('provider_code', editProviderCode);
+      if (smsAeroEmail) url.searchParams.set('smsaero_email', smsAeroEmail);
+      if (smsAeroApiKey) url.searchParams.set('smsaero_api_key', smsAeroApiKey);
+      const resp = await fetch(url.toString(), { headers: { 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' } });
       const data = await resp.json();
       if (data.success && data.signs) {
         setSigns(data.signs);
