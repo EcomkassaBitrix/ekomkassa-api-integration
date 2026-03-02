@@ -79,7 +79,6 @@ const AddProviderDialog = ({
   setIsSaving,
   loadProviders
 }: AddProviderDialogProps) => {
-  const [newProviderSmsAeroEmail, setNewProviderSmsAeroEmail] = useState('');
   const [newProviderSmsAeroApiKey, setNewProviderSmsAeroApiKey] = useState('');
   const [newProviderSmsAeroSign, setNewProviderSmsAeroSign] = useState('');
 
@@ -99,7 +98,6 @@ const AddProviderDialog = ({
     setNewProviderApnsKeyId('');
     setNewProviderApnsPrivateKey('');
     setNewProviderApnsBundleId('');
-    setNewProviderSmsAeroEmail('');
     setNewProviderSmsAeroApiKey('');
     setNewProviderSmsAeroSign('');
   };
@@ -134,7 +132,6 @@ const AddProviderDialog = ({
         requestBody.apns_bundle_id = newProviderApnsBundleId;
       }
       if (newProviderType === 'sms_aero') {
-        requestBody.smsaero_email = newProviderSmsAeroEmail;
         requestBody.smsaero_api_key = newProviderSmsAeroApiKey;
         requestBody.smsaero_sign = newProviderSmsAeroSign;
       }
@@ -180,7 +177,7 @@ const AddProviderDialog = ({
       return !!(newProviderApnsTeamId && newProviderApnsKeyId && newProviderApnsPrivateKey && newProviderApnsBundleId);
     }
     if (newProviderType === 'sms_aero') {
-      return !!(newProviderSmsAeroEmail && newProviderSmsAeroApiKey && newProviderSmsAeroSign);
+      return !!(newProviderSmsAeroApiKey && newProviderSmsAeroSign);
     }
     return true;
   };
@@ -231,8 +228,6 @@ const AddProviderDialog = ({
           setNewProviderApnsPrivateKey={setNewProviderApnsPrivateKey}
           newProviderApnsBundleId={newProviderApnsBundleId}
           setNewProviderApnsBundleId={setNewProviderApnsBundleId}
-          newProviderSmsAeroEmail={newProviderSmsAeroEmail}
-          setNewProviderSmsAeroEmail={setNewProviderSmsAeroEmail}
           newProviderSmsAeroApiKey={newProviderSmsAeroApiKey}
           setNewProviderSmsAeroApiKey={setNewProviderSmsAeroApiKey}
           newProviderSmsAeroSign={newProviderSmsAeroSign}

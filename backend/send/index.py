@@ -506,8 +506,9 @@ def send_via_fcm(recipient: str, message: str, provider: str, conn,
         print(f"[FCM ERROR] {str(e)}")
         return 500, json.dumps({"error": str(e)})
 
-def get_smsaero_credentials(provider: str, conn) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    """Получает SMS Aero credentials из конфига"""
+def get_smsaero_credentials(provider: str, conn) -> Tuple[Optional[str], Optional[str]]:
+    """Получает SMS Aero credentials из конфига.
+    smsaero_api_key хранится в формате 'email:api_key' для Basic Auth."""
     cur = conn.cursor()
     cur.execute(
         "SELECT config FROM providers WHERE provider_code = %s",
@@ -517,22 +518,22 @@ def get_smsaero_credentials(provider: str, conn) -> Tuple[Optional[str], Optiona
     cur.close()
 
     if not result or not result['config']:
-        return None, None, None
+        return None, None
 
     config = result['config']
-    return config.get('smsaero_email'), config.get('smsaero_api_key'), config.get('smsaero_sign')
+    return config.get('smsaero_api_key'), config.get('smsaero_sign')
 
 
 def send_via_smsaero(recipient: str, message: str, provider: str, conn) -> Tuple[int, str]:
     """Отправляет SMS через SMS Aero API"""
     import base64
 
-    email, api_key, sign = get_smsaero_credentials(provider, conn)
+    api_key, sign = get_smsaero_credentials(provider, conn)
 
-    if not email or not api_key or not sign:
+    if not api_key or not sign:
         return 500, json.dumps({"error": "SMS Aero credentials not configured"})
 
-    credentials = base64.b64encode(f"{email}:{api_key}".encode()).decode()
+    credentials = base64.b64encode(api_key.encode()).decode()
 
     phone = recipient.replace('+', '').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
 
