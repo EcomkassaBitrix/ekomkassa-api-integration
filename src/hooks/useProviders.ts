@@ -44,6 +44,9 @@ export const useProviders = () => {
   const [apnsKeyId, setApnsKeyId] = useState('');
   const [apnsPrivateKey, setApnsPrivateKey] = useState('');
   const [apnsBundleId, setApnsBundleId] = useState('');
+  const [smsAeroEmail, setSmsAeroEmail] = useState('');
+  const [smsAeroApiKey, setSmsAeroApiKey] = useState('');
+  const [smsAeroSign, setSmsAeroSign] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
   const [addProviderDialogOpen, setAddProviderDialogOpen] = useState(false);
@@ -155,7 +158,7 @@ export const useProviders = () => {
     }
   };
 
-  const openProviderConfig = (provider: Provider) => {
+  const openProviderConfig = async (provider: Provider) => {
     setSelectedProvider(provider);
     setEditProviderCode(provider.code || '');
     setWappiToken('');
@@ -170,6 +173,27 @@ export const useProviders = () => {
     setApnsKeyId('');
     setApnsPrivateKey('');
     setApnsBundleId('');
+    setSmsAeroEmail('');
+    setSmsAeroApiKey('');
+    setSmsAeroSign('');
+
+    if (provider.usesSmsAero) {
+      try {
+        const resp = await fetch(
+          `https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e/config?provider_code=${provider.code}`,
+          { headers: { 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' } }
+        );
+        const data = await resp.json();
+        if (data.success && data.config) {
+          setSmsAeroEmail(data.config.smsaero_email || '');
+          setSmsAeroApiKey(data.config.smsaero_api_key || '');
+          setSmsAeroSign(data.config.smsaero_sign || '');
+        }
+      } catch (e) {
+        console.error('Failed to load smsaero config:', e);
+      }
+    }
+
     setConfigDialogOpen(true);
   };
 
@@ -204,6 +228,12 @@ export const useProviders = () => {
         requestBody.apns_bundle_id = apnsBundleId;
       }
 
+      if (selectedProvider.usesSmsAero) {
+        requestBody.smsaero_email = smsAeroEmail;
+        requestBody.smsaero_api_key = smsAeroApiKey;
+        requestBody.smsaero_sign = smsAeroSign;
+      }
+
       const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
         method: 'POST',
         headers: {
@@ -229,6 +259,9 @@ export const useProviders = () => {
         setApnsKeyId('');
         setApnsPrivateKey('');
         setApnsBundleId('');
+        setSmsAeroEmail('');
+        setSmsAeroApiKey('');
+        setSmsAeroSign('');
         await loadProviders();
       } else {
         console.error('Failed to save config:', data.error);
@@ -270,6 +303,12 @@ export const useProviders = () => {
     setApnsPrivateKey,
     apnsBundleId,
     setApnsBundleId,
+    smsAeroEmail,
+    setSmsAeroEmail,
+    smsAeroApiKey,
+    setSmsAeroApiKey,
+    smsAeroSign,
+    setSmsAeroSign,
     isSaving,
     setIsSaving,
     addProviderDialogOpen,

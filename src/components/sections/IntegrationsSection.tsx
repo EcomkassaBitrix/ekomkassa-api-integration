@@ -16,6 +16,7 @@ interface Provider {
   usesPostbox: boolean;
   usesFcm: boolean;
   usesApns: boolean;
+  usesSmsAero: boolean;
   lastAttemptAt: string | null;
 }
 
@@ -38,6 +39,26 @@ interface IntegrationsSectionProps {
   setPostboxSecretKey: (key: string) => void;
   postboxFromEmail: string;
   setPostboxFromEmail: (email: string) => void;
+  fcmProjectId: string;
+  setFcmProjectId: (id: string) => void;
+  fcmPrivateKey: string;
+  setFcmPrivateKey: (key: string) => void;
+  fcmClientEmail: string;
+  setFcmClientEmail: (email: string) => void;
+  apnsTeamId: string;
+  setApnsTeamId: (id: string) => void;
+  apnsKeyId: string;
+  setApnsKeyId: (id: string) => void;
+  apnsPrivateKey: string;
+  setApnsPrivateKey: (key: string) => void;
+  apnsBundleId: string;
+  setApnsBundleId: (id: string) => void;
+  smsAeroEmail: string;
+  setSmsAeroEmail: (val: string) => void;
+  smsAeroApiKey: string;
+  setSmsAeroApiKey: (val: string) => void;
+  smsAeroSign: string;
+  setSmsAeroSign: (val: string) => void;
   isSaving: boolean;
   setIsSaving: (saving: boolean) => void;
   addProviderDialogOpen: boolean;
@@ -58,12 +79,6 @@ interface IntegrationsSectionProps {
   setNewProviderPostboxSecretKey: (key: string) => void;
   newProviderPostboxFromEmail: string;
   setNewProviderPostboxFromEmail: (email: string) => void;
-  fcmProjectId: string;
-  setFcmProjectId: (id: string) => void;
-  fcmPrivateKey: string;
-  setFcmPrivateKey: (key: string) => void;
-  fcmClientEmail: string;
-  setFcmClientEmail: (email: string) => void;
   newProviderFcmProjectId: string;
   setNewProviderFcmProjectId: (id: string) => void;
   newProviderFcmPrivateKey: string;
@@ -108,6 +123,26 @@ const IntegrationsSection = ({
   setPostboxSecretKey,
   postboxFromEmail,
   setPostboxFromEmail,
+  fcmProjectId,
+  setFcmProjectId,
+  fcmPrivateKey,
+  setFcmPrivateKey,
+  fcmClientEmail,
+  setFcmClientEmail,
+  apnsTeamId,
+  setApnsTeamId,
+  apnsKeyId,
+  setApnsKeyId,
+  apnsPrivateKey,
+  setApnsPrivateKey,
+  apnsBundleId,
+  setApnsBundleId,
+  smsAeroEmail,
+  setSmsAeroEmail,
+  smsAeroApiKey,
+  setSmsAeroApiKey,
+  smsAeroSign,
+  setSmsAeroSign,
   isSaving,
   setIsSaving,
   addProviderDialogOpen,
@@ -128,12 +163,6 @@ const IntegrationsSection = ({
   setNewProviderPostboxSecretKey,
   newProviderPostboxFromEmail,
   setNewProviderPostboxFromEmail,
-  fcmProjectId,
-  setFcmProjectId,
-  fcmPrivateKey,
-  setFcmPrivateKey,
-  fcmClientEmail,
-  setFcmClientEmail,
   newProviderFcmProjectId,
   setNewProviderFcmProjectId,
   newProviderFcmPrivateKey,
@@ -210,6 +239,20 @@ const IntegrationsSection = ({
         setFcmPrivateKey={setFcmPrivateKey}
         fcmClientEmail={fcmClientEmail}
         setFcmClientEmail={setFcmClientEmail}
+        apnsTeamId={apnsTeamId}
+        setApnsTeamId={setApnsTeamId}
+        apnsKeyId={apnsKeyId}
+        setApnsKeyId={setApnsKeyId}
+        apnsPrivateKey={apnsPrivateKey}
+        setApnsPrivateKey={setApnsPrivateKey}
+        apnsBundleId={apnsBundleId}
+        setApnsBundleId={setApnsBundleId}
+        smsAeroEmail={smsAeroEmail}
+        setSmsAeroEmail={setSmsAeroEmail}
+        smsAeroApiKey={smsAeroApiKey}
+        setSmsAeroApiKey={setSmsAeroApiKey}
+        smsAeroSign={smsAeroSign}
+        setSmsAeroSign={setSmsAeroSign}
         isSaving={isSaving}
         saveProviderConfig={saveProviderConfig}
       />

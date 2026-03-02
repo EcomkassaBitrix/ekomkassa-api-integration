@@ -6,6 +6,7 @@ import EditWappiConfig from './provider-edit-configs/EditWappiConfig';
 import EditPostboxConfig from './provider-edit-configs/EditPostboxConfig';
 import EditFcmConfig from './provider-edit-configs/EditFcmConfig';
 import EditApnsConfig from './provider-edit-configs/EditApnsConfig';
+import EditSmsAeroConfig from './provider-edit-configs/EditSmsAeroConfig';
 
 interface Provider {
   id: number;
@@ -18,6 +19,7 @@ interface Provider {
   usesPostbox: boolean;
   usesFcm: boolean;
   usesApns: boolean;
+  usesSmsAero: boolean;
   lastAttemptAt: string | null;
 }
 
@@ -52,6 +54,12 @@ interface ProviderConfigDialogProps {
   setApnsPrivateKey: (key: string) => void;
   apnsBundleId: string;
   setApnsBundleId: (id: string) => void;
+  smsAeroEmail: string;
+  setSmsAeroEmail: (val: string) => void;
+  smsAeroApiKey: string;
+  setSmsAeroApiKey: (val: string) => void;
+  smsAeroSign: string;
+  setSmsAeroSign: (val: string) => void;
   isSaving: boolean;
   saveProviderConfig: () => void;
 }
@@ -87,6 +95,12 @@ const ProviderConfigDialog = ({
   setApnsPrivateKey,
   apnsBundleId,
   setApnsBundleId,
+  smsAeroEmail,
+  setSmsAeroEmail,
+  smsAeroApiKey,
+  setSmsAeroApiKey,
+  smsAeroSign,
+  setSmsAeroSign,
   isSaving,
   saveProviderConfig
 }: ProviderConfigDialogProps) => {
@@ -149,14 +163,14 @@ const ProviderConfigDialog = ({
           <DialogDescription>
             {selectedProvider?.usesWappi ? (
               <>
-                {providerConfigs[selectedProvider.code] 
+                {providerConfigs[selectedProvider.code]
                   ? `Обновите настройки интеграции ${selectedProvider.name} с Wappi.`
                   : `Для работы ${selectedProvider.name} требуется настроить интеграцию с Wappi.`
                 }
                 <br />
-                <a 
-                  href="https://wappi.pro" 
-                  target="_blank" 
+                <a
+                  href="https://wappi.pro"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline inline-flex items-center gap-1 mt-2"
                 >
@@ -224,31 +238,34 @@ const ProviderConfigDialog = ({
           />
         )}
 
+        {selectedProvider?.usesSmsAero && (
+          <EditSmsAeroConfig
+            editProviderCode={editProviderCode}
+            smsAeroEmail={smsAeroEmail}
+            setSmsAeroEmail={setSmsAeroEmail}
+            smsAeroApiKey={smsAeroApiKey}
+            setSmsAeroApiKey={setSmsAeroApiKey}
+            smsAeroSign={smsAeroSign}
+            setSmsAeroSign={setSmsAeroSign}
+          />
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setConfigDialogOpen(false)} disabled={isSaving}>
             Отмена
           </Button>
-          <Button 
-            onClick={saveProviderConfig} 
+          <Button
+            onClick={saveProviderConfig}
             disabled={
-              isSaving || 
+              isSaving ||
               (selectedProvider?.usesWappi && (!wappiToken || !wappiProfileId)) ||
               (selectedProvider?.usesPostbox && (!postboxAccessKey || !postboxSecretKey || !postboxFromEmail)) ||
               (selectedProvider?.usesFcm && (!fcmProjectId || !fcmPrivateKey || !fcmClientEmail)) ||
-              (selectedProvider?.usesApns && (!apnsTeamId || !apnsKeyId || !apnsPrivateKey || !apnsBundleId))
+              (selectedProvider?.usesApns && (!apnsTeamId || !apnsKeyId || !apnsPrivateKey || !apnsBundleId)) ||
+              (selectedProvider?.usesSmsAero && (!smsAeroEmail || !smsAeroApiKey || !smsAeroSign))
             }
           >
-            {isSaving ? (
-              <>
-                <Icon name="Loader2" size={16} className="mr-2 animate-spin" />
-                Сохранение...
-              </>
-            ) : (
-              <>
-                <Icon name="Save" size={16} className="mr-2" />
-                Сохранить настройки
-              </>
-            )}
+            {isSaving ? 'Сохранение...' : 'Сохранить'}
           </Button>
         </DialogFooter>
       </DialogContent>
