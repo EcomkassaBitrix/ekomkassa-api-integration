@@ -35,9 +35,10 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   const [response, setResponse] = useState<Record<string, unknown> | null>(null);
 
   // Telegram OTP — двухшаговый флоу
-  const [tgStep, setTgStep] = useState<'phone' | 'code'>('phone');
+  const [tgStep, setTgStep] = useState<'phone' | 'code' | '2fa'>('phone');
   const [tgCode, setTgCode] = useState('');
   const [tgCodeSent, setTgCodeSent] = useState(false);
+  const [tg2faPassword, setTg2faPassword] = useState('');
 
   const activeProviders = providers
     .filter(p => p.status === 'working' || p.status === 'configured')
@@ -58,6 +59,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
     setTgStep('phone');
     setTgCode('');
     setTgCodeSent(false);
+    setTg2faPassword('');
     setResponse(null);
 
     const provider = activeProviders.find(p => p.code === providerCode);
@@ -130,15 +132,17 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
     }
   };
 
-  const verifyTgCode = async () => {
+  const verifyTgCode = async (password?: string) => {
     if (!selectedProvider || !recipient || !tgCode) return;
     setIsSending(true);
     setResponse(null);
     try {
+      const body: Record<string, string> = { provider_code: selectedProvider, phone: recipient, code: tgCode };
+      if (password) body.password = password;
       const res = await fetch('https://functions.poehali.dev/75679f26-e849-45c2-bfcc-24759c4cae84', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' },
-        body: JSON.stringify({ provider_code: selectedProvider, phone: recipient, code: tgCode })
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       setResponse(data);
@@ -146,6 +150,9 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
         setTgStep('phone');
         setTgCode('');
         setTgCodeSent(false);
+        setTg2faPassword('');
+      } else if (data.error_type === '2fa_required') {
+        setTgStep('2fa');
       }
     } catch {
       setResponse({ success: false, error: 'Ошибка соединения' });
@@ -262,10 +269,10 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
                   placeholder="+79991234567"
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
-                  disabled={tgStep === 'code'}
+                  disabled={tgStep === 'code' || tgStep === '2fa'}
                 />
-                {tgStep === 'code' && (
-                  <Button variant="outline" size="sm" onClick={() => { setTgStep('phone'); setTgCode(''); setResponse(null); }}>
+                {(tgStep === 'code' || tgStep === '2fa') && (
+                  <Button variant="outline" size="sm" onClick={() => { setTgStep('phone'); setTgCode(''); setTg2faPassword(''); setResponse(null); }}>
                     <Icon name="RefreshCw" size={16} />
                   </Button>
                 )}
@@ -287,6 +294,20 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
               </div>
             )}
 
+            {tgStep === '2fa' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Пароль двухфакторной аутентификации</label>
+                <input
+                  type="password"
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  placeholder="Облачный пароль Telegram"
+                  value={tg2faPassword}
+                  onChange={(e) => setTg2faPassword(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">На этом аккаунте включена 2FA — введите облачный пароль Telegram</p>
+              </div>
+            )}
+
             {tgStep === 'phone' ? (
               <Button onClick={sendTgCode} disabled={!recipient || isSending} className="w-full" size="lg">
                 {isSending ? (
@@ -295,12 +316,20 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
                   <><Icon name="Send" size={20} className="mr-2" />Отправить код в Telegram</>
                 )}
               </Button>
-            ) : (
-              <Button onClick={verifyTgCode} disabled={!tgCode || tgCode.length < 4 || isSending} className="w-full" size="lg">
+            ) : tgStep === 'code' ? (
+              <Button onClick={() => verifyTgCode()} disabled={!tgCode || tgCode.length < 4 || isSending} className="w-full" size="lg">
                 {isSending ? (
                   <><Icon name="Loader2" size={20} className="mr-2 animate-spin" />Проверка...</>
                 ) : (
                   <><Icon name="CheckCircle" size={20} className="mr-2" />Проверить код</>
+                )}
+              </Button>
+            ) : (
+              <Button onClick={() => verifyTgCode(tg2faPassword)} disabled={!tg2faPassword || isSending} className="w-full" size="lg">
+                {isSending ? (
+                  <><Icon name="Loader2" size={20} className="mr-2 animate-spin" />Проверка...</>
+                ) : (
+                  <><Icon name="ShieldCheck" size={20} className="mr-2" />Подтвердить пароль 2FA</>
                 )}
               </Button>
             )}

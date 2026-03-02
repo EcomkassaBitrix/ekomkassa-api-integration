@@ -40,22 +40,32 @@ def get_otp_session(provider_code: str, phone: str, conn):
     cur.close()
     return result['phone_code_hash'] if result else None
 
-async def verify_code(api_id: int, api_hash: str, session_str: str, phone: str, code: str, phone_code_hash: str):
+async def verify_code(api_id: int, api_hash: str, session_str: str, phone: str, code: str, phone_code_hash: str, password: str = None):
     client = TelegramClient(StringSession(session_str), api_id, api_hash)
     await client.connect()
     try:
         await client.sign_in(phone=phone, code=code, phone_code_hash=phone_code_hash)
+        session_new = client.session.save()
         await client.disconnect()
-        return True, None
+        return True, None, session_new
     except PhoneCodeInvalidError:
         await client.disconnect()
-        return False, 'invalid_code'
+        return False, 'invalid_code', None
     except PhoneCodeExpiredError:
         await client.disconnect()
-        return False, 'expired_code'
+        return False, 'expired_code', None
     except SessionPasswordNeededError:
-        await client.disconnect()
-        return False, '2fa_required'
+        if not password:
+            await client.disconnect()
+            return False, '2fa_required', None
+        try:
+            await client.sign_in(password=password)
+            session_new = client.session.save()
+            await client.disconnect()
+            return True, None, session_new
+        except Exception:
+            await client.disconnect()
+            return False, '2fa_invalid', None
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -84,6 +94,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     provider_code = body.get('provider_code')
     phone = body.get('phone')
     code = body.get('code')
+    password = body.get('password')
 
     if not provider_code or not phone or not code:
         conn.close()
@@ -100,8 +111,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {'statusCode': 400, 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}, 'body': json.dumps({'error': 'Telegram credentials not configured'}), 'isBase64Encoded': False}
 
     try:
-        success, error_type = asyncio.get_event_loop().run_until_complete(
-            verify_code(int(tg_api_id), tg_api_hash, tg_session or '', phone, str(code), phone_code_hash)
+        success, error_type, session_new = asyncio.get_event_loop().run_until_complete(
+            verify_code(int(str(tg_api_id).strip()), tg_api_hash.strip(), tg_session or '', phone, str(code), phone_code_hash, password)
         )
     except Exception as e:
         conn.close()
@@ -109,8 +120,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {'statusCode': 500, 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}, 'body': json.dumps({'error': str(e)}), 'isBase64Encoded': False}
 
     if success:
-        # Удаляем использованную сессию
         cur = conn.cursor()
+        # Сохраняем обновлённую сессию
+        if session_new:
+            cur.execute(
+                "UPDATE providers SET config = COALESCE(config, '{}'::jsonb) || %s::jsonb WHERE provider_code = %s",
+                (json.dumps({'tg_session': session_new}), provider_code)
+            )
         cur.execute("DELETE FROM tg_otp_sessions WHERE provider_code = %s AND phone = %s", (provider_code, phone))
         conn.commit()
         cur.close()
@@ -127,7 +143,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     error_messages = {
         'invalid_code': 'Неверный код',
         'expired_code': 'Код истёк, запросите новый',
-        '2fa_required': 'Требуется двухфакторная аутентификация'
+        '2fa_required': 'Требуется пароль двухфакторной аутентификации',
+        '2fa_invalid': 'Неверный пароль двухфакторной аутентификации',
     }
     return {
         'statusCode': 400,
