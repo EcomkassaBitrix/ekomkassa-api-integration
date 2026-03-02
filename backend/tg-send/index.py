@@ -73,7 +73,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     try:
         phone_code_hash, session_new = asyncio.get_event_loop().run_until_complete(
-            send_code(int(tg_api_id), tg_api_hash, tg_session or '', phone)
+            send_code(int(str(tg_api_id).strip()), tg_api_hash.strip(), tg_session or '', phone)
         )
     except Exception as e:
         conn.close()
