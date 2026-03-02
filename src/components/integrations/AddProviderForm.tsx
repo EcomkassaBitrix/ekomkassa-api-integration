@@ -36,6 +36,8 @@ interface AddProviderFormProps {
   setNewProviderApnsPrivateKey: (key: string) => void;
   newProviderApnsBundleId: string;
   setNewProviderApnsBundleId: (id: string) => void;
+  newProviderSmsAeroEmail: string;
+  setNewProviderSmsAeroEmail: (val: string) => void;
   newProviderSmsAeroApiKey: string;
   setNewProviderSmsAeroApiKey: (val: string) => void;
   newProviderSmsAeroSign: string;
@@ -73,6 +75,8 @@ const AddProviderForm = ({
   setNewProviderApnsPrivateKey,
   newProviderApnsBundleId,
   setNewProviderApnsBundleId,
+  newProviderSmsAeroEmail,
+  setNewProviderSmsAeroEmail,
   newProviderSmsAeroApiKey,
   setNewProviderSmsAeroApiKey,
   newProviderSmsAeroSign,
@@ -139,6 +143,8 @@ const AddProviderForm = ({
 
       {newProviderType === 'sms_aero' && (
         <SmsAeroConfigFields
+          smsAeroEmail={newProviderSmsAeroEmail}
+          setSmsAeroEmail={setNewProviderSmsAeroEmail}
           smsAeroApiKey={newProviderSmsAeroApiKey}
           setSmsAeroApiKey={setNewProviderSmsAeroApiKey}
           smsAeroSign={newProviderSmsAeroSign}

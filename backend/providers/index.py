@@ -225,6 +225,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             apns_key_id = body_data.get('apns_key_id')
             apns_private_key = body_data.get('apns_private_key')
             apns_bundle_id = body_data.get('apns_bundle_id')
+            smsaero_email = body_data.get('smsaero_email')
             smsaero_api_key = body_data.get('smsaero_api_key')
             smsaero_sign = body_data.get('smsaero_sign')
 
@@ -238,11 +239,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
 
             # Проверяем credentials SMS Aero через auth endpoint
-            # smsaero_api_key содержит "email:api_key"
-            if provider_type == 'sms_aero' and smsaero_api_key:
+            if provider_type == 'sms_aero' and smsaero_email and smsaero_api_key:
                 import base64
                 import requests as req
-                credentials = base64.b64encode(smsaero_api_key.encode()).decode()
+                credentials = base64.b64encode(f"{smsaero_email}:{smsaero_api_key}".encode()).decode()
                 auth_resp = req.get(
                     'https://gate.smsaero.ru/v2/auth',
                     headers={'Authorization': f'Basic {credentials}'},
@@ -283,6 +283,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 config['apns_private_key'] = apns_private_key
             if apns_bundle_id:
                 config['apns_bundle_id'] = apns_bundle_id
+            if smsaero_email:
+                config['smsaero_email'] = smsaero_email
             if smsaero_api_key:
                 config['smsaero_api_key'] = smsaero_api_key
             if smsaero_sign:
@@ -348,6 +350,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             apns_key_id = body_data.get('apns_key_id')
             apns_private_key = body_data.get('apns_private_key')
             apns_bundle_id = body_data.get('apns_bundle_id')
+            smsaero_email = body_data.get('smsaero_email')
             smsaero_api_key = body_data.get('smsaero_api_key')
             smsaero_sign = body_data.get('smsaero_sign')
 
@@ -385,6 +388,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 config['apns_private_key'] = apns_private_key
             if apns_bundle_id:
                 config['apns_bundle_id'] = apns_bundle_id
+            if smsaero_email:
+                config['smsaero_email'] = smsaero_email
             if smsaero_api_key:
                 config['smsaero_api_key'] = smsaero_api_key
             if smsaero_sign:

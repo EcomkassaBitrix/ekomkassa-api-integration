@@ -2,6 +2,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 interface SmsAeroConfigFieldsProps {
+  smsAeroEmail: string;
+  setSmsAeroEmail: (val: string) => void;
   smsAeroApiKey: string;
   setSmsAeroApiKey: (val: string) => void;
   smsAeroSign: string;
@@ -9,6 +11,8 @@ interface SmsAeroConfigFieldsProps {
 }
 
 const SmsAeroConfigFields = ({
+  smsAeroEmail,
+  setSmsAeroEmail,
   smsAeroApiKey,
   setSmsAeroApiKey,
   smsAeroSign,
@@ -17,16 +21,30 @@ const SmsAeroConfigFields = ({
   return (
     <>
       <div className="space-y-2">
+        <Label htmlFor="smsaero-email">Логин (email)</Label>
+        <Input
+          id="smsaero-email"
+          type="email"
+          placeholder="email@example.com"
+          value={smsAeroEmail}
+          onChange={(e) => setSmsAeroEmail(e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">
+          Email вашего аккаунта на smsaero.ru
+        </p>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="smsaero-apikey">API ключ</Label>
         <Input
           id="smsaero-apikey"
           type="password"
-          placeholder="email@example.com:ваш_api_ключ"
+          placeholder="EpNGKz4-6qMiI5DOBbFoNZbPLRATDCY-"
           value={smsAeroApiKey}
           onChange={(e) => setSmsAeroApiKey(e.target.value)}
         />
         <p className="text-xs text-muted-foreground">
-          Формат: <span className="font-mono">email:api_ключ</span> — из раздела Настройки → API на smsaero.ru
+          Настройки → API → API ключ на smsaero.ru
         </p>
       </div>
 
