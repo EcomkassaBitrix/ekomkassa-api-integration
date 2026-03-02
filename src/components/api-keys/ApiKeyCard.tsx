@@ -4,11 +4,12 @@ import Icon from '@/components/ui/icon';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 export interface ApiKey {
-  key_id: string;
-  name: string;
-  key_prefix: string;
+  id?: number;
+  key_id?: string;
+  name?: string;
+  key_prefix?: string;
   created_at: string;
-  expires_at: string | null;
+  expires_at?: string | null;
   is_active: boolean;
   [key: string]: unknown;
 }

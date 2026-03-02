@@ -87,7 +87,7 @@ const ApiKeysSection = ({
             <div className="space-y-4">
               {apiKeys.map((key) => (
                 <ApiKeyCard
-                  key={key.key_id}
+                  key={key.id as string ?? key.key_id}
                   apiKey={key}
                   onRegenerate={(k) => {
                     setKeyToRegenerate(k);
