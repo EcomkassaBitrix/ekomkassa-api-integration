@@ -17,6 +17,7 @@ interface Provider {
   usesFcm: boolean;
   usesApns: boolean;
   usesSmsAero: boolean;
+  usesTelegramOtp: boolean;
   lastAttemptAt: string | null;
 }
 
@@ -59,6 +60,10 @@ interface IntegrationsSectionProps {
   setSmsAeroApiKey: (val: string) => void;
   smsAeroSign: string;
   setSmsAeroSign: (val: string) => void;
+  tgApiId: string;
+  setTgApiId: (val: string) => void;
+  tgApiHash: string;
+  setTgApiHash: (val: string) => void;
   isSaving: boolean;
   setIsSaving: (saving: boolean) => void;
   addProviderDialogOpen: boolean;
@@ -93,13 +98,17 @@ interface IntegrationsSectionProps {
   setNewProviderApnsPrivateKey: (key: string) => void;
   newProviderApnsBundleId: string;
   setNewProviderApnsBundleId: (id: string) => void;
+  newProviderTgApiId?: string;
+  setNewProviderTgApiId?: (val: string) => void;
+  newProviderTgApiHash?: string;
+  setNewProviderTgApiHash?: (val: string) => void;
   deleteDialogOpen: boolean;
   setDeleteDialogOpen: (open: boolean) => void;
   providerToDelete: Provider | null;
   setProviderToDelete: (provider: Provider | null) => void;
   isDeleting: boolean;
   openProviderConfig: (provider: Provider) => void;
-  saveProviderConfig: () => void;
+  saveProviderConfig: () => Promise<string | null>;
   deleteProvider: () => void;
   loadProviders: () => void;
 }
@@ -143,6 +152,10 @@ const IntegrationsSection = ({
   setSmsAeroApiKey,
   smsAeroSign,
   setSmsAeroSign,
+  tgApiId = '',
+  setTgApiId = () => {},
+  tgApiHash = '',
+  setTgApiHash = () => {},
   isSaving,
   setIsSaving,
   addProviderDialogOpen,
@@ -253,6 +266,10 @@ const IntegrationsSection = ({
         setSmsAeroApiKey={setSmsAeroApiKey}
         smsAeroSign={smsAeroSign}
         setSmsAeroSign={setSmsAeroSign}
+        tgApiId={tgApiId}
+        setTgApiId={setTgApiId}
+        tgApiHash={tgApiHash}
+        setTgApiHash={setTgApiHash}
         isSaving={isSaving}
         saveProviderConfig={saveProviderConfig}
       />

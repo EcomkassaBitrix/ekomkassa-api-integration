@@ -82,6 +82,8 @@ const AddProviderDialog = ({
   const [newProviderSmsAeroEmail, setNewProviderSmsAeroEmail] = useState('');
   const [newProviderSmsAeroApiKey, setNewProviderSmsAeroApiKey] = useState('');
   const [newProviderSmsAeroSign, setNewProviderSmsAeroSign] = useState('');
+  const [newProviderTgApiId, setNewProviderTgApiId] = useState('');
+  const [newProviderTgApiHash, setNewProviderTgApiHash] = useState('');
   const [saveError, setSaveError] = useState('');
 
   const resetForm = () => {
@@ -103,6 +105,8 @@ const AddProviderDialog = ({
     setNewProviderSmsAeroEmail('');
     setNewProviderSmsAeroApiKey('');
     setNewProviderSmsAeroSign('');
+    setNewProviderTgApiId('');
+    setNewProviderTgApiHash('');
   };
 
   const handleCreateProvider = async () => {
@@ -139,6 +143,10 @@ const AddProviderDialog = ({
         requestBody.smsaero_email = newProviderSmsAeroEmail;
         requestBody.smsaero_api_key = newProviderSmsAeroApiKey;
         requestBody.smsaero_sign = newProviderSmsAeroSign;
+      }
+      if (newProviderType === 'telegram_otp') {
+        requestBody.tg_api_id = newProviderTgApiId;
+        requestBody.tg_api_hash = newProviderTgApiHash;
       }
 
       const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
@@ -178,6 +186,9 @@ const AddProviderDialog = ({
     }
     if (newProviderType === 'sms_aero') {
       return !!(newProviderSmsAeroEmail && newProviderSmsAeroApiKey && newProviderSmsAeroSign);
+    }
+    if (newProviderType === 'telegram_otp') {
+      return !!(newProviderTgApiId && newProviderTgApiHash);
     }
     return true;
   };
@@ -234,6 +245,10 @@ const AddProviderDialog = ({
           setNewProviderSmsAeroApiKey={setNewProviderSmsAeroApiKey}
           newProviderSmsAeroSign={newProviderSmsAeroSign}
           setNewProviderSmsAeroSign={setNewProviderSmsAeroSign}
+          newProviderTgApiId={newProviderTgApiId}
+          setNewProviderTgApiId={setNewProviderTgApiId}
+          newProviderTgApiHash={newProviderTgApiHash}
+          setNewProviderTgApiHash={setNewProviderTgApiHash}
         />
 
         {saveError && (

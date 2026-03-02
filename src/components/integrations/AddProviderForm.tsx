@@ -4,6 +4,7 @@ import PostboxConfigFields from './provider-configs/PostboxConfigFields';
 import FcmConfigFields from './provider-configs/FcmConfigFields';
 import ApnsConfigFields from './provider-configs/ApnsConfigFields';
 import SmsAeroConfigFields from './provider-configs/SmsAeroConfigFields';
+import TelegramOtpConfigFields from './provider-configs/TelegramOtpConfigFields';
 
 interface AddProviderFormProps {
   newProviderName: string;
@@ -42,6 +43,10 @@ interface AddProviderFormProps {
   setNewProviderSmsAeroApiKey: (val: string) => void;
   newProviderSmsAeroSign: string;
   setNewProviderSmsAeroSign: (val: string) => void;
+  newProviderTgApiId: string;
+  setNewProviderTgApiId: (val: string) => void;
+  newProviderTgApiHash: string;
+  setNewProviderTgApiHash: (val: string) => void;
 }
 
 const AddProviderForm = ({
@@ -81,6 +86,10 @@ const AddProviderForm = ({
   setNewProviderSmsAeroApiKey,
   newProviderSmsAeroSign,
   setNewProviderSmsAeroSign,
+  newProviderTgApiId,
+  setNewProviderTgApiId,
+  newProviderTgApiHash,
+  setNewProviderTgApiHash,
 }: AddProviderFormProps) => {
   const isWappi = newProviderType === 'whatsapp_business' || newProviderType === 'telegram_bot' || newProviderType === 'max';
 
@@ -149,6 +158,15 @@ const AddProviderForm = ({
           setSmsAeroApiKey={setNewProviderSmsAeroApiKey}
           smsAeroSign={newProviderSmsAeroSign}
           setSmsAeroSign={setNewProviderSmsAeroSign}
+        />
+      )}
+
+      {newProviderType === 'telegram_otp' && (
+        <TelegramOtpConfigFields
+          tgApiId={newProviderTgApiId}
+          setTgApiId={setNewProviderTgApiId}
+          tgApiHash={newProviderTgApiHash}
+          setTgApiHash={setNewProviderTgApiHash}
         />
       )}
     </div>

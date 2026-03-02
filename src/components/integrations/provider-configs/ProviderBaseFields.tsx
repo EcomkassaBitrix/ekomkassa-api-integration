@@ -98,6 +98,12 @@ const ProviderBaseFields = ({
                 <span>SMS Aero</span>
               </div>
             </SelectItem>
+            <SelectItem value="telegram_otp">
+              <div className="flex items-center gap-2">
+                <Icon name="Send" size={16} />
+                <span>Telegram OTP</span>
+              </div>
+            </SelectItem>
             <SelectItem value="email">Email SMTP</SelectItem>
             <SelectItem value="custom">Другой / Custom</SelectItem>
           </SelectContent>

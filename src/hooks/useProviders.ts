@@ -25,6 +25,7 @@ interface Provider {
   usesFcm: boolean;
   usesApns: boolean;
   usesSmsAero: boolean;
+  usesTelegramOtp: boolean;
   lastAttemptAt: string | null;
 }
 
@@ -47,6 +48,8 @@ export const useProviders = () => {
   const [smsAeroEmail, setSmsAeroEmail] = useState('');
   const [smsAeroApiKey, setSmsAeroApiKey] = useState('');
   const [smsAeroSign, setSmsAeroSign] = useState('');
+  const [tgApiId, setTgApiId] = useState('');
+  const [tgApiHash, setTgApiHash] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   
   const [addProviderDialogOpen, setAddProviderDialogOpen] = useState(false);
@@ -106,6 +109,7 @@ export const useProviders = () => {
           const usesFcm = p.provider_type === 'fcm';
           const usesApns = p.provider_type === 'apns';
           const usesSmsAero = p.provider_type === 'sms_aero';
+          const usesTelegramOtp = p.provider_type === 'telegram_otp';
           
           return {
             id: index + 1,
@@ -119,6 +123,7 @@ export const useProviders = () => {
             usesFcm,
             usesApns,
             usesSmsAero,
+            usesTelegramOtp,
             lastAttemptAt: p.last_attempt_at
           };
         });
@@ -234,6 +239,11 @@ export const useProviders = () => {
         requestBody.smsaero_sign = smsAeroSign;
       }
 
+      if (selectedProvider.usesTelegramOtp) {
+        requestBody.tg_api_id = tgApiId;
+        requestBody.tg_api_hash = tgApiHash;
+      }
+
       const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
         method: 'POST',
         headers: {
@@ -262,6 +272,8 @@ export const useProviders = () => {
         setSmsAeroEmail('');
         setSmsAeroApiKey('');
         setSmsAeroSign('');
+        setTgApiId('');
+        setTgApiHash('');
         await loadProviders();
         return null;
       } else {
@@ -310,6 +322,10 @@ export const useProviders = () => {
     setSmsAeroApiKey,
     smsAeroSign,
     setSmsAeroSign,
+    tgApiId,
+    setTgApiId,
+    tgApiHash,
+    setTgApiHash,
     isSaving,
     setIsSaving,
     addProviderDialogOpen,

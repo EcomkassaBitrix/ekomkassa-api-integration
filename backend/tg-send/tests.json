@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Test without API key",
+      "method": "POST",
+      "path": "/",
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Missing API key"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

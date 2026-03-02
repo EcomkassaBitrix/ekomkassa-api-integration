@@ -8,6 +8,7 @@ import EditPostboxConfig from './provider-edit-configs/EditPostboxConfig';
 import EditFcmConfig from './provider-edit-configs/EditFcmConfig';
 import EditApnsConfig from './provider-edit-configs/EditApnsConfig';
 import EditSmsAeroConfig from './provider-edit-configs/EditSmsAeroConfig';
+import EditTelegramOtpConfig from './provider-edit-configs/EditTelegramOtpConfig';
 
 interface Provider {
   id: number;
@@ -21,6 +22,7 @@ interface Provider {
   usesFcm: boolean;
   usesApns: boolean;
   usesSmsAero: boolean;
+  usesTelegramOtp: boolean;
   lastAttemptAt: string | null;
 }
 
@@ -61,6 +63,10 @@ interface ProviderConfigDialogProps {
   setSmsAeroApiKey: (val: string) => void;
   smsAeroSign: string;
   setSmsAeroSign: (val: string) => void;
+  tgApiId: string;
+  setTgApiId: (val: string) => void;
+  tgApiHash: string;
+  setTgApiHash: (val: string) => void;
   isSaving: boolean;
   saveProviderConfig: () => Promise<string | null>;
 }
@@ -102,6 +108,10 @@ const ProviderConfigDialog = ({
   setSmsAeroApiKey,
   smsAeroSign,
   setSmsAeroSign,
+  tgApiId,
+  setTgApiId,
+  tgApiHash,
+  setTgApiHash,
   isSaving,
   saveProviderConfig
 }: ProviderConfigDialogProps) => {
@@ -256,6 +266,16 @@ const ProviderConfigDialog = ({
             setSmsAeroApiKey={setSmsAeroApiKey}
             smsAeroSign={smsAeroSign}
             setSmsAeroSign={setSmsAeroSign}
+          />
+        )}
+
+        {selectedProvider?.usesTelegramOtp && (
+          <EditTelegramOtpConfig
+            editProviderCode={editProviderCode}
+            tgApiId={tgApiId}
+            setTgApiId={setTgApiId}
+            tgApiHash={tgApiHash}
+            setTgApiHash={setTgApiHash}
           />
         )}
 

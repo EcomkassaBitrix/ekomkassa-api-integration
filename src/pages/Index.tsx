@@ -196,6 +196,10 @@ const Index = () => {
                   setSmsAeroApiKey={providers.setSmsAeroApiKey}
                   smsAeroSign={providers.smsAeroSign}
                   setSmsAeroSign={providers.setSmsAeroSign}
+                  tgApiId={providers.tgApiId}
+                  setTgApiId={providers.setTgApiId}
+                  tgApiHash={providers.tgApiHash}
+                  setTgApiHash={providers.setTgApiHash}
                   deleteDialogOpen={providers.deleteDialogOpen}
                   setDeleteDialogOpen={providers.setDeleteDialogOpen}
                   providerToDelete={providers.providerToDelete}

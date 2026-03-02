@@ -305,6 +305,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             smsaero_email = body_data.get('smsaero_email')
             smsaero_api_key = body_data.get('smsaero_api_key')
             smsaero_sign = body_data.get('smsaero_sign')
+            tg_api_id = body_data.get('tg_api_id')
+            tg_api_hash = body_data.get('tg_api_hash')
 
             if not provider_code:
                 conn.close()
@@ -366,6 +368,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 config['smsaero_api_key'] = smsaero_api_key
             if smsaero_sign:
                 config['smsaero_sign'] = smsaero_sign
+            if tg_api_id:
+                config['tg_api_id'] = tg_api_id
+            if tg_api_hash:
+                config['tg_api_hash'] = tg_api_hash
 
             if not provider_name:
                 conn.close()
@@ -430,6 +436,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             smsaero_email = body_data.get('smsaero_email')
             smsaero_api_key = body_data.get('smsaero_api_key')
             smsaero_sign = body_data.get('smsaero_sign')
+            tg_api_id = body_data.get('tg_api_id')
+            tg_api_hash = body_data.get('tg_api_hash')
 
             if not provider_code:
                 conn.close()
@@ -471,6 +479,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 config['smsaero_api_key'] = smsaero_api_key
             if smsaero_sign:
                 config['smsaero_sign'] = smsaero_sign
+            if tg_api_id:
+                config['tg_api_id'] = tg_api_id
+            if tg_api_hash:
+                config['tg_api_hash'] = tg_api_hash
 
             cur = conn.cursor()
             cur.execute(

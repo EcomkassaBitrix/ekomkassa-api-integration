@@ -1,4 +1,6 @@
 {
+  "tg-send": "https://functions.poehali.dev/6ecd446a-71fc-4645-9447-63b3290a4f45",
+  "tg-verify": "https://functions.poehali.dev/75679f26-e849-45c2-bfcc-24759c4cae84",
   "providers": "https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e",
   "send": "https://functions.poehali.dev/ace36e55-b169-41f2-9d2b-546f92221bb7"
 }
