@@ -44,7 +44,8 @@ const EditSmsAeroConfig = ({
     setIsLoadingSigns(true);
     setSignsError('');
     try {
-      const url = new URL('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e/signs');
+      const url = new URL('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e');
+      url.searchParams.set('action', 'signs');
       url.searchParams.set('provider_code', editProviderCode);
       if (smsAeroEmail) url.searchParams.set('smsaero_email', smsAeroEmail);
       if (smsAeroApiKey) url.searchParams.set('smsaero_api_key', smsAeroApiKey);

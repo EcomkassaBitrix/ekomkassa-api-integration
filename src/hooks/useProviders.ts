@@ -180,7 +180,7 @@ export const useProviders = () => {
     if (provider.usesSmsAero) {
       try {
         const resp = await fetch(
-          `https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e/config?provider_code=${provider.code}`,
+          `https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e?action=config&provider_code=${provider.code}`,
           { headers: { 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' } }
         );
         const data = await resp.json();

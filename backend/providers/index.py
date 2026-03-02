@@ -77,7 +77,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             path = event.get('path', '')
             params = event.get('queryStringParameters') or {}
             
-            if '/signs' in path:
+            action = params.get('action', '')
+            if '/signs' in path or action == 'signs':
                 provider_code = params.get('provider_code')
                 smsaero_email = params.get('smsaero_email')
                 smsaero_api_key = params.get('smsaero_api_key')
@@ -149,7 +150,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'isBase64Encoded': False
                 }
 
-            elif '/config' in path:
+            elif '/config' in path or action == 'config':
                 provider_code = params.get('provider_code')
                 
                 if not provider_code:
