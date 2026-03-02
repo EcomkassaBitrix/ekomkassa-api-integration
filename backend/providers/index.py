@@ -137,11 +137,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 signs_data = signs_resp.json()
                 signs = []
                 if signs_data.get('success') and signs_data.get('data'):
-                    for item in signs_data['data']:
-                        signs.append({
-                            'name': item.get('name'),
-                            'status': item.get('extendStatus', ''),
-                        })
+                    raw = signs_data['data']
+                    # SMS Aero возвращает data как объект с ключами "0", "1", ... + "totalCount"
+                    items = raw.values() if isinstance(raw, dict) else raw
+                    for item in items:
+                        if isinstance(item, dict) and item.get('name'):
+                            signs.append({
+                                'name': item.get('name'),
+                                'status': item.get('extendStatus', ''),
+                            })
                 
                 return {
                     'statusCode': 200,
