@@ -77,7 +77,81 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             path = event.get('path', '')
             params = event.get('queryStringParameters') or {}
             
-            if '/config' in path:
+            if '/signs' in path:
+                provider_code = params.get('provider_code')
+                if not provider_code:
+                    conn.close()
+                    return {
+                        'statusCode': 400,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'Missing provider_code parameter'}),
+                        'isBase64Encoded': False
+                    }
+                
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT config FROM providers WHERE provider_code = %s",
+                    (provider_code,)
+                )
+                result = cur.fetchone()
+                cur.close()
+                conn.close()
+                
+                if not result or not result['config']:
+                    return {
+                        'statusCode': 404,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'Provider not found or not configured'}),
+                        'isBase64Encoded': False
+                    }
+                
+                config = result['config']
+                smsaero_email = config.get('smsaero_email')
+                smsaero_api_key = config.get('smsaero_api_key')
+                
+                if not smsaero_email or not smsaero_api_key:
+                    return {
+                        'statusCode': 400,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'SMS Aero credentials not configured'}),
+                        'isBase64Encoded': False
+                    }
+                
+                import base64
+                import requests as req
+                credentials = base64.b64encode(f"{smsaero_email}:{smsaero_api_key}".encode()).decode()
+                signs_resp = req.get(
+                    'https://gate.smsaero.ru/v2/sign/list',
+                    headers={'Authorization': f'Basic {credentials}'},
+                    timeout=10
+                )
+                print(f"[SMSAERO SIGNS] status={signs_resp.status_code} body={signs_resp.text}")
+                
+                if signs_resp.status_code != 200:
+                    return {
+                        'statusCode': 502,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'SMS Aero API error', 'detail': signs_resp.text}),
+                        'isBase64Encoded': False
+                    }
+                
+                signs_data = signs_resp.json()
+                signs = []
+                if signs_data.get('success') and signs_data.get('data'):
+                    for item in signs_data['data']:
+                        signs.append({
+                            'name': item.get('name'),
+                            'status': item.get('extendStatus', ''),
+                        })
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'success': True, 'signs': signs}),
+                    'isBase64Encoded': False
+                }
+
+            elif '/config' in path:
                 provider_code = params.get('provider_code')
                 
                 if not provider_code:
