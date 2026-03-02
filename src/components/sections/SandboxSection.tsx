@@ -69,6 +69,12 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
       setSubject('');
       setPushTitle('');
       setDeviceToken('');
+    } else if (provider.usesSmsAero) {
+      setRecipient('+79689363395');
+      setMessage('Привет! Это тестовое SMS из Integration Hub.');
+      setSubject('');
+      setPushTitle('');
+      setDeviceToken('');
     } else {
       setRecipient('');
       setMessage('');

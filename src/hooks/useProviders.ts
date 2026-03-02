@@ -24,6 +24,7 @@ interface Provider {
   usesPostbox: boolean;
   usesFcm: boolean;
   usesApns: boolean;
+  usesSmsAero: boolean;
   lastAttemptAt: string | null;
 }
 
@@ -97,22 +98,24 @@ export const useProviders = () => {
             connectionStatus = 'error';
           }
           
-          const usesWappi = ['whatsapp_business', 'telegram_bot', 'max', 'wappi'].includes(p.provider_type);
+          const usesWappi = ['whatsapp_business', 'telegram_bot', 'max', 'wappi'].includes(p.provider_type as string);
           const usesPostbox = p.provider_type === 'yandex_postbox';
           const usesFcm = p.provider_type === 'fcm';
           const usesApns = p.provider_type === 'apns';
+          const usesSmsAero = p.provider_type === 'sms_aero';
           
           return {
             id: index + 1,
             name: p.provider_name,
-            icon: getProviderIcon(p.provider_type, p.provider_code),
+            icon: getProviderIcon(p.provider_type as string, p.provider_code as string),
             status: connectionStatus,
             requests: 0,
             code: p.provider_code,
-            usesWappi: usesWappi,
-            usesPostbox: usesPostbox,
-            usesFcm: usesFcm,
-            usesApns: usesApns,
+            usesWappi,
+            usesPostbox,
+            usesFcm,
+            usesApns,
+            usesSmsAero,
             lastAttemptAt: p.last_attempt_at
           };
         });

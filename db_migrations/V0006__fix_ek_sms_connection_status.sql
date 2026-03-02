@@ -1,0 +1,1 @@
+UPDATE providers SET connection_status = 'configured' WHERE provider_code = 'ek_sms' AND connection_status = 'not_configured' AND config IS NOT NULL AND config != '{}'::jsonb;
