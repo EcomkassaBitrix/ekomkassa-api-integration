@@ -120,6 +120,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {'statusCode': 500, 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}, 'body': json.dumps({'error': str(e)}), 'isBase64Encoded': False}
 
     if success:
+        import uuid
         cur = conn.cursor()
         # Сохраняем обновлённую сессию
         if session_new:
@@ -128,10 +129,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 (json.dumps({'tg_session': session_new}), provider_code)
             )
         cur.execute("DELETE FROM tg_otp_sessions WHERE provider_code = %s AND phone = %s", (provider_code, phone))
+        # Пишем в лог сообщений как доставленное
+        message_id = f"tgotp_{uuid.uuid4().hex[:16]}"
+        cur.execute(
+            """INSERT INTO messages (message_id, provider, recipient, message_text, status, attempts, created_at, completed_at)
+               VALUES (%s, %s, %s, %s, 'delivered', 1, NOW(), NOW())""",
+            (message_id, provider_code, phone, 'OTP code verified successfully')
+        )
         conn.commit()
         cur.close()
         conn.close()
-        print(f"[TG-VERIFY] Code verified for {phone}")
+        print(f"[TG-VERIFY] Code verified for {phone}, logged as {message_id}")
         return {
             'statusCode': 200,
             'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},

@@ -80,6 +80,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         print(f"[TG-SEND] Error: {e}")
         return {'statusCode': 500, 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}, 'body': json.dumps({'error': str(e)}), 'isBase64Encoded': False}
 
+    import uuid as uuid_mod
     # Сохраняем сессию обратно в конфиг провайдера (StringSession)
     cur = conn.cursor()
     cur.execute(
@@ -96,11 +97,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         "INSERT INTO tg_otp_sessions (provider_code, phone, phone_code_hash) VALUES (%s, %s, %s)",
         (provider_code, phone, phone_code_hash)
     )
+    # Пишем в лог сообщений как pending (ожидает верификации)
+    message_id = f"tgotp_{uuid_mod.uuid4().hex[:16]}"
+    cur.execute(
+        """INSERT INTO messages (message_id, provider, recipient, message_text, status, attempts, created_at)
+           VALUES (%s, %s, %s, %s, 'pending', 1, NOW())""",
+        (message_id, provider_code, phone, 'OTP code sent, awaiting verification')
+    )
     conn.commit()
     cur.close()
     conn.close()
 
-    print(f"[TG-SEND] Code sent to {phone}, hash saved")
+    print(f"[TG-SEND] Code sent to {phone}, hash saved, logged as {message_id}")
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
