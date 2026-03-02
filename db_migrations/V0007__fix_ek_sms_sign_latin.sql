@@ -1,0 +1,1 @@
+UPDATE providers SET config = config || '{"smsaero_sign": "Ekomkassa"}'::jsonb WHERE provider_code = 'ek_sms';
