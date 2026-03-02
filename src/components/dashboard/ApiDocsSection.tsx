@@ -14,8 +14,10 @@ const ApiDocsSection = () => {
           <TabsList className="mb-4">
             <TabsTrigger value="auth">Аутентификация</TabsTrigger>
             <TabsTrigger value="send">Мессенджеры</TabsTrigger>
+            <TabsTrigger value="sms">SMS</TabsTrigger>
             <TabsTrigger value="email">Email</TabsTrigger>
             <TabsTrigger value="push">Push</TabsTrigger>
+            <TabsTrigger value="otp">Telegram OTP</TabsTrigger>
             <TabsTrigger value="response">Ответы</TabsTrigger>
           </TabsList>
 
@@ -60,6 +62,111 @@ X-Api-Key: ek_live_your_api_key_here`}
                 recipient: номер телефона или chat_id<br/>
                 message: текст сообщения
               </p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="sms" className="space-y-4">
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <h4 className="font-semibold mb-2">Отправка SMS (SMS Aero)</h4>
+              <p className="text-sm text-muted-foreground mb-3">POST https://functions.poehali.dev/ace36e55-b169-41f2-9d2b-546f92221bb7</p>
+              <div className="mb-3">
+                <p className="text-sm font-medium mb-2">Headers:</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`Content-Type: application/json
+X-Api-Key: ek_live_your_api_key_here`}
+                </code>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Body:</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{
+  "provider": "ek_sms",
+  "recipient": "+79991234567",
+  "message": "Ваш заказ готов!"
+}`}
+                </code>
+              </div>
+              <p className="text-sm text-muted-foreground mt-3">
+                provider: код вашего SMS провайдера<br/>
+                recipient: номер телефона получателя в формате +7XXXXXXXXXX<br/>
+                message: текст сообщения<br/>
+                sign: имя отправителя (опционально, берётся из настроек провайдера)
+              </p>
+            </div>
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <h4 className="font-semibold mb-2">Пример с явным указанием имени отправителя</h4>
+              <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{
+  "provider": "ek_sms",
+  "recipient": "+79991234567",
+  "message": "Код подтверждения: 1234",
+  "sign": "MyCompany"
+}`}
+              </code>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="otp" className="space-y-4">
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <h4 className="font-semibold mb-2">Шаг 1 — Отправка кода в Telegram</h4>
+              <p className="text-sm text-muted-foreground mb-3">POST https://functions.poehali.dev/6ecd446a-71fc-4645-9447-63b3290a4f45</p>
+              <div className="mb-3">
+                <p className="text-sm font-medium mb-2">Headers:</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`Content-Type: application/json
+X-Api-Key: ek_live_your_api_key_here`}
+                </code>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Body:</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{
+  "provider_code": "ek_tg_otp",
+  "phone": "+79991234567"
+}`}
+                </code>
+              </div>
+              <p className="text-sm text-muted-foreground mt-3">
+                Пользователь получит код в официальное приложение Telegram на указанный номер.
+              </p>
+            </div>
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <h4 className="font-semibold mb-2">Шаг 2 — Проверка кода</h4>
+              <p className="text-sm text-muted-foreground mb-3">POST https://functions.poehali.dev/75679f26-e849-45c2-bfcc-24759c4cae84</p>
+              <div className="mb-3">
+                <p className="text-sm font-medium mb-2">Headers:</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`Content-Type: application/json
+X-Api-Key: ek_live_your_api_key_here`}
+                </code>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Body:</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{
+  "provider_code": "ek_tg_otp",
+  "phone": "+79991234567",
+  "code": "12345"
+}`}
+                </code>
+              </div>
+              <p className="text-sm text-muted-foreground mt-3">
+                code: код из приложения Telegram<br/>
+                Код действителен 10 минут. При успехе возвращает <code>{'{"success": true, "verified": true}'}</code>
+              </p>
+            </div>
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <h4 className="font-semibold mb-2">Возможные ошибки верификации</h4>
+              <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`// Неверный код
+{ "success": false, "error": "Неверный код", "error_type": "invalid_code" }
+
+// Код истёк
+{ "success": false, "error": "Код истёк, запросите новый", "error_type": "expired_code" }
+
+// Требуется 2FA пароль Telegram
+{ "success": false, "error_type": "2fa_required" }`}
+              </code>
             </div>
           </TabsContent>
 
