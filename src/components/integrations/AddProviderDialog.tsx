@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -78,6 +79,10 @@ const AddProviderDialog = ({
   setIsSaving,
   loadProviders
 }: AddProviderDialogProps) => {
+  const [newProviderSmsAeroEmail, setNewProviderSmsAeroEmail] = useState('');
+  const [newProviderSmsAeroApiKey, setNewProviderSmsAeroApiKey] = useState('');
+  const [newProviderSmsAeroSign, setNewProviderSmsAeroSign] = useState('');
+
   const resetForm = () => {
     setNewProviderName('');
     setNewProviderCode('');
@@ -94,6 +99,9 @@ const AddProviderDialog = ({
     setNewProviderApnsKeyId('');
     setNewProviderApnsPrivateKey('');
     setNewProviderApnsBundleId('');
+    setNewProviderSmsAeroEmail('');
+    setNewProviderSmsAeroApiKey('');
+    setNewProviderSmsAeroSign('');
   };
 
   const handleCreateProvider = async () => {
@@ -124,6 +132,11 @@ const AddProviderDialog = ({
         requestBody.apns_key_id = newProviderApnsKeyId;
         requestBody.apns_private_key = newProviderApnsPrivateKey;
         requestBody.apns_bundle_id = newProviderApnsBundleId;
+      }
+      if (newProviderType === 'sms_aero') {
+        requestBody.smsaero_email = newProviderSmsAeroEmail;
+        requestBody.smsaero_api_key = newProviderSmsAeroApiKey;
+        requestBody.smsaero_sign = newProviderSmsAeroSign;
       }
 
       const response = await fetch('https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e', {
@@ -165,6 +178,9 @@ const AddProviderDialog = ({
     }
     if (newProviderType === 'apns') {
       return !!(newProviderApnsTeamId && newProviderApnsKeyId && newProviderApnsPrivateKey && newProviderApnsBundleId);
+    }
+    if (newProviderType === 'sms_aero') {
+      return !!(newProviderSmsAeroEmail && newProviderSmsAeroApiKey && newProviderSmsAeroSign);
     }
     return true;
   };
@@ -215,6 +231,12 @@ const AddProviderDialog = ({
           setNewProviderApnsPrivateKey={setNewProviderApnsPrivateKey}
           newProviderApnsBundleId={newProviderApnsBundleId}
           setNewProviderApnsBundleId={setNewProviderApnsBundleId}
+          newProviderSmsAeroEmail={newProviderSmsAeroEmail}
+          setNewProviderSmsAeroEmail={setNewProviderSmsAeroEmail}
+          newProviderSmsAeroApiKey={newProviderSmsAeroApiKey}
+          setNewProviderSmsAeroApiKey={setNewProviderSmsAeroApiKey}
+          newProviderSmsAeroSign={newProviderSmsAeroSign}
+          setNewProviderSmsAeroSign={setNewProviderSmsAeroSign}
         />
 
         <DialogFooter>

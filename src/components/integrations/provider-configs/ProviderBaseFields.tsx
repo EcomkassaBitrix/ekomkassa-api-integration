@@ -92,7 +92,12 @@ const ProviderBaseFields = ({
                 <span>Apple Push Notification (iOS Push)</span>
               </div>
             </SelectItem>
-            <SelectItem value="sms">SMS Gateway</SelectItem>
+            <SelectItem value="sms_aero">
+              <div className="flex items-center gap-2">
+                <Icon name="MessageSquare" size={16} />
+                <span>SMS Aero</span>
+              </div>
+            </SelectItem>
             <SelectItem value="email">Email SMTP</SelectItem>
             <SelectItem value="custom">Другой / Custom</SelectItem>
           </SelectContent>

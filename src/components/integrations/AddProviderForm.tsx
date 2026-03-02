@@ -3,6 +3,7 @@ import WappiConfigFields from './provider-configs/WappiConfigFields';
 import PostboxConfigFields from './provider-configs/PostboxConfigFields';
 import FcmConfigFields from './provider-configs/FcmConfigFields';
 import ApnsConfigFields from './provider-configs/ApnsConfigFields';
+import SmsAeroConfigFields from './provider-configs/SmsAeroConfigFields';
 
 interface AddProviderFormProps {
   newProviderName: string;
@@ -35,6 +36,12 @@ interface AddProviderFormProps {
   setNewProviderApnsPrivateKey: (key: string) => void;
   newProviderApnsBundleId: string;
   setNewProviderApnsBundleId: (id: string) => void;
+  newProviderSmsAeroEmail: string;
+  setNewProviderSmsAeroEmail: (val: string) => void;
+  newProviderSmsAeroApiKey: string;
+  setNewProviderSmsAeroApiKey: (val: string) => void;
+  newProviderSmsAeroSign: string;
+  setNewProviderSmsAeroSign: (val: string) => void;
 }
 
 const AddProviderForm = ({
@@ -68,6 +75,12 @@ const AddProviderForm = ({
   setNewProviderApnsPrivateKey,
   newProviderApnsBundleId,
   setNewProviderApnsBundleId,
+  newProviderSmsAeroEmail,
+  setNewProviderSmsAeroEmail,
+  newProviderSmsAeroApiKey,
+  setNewProviderSmsAeroApiKey,
+  newProviderSmsAeroSign,
+  setNewProviderSmsAeroSign,
 }: AddProviderFormProps) => {
   const isWappi = newProviderType === 'whatsapp_business' || newProviderType === 'telegram_bot' || newProviderType === 'max';
 
@@ -125,6 +138,17 @@ const AddProviderForm = ({
           apnsBundleId={newProviderApnsBundleId}
           setApnsBundleId={setNewProviderApnsBundleId}
           uploadInputId="apns-upload"
+        />
+      )}
+
+      {newProviderType === 'sms_aero' && (
+        <SmsAeroConfigFields
+          smsAeroEmail={newProviderSmsAeroEmail}
+          setSmsAeroEmail={setNewProviderSmsAeroEmail}
+          smsAeroApiKey={newProviderSmsAeroApiKey}
+          setSmsAeroApiKey={setNewProviderSmsAeroApiKey}
+          smsAeroSign={newProviderSmsAeroSign}
+          setSmsAeroSign={setNewProviderSmsAeroSign}
         />
       )}
     </div>

@@ -506,6 +506,65 @@ def send_via_fcm(recipient: str, message: str, provider: str, conn,
         print(f"[FCM ERROR] {str(e)}")
         return 500, json.dumps({"error": str(e)})
 
+def get_smsaero_credentials(provider: str, conn) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Получает SMS Aero credentials из конфига"""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT config FROM providers WHERE provider_code = %s",
+        (provider,)
+    )
+    result = cur.fetchone()
+    cur.close()
+
+    if not result or not result['config']:
+        return None, None, None
+
+    config = result['config']
+    return config.get('smsaero_email'), config.get('smsaero_api_key'), config.get('smsaero_sign')
+
+
+def send_via_smsaero(recipient: str, message: str, provider: str, conn) -> Tuple[int, str]:
+    """Отправляет SMS через SMS Aero API"""
+    import base64
+
+    email, api_key, sign = get_smsaero_credentials(provider, conn)
+
+    if not email or not api_key or not sign:
+        return 500, json.dumps({"error": "SMS Aero credentials not configured"})
+
+    credentials = base64.b64encode(f"{email}:{api_key}".encode()).decode()
+
+    phone = recipient.replace('+', '').replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
+
+    print(f"[SMSAERO] Sending SMS to {phone}")
+
+    response = requests.post(
+        'https://gate.smsaero.ru/v2/sms/send',
+        headers={
+            'Authorization': f'Basic {credentials}',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'number': phone,
+            'sign': sign,
+            'text': message,
+            'channel': 'DIRECT'
+        },
+        timeout=15
+    )
+
+    print(f"[SMSAERO] Response status: {response.status_code}")
+    print(f"[SMSAERO] Response body: {response.text}")
+
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('success'):
+            return 200, response.text
+        else:
+            return 500, response.text
+    return response.status_code, response.text
+
+
 def simulate_provider_send(provider: str, recipient: str, message: str) -> Tuple[int, str]:
     """Симулирует отправку через провайдера (заглушка для не интегрированных провайдеров)"""
     time.sleep(0.1)
@@ -548,6 +607,8 @@ def attempt_delivery(message_id: str, provider: str, recipient: str,
         elif provider_type == 'apns':
             status_code, response_body = send_via_apns(recipient, message_text, provider, conn,
                                                        title=title, data=data)
+        elif provider_type == 'sms_aero':
+            status_code, response_body = send_via_smsaero(recipient, message_text, provider, conn)
         else:
             status_code, response_body = simulate_provider_send(provider, recipient, message_text)
         

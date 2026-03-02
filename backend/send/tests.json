@@ -34,7 +34,7 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "Test successful message delivery",
+      "name": "Test unknown provider returns 400",
       "method": "POST",
       "path": "/",
       "headers": {
@@ -45,10 +45,9 @@
         "recipient": "+79991234567",
         "message": "Test message"
       },
-      "expectedStatus": 200,
+      "expectedStatus": 400,
       "expectedBody": {
-        "success": true,
-        "provider": "sms_gateway"
+        "error": "Unknown provider"
       },
       "bodyMatcher": "partial"
     }

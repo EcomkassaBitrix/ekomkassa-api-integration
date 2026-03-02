@@ -225,7 +225,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             apns_key_id = body_data.get('apns_key_id')
             apns_private_key = body_data.get('apns_private_key')
             apns_bundle_id = body_data.get('apns_bundle_id')
-            
+            smsaero_email = body_data.get('smsaero_email')
+            smsaero_api_key = body_data.get('smsaero_api_key')
+            smsaero_sign = body_data.get('smsaero_sign')
+
             if not provider_code:
                 conn.close()
                 return {
@@ -234,7 +237,27 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'body': json.dumps({'error': 'Missing provider_code'}),
                     'isBase64Encoded': False
                 }
-            
+
+            # Проверяем credentials SMS Aero через auth endpoint
+            if provider_type == 'sms_aero' and smsaero_email and smsaero_api_key:
+                import base64
+                import requests as req
+                credentials = base64.b64encode(f"{smsaero_email}:{smsaero_api_key}".encode()).decode()
+                auth_resp = req.get(
+                    'https://gate.smsaero.ru/v2/auth',
+                    headers={'Authorization': f'Basic {credentials}'},
+                    timeout=10
+                )
+                print(f"[SMSAERO AUTH] status={auth_resp.status_code} body={auth_resp.text}")
+                if auth_resp.status_code != 200 or not auth_resp.json().get('success'):
+                    conn.close()
+                    return {
+                        'statusCode': 400,
+                        'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                        'body': json.dumps({'error': 'SMS Aero auth failed', 'detail': auth_resp.text}),
+                        'isBase64Encoded': False
+                    }
+
             config = {}
             if wappi_token:
                 config['wappi_token'] = wappi_token
@@ -260,7 +283,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 config['apns_private_key'] = apns_private_key
             if apns_bundle_id:
                 config['apns_bundle_id'] = apns_bundle_id
-            
+            if smsaero_email:
+                config['smsaero_email'] = smsaero_email
+            if smsaero_api_key:
+                config['smsaero_api_key'] = smsaero_api_key
+            if smsaero_sign:
+                config['smsaero_sign'] = smsaero_sign
+
             if not provider_name:
                 conn.close()
                 return {
@@ -321,7 +350,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             apns_key_id = body_data.get('apns_key_id')
             apns_private_key = body_data.get('apns_private_key')
             apns_bundle_id = body_data.get('apns_bundle_id')
-            
+            smsaero_email = body_data.get('smsaero_email')
+            smsaero_api_key = body_data.get('smsaero_api_key')
+            smsaero_sign = body_data.get('smsaero_sign')
+
             if not provider_code:
                 conn.close()
                 return {
@@ -330,7 +362,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'body': json.dumps({'error': 'Missing provider_code'}),
                     'isBase64Encoded': False
                 }
-            
+
             config = {}
             if wappi_token:
                 config['wappi_token'] = wappi_token
@@ -356,7 +388,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 config['apns_private_key'] = apns_private_key
             if apns_bundle_id:
                 config['apns_bundle_id'] = apns_bundle_id
-            
+            if smsaero_email:
+                config['smsaero_email'] = smsaero_email
+            if smsaero_api_key:
+                config['smsaero_api_key'] = smsaero_api_key
+            if smsaero_sign:
+                config['smsaero_sign'] = smsaero_sign
+
             cur = conn.cursor()
             cur.execute(
                 """UPDATE providers 
