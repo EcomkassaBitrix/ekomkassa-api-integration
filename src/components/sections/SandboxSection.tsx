@@ -1,12 +1,8 @@
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
-import { Badge } from '@/components/ui/badge';
+import SandboxForm from '@/components/sandbox/SandboxForm';
 
 interface Provider {
   id: number;
@@ -47,14 +43,14 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   const isEmailProvider = selectedProviderData?.usesPostbox;
   const isFcmProvider = selectedProviderData?.usesFcm;
   const isApnsProvider = selectedProviderData?.usesApns;
-  const isPushProvider = isFcmProvider || isApnsProvider;
+  const isPushProvider = !!(isFcmProvider || isApnsProvider);
 
   const handleProviderChange = (providerCode: string) => {
     setSelectedProvider(providerCode);
-    
+
     const provider = activeProviders.find(p => p.code === providerCode);
     if (!provider) return;
-    
+
     if (provider.usesPostbox) {
       setRecipient('example@domain.com');
       setMessage('Привет! Это тестовое письмо из Integration Hub.');
@@ -84,26 +80,13 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
 
   const loadExample = () => {
     const hasEmailProvider = activeProviders.some(p => p.usesPostbox);
-    
-    if (hasEmailProvider) {
-      handleProviderChange('ek_email');
-    } else {
-      handleProviderChange('max');
-    }
+    handleProviderChange(hasEmailProvider ? 'ek_email' : 'max');
   };
 
   const sendMessage = async () => {
-    if (!selectedProvider || !message) {
-      return;
-    }
-
-    if (isPushProvider && !deviceToken) {
-      return;
-    }
-
-    if (!isPushProvider && !recipient) {
-      return;
-    }
+    if (!selectedProvider || !message) return;
+    if (isPushProvider && !deviceToken) return;
+    if (!isPushProvider && !recipient) return;
 
     setIsSending(true);
     setResponse(null);
@@ -116,9 +99,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
 
       if (isPushProvider) {
         requestBody.device_token = deviceToken;
-        if (pushTitle) {
-          requestBody.title = pushTitle;
-        }
+        if (pushTitle) requestBody.title = pushTitle;
       } else {
         requestBody.recipient = recipient;
       }
@@ -127,7 +108,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
         requestBody.subject = subject;
       }
 
-      const response = await fetch('https://functions.poehali.dev/ace36e55-b169-41f2-9d2b-546f92221bb7', {
+      const res = await fetch('https://functions.poehali.dev/ace36e55-b169-41f2-9d2b-546f92221bb7', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +117,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
         body: JSON.stringify(requestBody)
       });
 
-      const data = await response.json();
+      const data = await res.json();
       setResponse(data);
 
       if (data.success) {
@@ -150,10 +131,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      setResponse({
-        success: false,
-        error: 'Ошибка отправки запроса'
-      });
+      setResponse({ success: false, error: 'Ошибка отправки запроса' });
     } finally {
       setIsSending(false);
     }
@@ -175,12 +153,7 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
             </div>
           </div>
           {activeProviders.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadExample}
-              className="gap-2"
-            >
+            <Button variant="outline" size="sm" onClick={loadExample} className="gap-2">
               <Icon name="FileText" size={16} />
               Пример
             </Button>
@@ -196,209 +169,28 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="provider-select">Интеграция</Label>
-              <Select value={selectedProvider} onValueChange={handleProviderChange}>
-                <SelectTrigger id="provider-select">
-                  <SelectValue placeholder="Выберите интеграцию" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeProviders.map((provider) => (
-                    <SelectItem key={provider.code} value={provider.code}>
-                      <div className="flex items-center gap-2">
-                        <Icon name={provider.icon} size={16} />
-                        <span>{provider.name}</span>
-                        {provider.usesWappi && (
-                          <Badge variant="outline" className="ml-2 text-xs">Wappi</Badge>
-                        )}
-                        {provider.usesPostbox && (
-                          <Badge variant="outline" className="ml-2 text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">Postbox</Badge>
-                        )}
-                        {provider.usesFcm && (
-                          <Badge variant="outline" className="ml-2 text-xs bg-orange-500/10 text-orange-500 border-orange-500/20">FCM</Badge>
-                        )}
-                        {provider.usesApns && (
-                          <Badge variant="outline" className="ml-2 text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">APNs</Badge>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Провайдер для отправки сообщения
-              </p>
-            </div>
-
-            {isPushProvider ? (
-              <div className="space-y-2">
-                <Label htmlFor="device-token">Device Token</Label>
-                <Input
-                  id="device-token"
-                  placeholder="Device token для push-уведомления"
-                  value={deviceToken}
-                  onChange={(e) => setDeviceToken(e.target.value)}
-                  className="font-mono text-xs"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {isFcmProvider ? "FCM токен устройства Android" : "APNs токен устройства iOS"}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="recipient">Получатель</Label>
-                <Input
-                  id="recipient"
-                  placeholder={isEmailProvider ? "email@example.com" : "+79991234567"}
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
-                  className="font-mono"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {isEmailProvider ? "Email адрес получателя" : "Номер телефона или идентификатор получателя"}
-                </p>
-              </div>
-            )}
-
-            {isEmailProvider && (
-              <div className="space-y-2">
-                <Label htmlFor="subject">Тема письма</Label>
-                <Input
-                  id="subject"
-                  placeholder="Тема письма"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Тема email сообщения (опционально)
-                </p>
-              </div>
-            )}
-
-            {isPushProvider && (
-              <div className="space-y-2">
-                <Label htmlFor="push-title">Заголовок уведомления</Label>
-                <Input
-                  id="push-title"
-                  placeholder="Заголовок push-уведомления"
-                  value={pushTitle}
-                  onChange={(e) => setPushTitle(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Заголовок push-уведомления (опционально)
-                </p>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="message">{isPushProvider ? "Текст уведомления" : "Сообщение"}</Label>
-              <Textarea
-                id="message"
-                placeholder={
-                  isPushProvider 
-                    ? "Текст push-уведомления..." 
-                    : isEmailProvider 
-                      ? "Текст email сообщения..." 
-                      : "Введите текст сообщения..."
-                }
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={5}
-                className="resize-none"
-              />
-              <p className="text-xs text-muted-foreground">
-                {isPushProvider 
-                  ? "Текст (body) push-уведомления" 
-                  : isEmailProvider 
-                    ? "Текст email сообщения" 
-                    : "Текст сообщения для отправки"
-                }
-              </p>
-            </div>
-
-            <Button
-              onClick={sendMessage}
-              disabled={
-                !selectedProvider || 
-                !message || 
-                (isPushProvider && !deviceToken) ||
-                (!isPushProvider && !recipient) ||
-                isSending
-              }
-              className="w-full"
-              size="lg"
-            >
-              {isSending ? (
-                <>
-                  <Icon name="Loader2" size={20} className="mr-2 animate-spin" />
-                  Отправка...
-                </>
-              ) : (
-                <>
-                  <Icon name="Send" size={20} className="mr-2" />
-                  Отправить сообщение
-                </>
-              )}
-            </Button>
-
-            {response && (
-              <Card className={`p-4 ${response.success ? 'bg-green-500/10 border-green-500/20' : 'bg-destructive/10 border-destructive/20'}`}>
-                <div className="flex items-start gap-3">
-                  <Icon 
-                    name={response.success ? "CheckCircle" : "XCircle"} 
-                    size={20} 
-                    className={response.success ? "text-green-500 mt-0.5" : "text-destructive mt-0.5"}
-                  />
-                  <div className="flex-1">
-                    <p className={`font-medium mb-2 ${response.success ? 'text-green-500' : 'text-destructive'}`}>
-                      {response.success ? 'Сообщение отправлено!' : 'Ошибка отправки'}
-                    </p>
-                    {response.message_id && (
-                      <p className="text-sm text-muted-foreground mb-1">
-                        ID сообщения: <code className="font-mono text-xs">{response.message_id}</code>
-                      </p>
-                    )}
-                    {response.error && (
-                      <p className="text-sm text-muted-foreground">
-                        {response.error}
-                      </p>
-                    )}
-                    {response.status && (
-                      <p className="text-sm text-muted-foreground">
-                        Статус: {response.status}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            <div className="p-4 bg-muted/50 rounded-lg border border-border">
-              <div className="flex items-start gap-3">
-                <Icon name="Info" size={20} className="text-primary mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Информация:</p>
-                  <ul className="text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>Сообщения отправляются в реальном времени</li>
-                    {isEmailProvider ? (
-                      <>
-                        <li>Для Email укажите корректный email адрес</li>
-                        <li>Тема письма опциональна (по умолчанию: "Уведомление")</li>
-                        <li>Провайдер ek_email использует Yandex Postbox API</li>
-                      </>
-                    ) : (
-                      <>
-                        <li>Для WhatsApp используйте формат: +79991234567</li>
-                        <li>Система автоматически повторяет неудачные попытки</li>
-                      </>
-                    )}
-                    <li>Результаты отправки можно посмотреть в разделе "Логи"</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
+          <SandboxForm
+            activeProviders={activeProviders}
+            selectedProvider={selectedProvider}
+            recipient={recipient}
+            message={message}
+            subject={subject}
+            pushTitle={pushTitle}
+            deviceToken={deviceToken}
+            isSending={isSending}
+            response={response}
+            isEmailProvider={isEmailProvider}
+            isFcmProvider={isFcmProvider}
+            isApnsProvider={isApnsProvider}
+            isPushProvider={isPushProvider}
+            onProviderChange={handleProviderChange}
+            setRecipient={setRecipient}
+            setMessage={setMessage}
+            setSubject={setSubject}
+            setPushTitle={setPushTitle}
+            setDeviceToken={setDeviceToken}
+            onSend={sendMessage}
+          />
         )}
       </Card>
     </div>
