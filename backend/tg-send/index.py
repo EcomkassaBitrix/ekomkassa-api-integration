@@ -77,8 +77,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         )
     except Exception as e:
         conn.close()
-        print(f"[TG-SEND] Error: {e}")
-        return {'statusCode': 500, 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}, 'body': json.dumps({'error': str(e)}), 'isBase64Encoded': False}
+        err = str(e)
+        print(f"[TG-SEND] Error: {err}")
+        # Маппим ошибки Telegram на понятные коды
+        error_map = {
+            'PHONE_NUMBER_INVALID': 'Неверный формат номера телефона',
+            'PHONE_NUMBER_BANNED': 'Этот номер телефона заблокирован в Telegram',
+            'API_ID_INVALID': 'Неверные API ID или API Hash провайдера',
+            'API_ID_PUBLISHED_FLOOD': 'API ID перегружен, попробуйте позже',
+            'FLOOD_WAIT': 'Слишком много запросов, попробуйте позже',
+        }
+        friendly = next((v for k, v in error_map.items() if k in err), err)
+        return {'statusCode': 400, 'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'}, 'body': json.dumps({'error': friendly, 'error_raw': err}), 'isBase64Encoded': False}
 
     import uuid as uuid_mod
     # Сохраняем сессию обратно в конфиг провайдера (StringSession)

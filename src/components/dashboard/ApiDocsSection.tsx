@@ -109,7 +109,8 @@ X-Api-Key: ek_live_your_api_key_here`}
           <TabsContent value="otp" className="space-y-4">
             <div className="bg-background/50 p-4 rounded-lg border border-border">
               <h4 className="font-semibold mb-2">Шаг 1 — Отправка кода в Telegram</h4>
-              <p className="text-sm text-muted-foreground mb-3">POST https://functions.poehali.dev/6ecd446a-71fc-4645-9447-63b3290a4f45</p>
+              <p className="text-sm text-muted-foreground mb-1">POST https://functions.poehali.dev/6ecd446a-71fc-4645-9447-63b3290a4f45</p>
+              <p className="text-xs text-muted-foreground mb-3">Отправляет OTP-код пользователю в приложение Telegram (auth.sendCode)</p>
               <div className="mb-3">
                 <p className="text-sm font-medium mb-2">Headers:</p>
                 <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
@@ -117,56 +118,111 @@ X-Api-Key: ek_live_your_api_key_here`}
 X-Api-Key: ek_live_your_api_key_here`}
                 </code>
               </div>
-              <div>
+              <div className="mb-3">
                 <p className="text-sm font-medium mb-2">Body:</p>
                 <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
 {`{
-  "provider_code": "ek_tg_otp",
+  "provider_code": "ek_tgotp",
   "phone": "+79991234567"
 }`}
                 </code>
               </div>
-              <p className="text-sm text-muted-foreground mt-3">
-                Пользователь получит код в официальное приложение Telegram на указанный номер.
+              <p className="text-sm text-muted-foreground">
+                <b>provider_code</b> — код вашего Telegram OTP провайдера<br/>
+                <b>phone</b> — номер телефона пользователя в формате +7XXXXXXXXXX
               </p>
-            </div>
-            <div className="bg-background/50 p-4 rounded-lg border border-border">
-              <h4 className="font-semibold mb-2">Шаг 2 — Проверка кода</h4>
-              <p className="text-sm text-muted-foreground mb-3">POST https://functions.poehali.dev/75679f26-e849-45c2-bfcc-24759c4cae84</p>
-              <div className="mb-3">
-                <p className="text-sm font-medium mb-2">Headers:</p>
+              <div className="mt-3">
+                <p className="text-sm font-medium mb-2">Успешный ответ (200):</p>
                 <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
-{`Content-Type: application/json
-X-Api-Key: ek_live_your_api_key_here`}
+{`{ "success": true, "message": "Code sent via Telegram" }`}
                 </code>
               </div>
-              <div>
-                <p className="text-sm font-medium mb-2">Body:</p>
+              <div className="mt-3">
+                <p className="text-sm font-medium mb-2">Возможные ошибки:</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`// Неверный номер телефона
+{ "error": "PHONE_NUMBER_INVALID" }
+
+// Номер забанен в Telegram
+{ "error": "PHONE_NUMBER_BANNED" }
+
+// Слишком много попыток — повторите позже
+{ "error": "FLOOD_WAIT_X" }
+
+// API ID/Hash перегружен (публичный ключ)
+{ "error": "API_ID_PUBLISHED_FLOOD" }
+
+// Провайдер не настроен
+{ "error": "Telegram credentials not configured" }`}
+                </code>
+              </div>
+            </div>
+
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <h4 className="font-semibold mb-2">Шаг 2 — Проверка кода (auth.signIn)</h4>
+              <p className="text-sm text-muted-foreground mb-1">POST https://functions.poehali.dev/75679f26-e849-45c2-bfcc-24759c4cae84</p>
+              <p className="text-xs text-muted-foreground mb-3">Верифицирует код из Telegram. Если на аккаунте включён Cloud Password — нужно передать <b>password</b></p>
+              <div className="mb-3">
+                <p className="text-sm font-medium mb-2">Body (без 2FA):</p>
                 <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
 {`{
-  "provider_code": "ek_tg_otp",
+  "provider_code": "ek_tgotp",
   "phone": "+79991234567",
   "code": "12345"
 }`}
                 </code>
               </div>
-              <p className="text-sm text-muted-foreground mt-3">
-                code: код из приложения Telegram<br/>
-                Код действителен 10 минут. При успехе возвращает <code>{'{"success": true, "verified": true}'}</code>
+              <div className="mb-3">
+                <p className="text-sm font-medium mb-2">Body (с 2FA Cloud Password):</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{
+  "provider_code": "ek_tgotp",
+  "phone": "+79991234567",
+  "code": "12345",
+  "password": "my_cloud_password"
+}`}
+                </code>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                <b>code</b> — код из приложения Telegram (действителен 10 минут)<br/>
+                <b>password</b> — облачный пароль Telegram (только если включена 2FA)
               </p>
-            </div>
-            <div className="bg-background/50 p-4 rounded-lg border border-border">
-              <h4 className="font-semibold mb-2">Возможные ошибки верификации</h4>
-              <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+              <div className="mb-3">
+                <p className="text-sm font-medium mb-2">Успешный ответ (200):</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
+{`{ "success": true, "verified": true }`}
+                </code>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-2">Возможные ошибки (400):</p>
+                <code className="block bg-background p-3 rounded text-sm font-mono border border-border whitespace-pre">
 {`// Неверный код
 { "success": false, "error": "Неверный код", "error_type": "invalid_code" }
 
-// Код истёк
+// Код истёк — нужно запросить новый
 { "success": false, "error": "Код истёк, запросите новый", "error_type": "expired_code" }
 
-// Требуется 2FA пароль Telegram
-{ "success": false, "error_type": "2fa_required" }`}
-              </code>
+// На аккаунте включён Cloud Password — нужно передать поле password
+{ "success": false, "error": "Требуется пароль двухфакторной аутентификации", "error_type": "2fa_required" }
+
+// Неверный Cloud Password
+{ "success": false, "error": "Неверный пароль двухфакторной аутентификации", "error_type": "2fa_invalid" }
+
+// Сессия не найдена или истекла — нужно повторить шаг 1
+{ "error": "Session not found or expired. Request a new code." }`}
+                </code>
+              </div>
+            </div>
+
+            <div className="bg-background/50 p-4 rounded-lg border border-border">
+              <h4 className="font-semibold mb-2">Рекомендуемый флоу интеграции</h4>
+              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>Вызвать <b>tg-send</b> с номером телефона пользователя</li>
+                <li>Показать форму ввода кода</li>
+                <li>Вызвать <b>tg-verify</b> с кодом</li>
+                <li>Если <code>error_type: "2fa_required"</code> — показать поле для Cloud Password</li>
+                <li>Повторить вызов <b>tg-verify</b> с добавленным полем <code>password</code></li>
+              </ol>
             </div>
           </TabsContent>
 
