@@ -116,7 +116,7 @@ const EditFcmConfig = ({
         <Label htmlFor="fcm-project-id">Project ID</Label>
         <Input
           id="fcm-project-id"
-          placeholder="my-firebase-project"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={fcmProjectId}
           onChange={(e) => setFcmProjectId(e.target.value)}
           className="font-mono text-sm"
@@ -131,7 +131,7 @@ const EditFcmConfig = ({
         <Input
           id="fcm-client-email"
           type="email"
-          placeholder="firebase-adminsdk-xxxxx@my-project.iam.gserviceaccount.com"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={fcmClientEmail}
           onChange={(e) => setFcmClientEmail(e.target.value)}
           className="font-mono text-sm"
@@ -145,7 +145,7 @@ const EditFcmConfig = ({
         <Label htmlFor="fcm-private-key">Private Key</Label>
         <textarea
           id="fcm-private-key"
-          placeholder="-----BEGIN PRIVATE KEY-----&#10;MIIEvQIBADANBg...&#10;-----END PRIVATE KEY-----"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={fcmPrivateKey}
           onChange={(e) => setFcmPrivateKey(e.target.value)}
           className="w-full min-h-[120px] px-3 py-2 text-sm font-mono bg-background border border-input rounded-md resize-y"

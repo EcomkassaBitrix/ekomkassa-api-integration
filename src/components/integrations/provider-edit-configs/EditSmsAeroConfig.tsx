@@ -94,7 +94,7 @@ const EditSmsAeroConfig = ({
         <Input
           id="edit-smsaero-email"
           type="email"
-          placeholder="email@example.com"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={smsAeroEmail}
           onChange={(e) => setSmsAeroEmail(e.target.value)}
         />
@@ -108,7 +108,7 @@ const EditSmsAeroConfig = ({
         <Input
           id="edit-smsaero-apikey"
           type="password"
-          placeholder="EpNGKz4-6qMiI5DOBbFoNZbPLRATDCY-"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={smsAeroApiKey}
           onChange={(e) => setSmsAeroApiKey(e.target.value)}
         />

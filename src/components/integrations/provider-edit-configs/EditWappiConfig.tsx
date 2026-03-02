@@ -59,7 +59,7 @@ const EditWappiConfig = ({
         <Label htmlFor="wappi-token">API Token</Label>
         <Input
           id="wappi-token"
-          placeholder="Введите токен Wappi"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={wappiToken}
           onChange={(e) => setWappiToken(e.target.value)}
           className="font-mono text-sm"
@@ -73,7 +73,7 @@ const EditWappiConfig = ({
         <Label htmlFor="wappi-profile">Profile ID</Label>
         <Input
           id="wappi-profile"
-          placeholder="Введите ID профиля"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={wappiProfileId}
           onChange={(e) => setWappiProfileId(e.target.value)}
           className="font-mono text-sm"

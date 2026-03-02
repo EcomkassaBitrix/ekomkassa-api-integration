@@ -118,7 +118,7 @@ const EditApnsConfig = ({
         <Label htmlFor="apns-team-id">Team ID</Label>
         <Input
           id="apns-team-id"
-          placeholder="ABC1234DEF"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={apnsTeamId}
           onChange={(e) => setApnsTeamId(e.target.value)}
           className="font-mono text-sm"
@@ -132,7 +132,7 @@ const EditApnsConfig = ({
         <Label htmlFor="apns-key-id">Key ID</Label>
         <Input
           id="apns-key-id"
-          placeholder="AB12CD34EF"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={apnsKeyId}
           onChange={(e) => setApnsKeyId(e.target.value)}
           className="font-mono text-sm"
@@ -146,7 +146,7 @@ const EditApnsConfig = ({
         <Label htmlFor="apns-bundle-id">Bundle ID</Label>
         <Input
           id="apns-bundle-id"
-          placeholder="com.example.app"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={apnsBundleId}
           onChange={(e) => setApnsBundleId(e.target.value)}
           className="font-mono text-sm"
@@ -160,7 +160,7 @@ const EditApnsConfig = ({
         <Label htmlFor="apns-private-key">Private Key (.p8)</Label>
         <textarea
           id="apns-private-key"
-          placeholder="-----BEGIN PRIVATE KEY-----&#10;MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQg...&#10;-----END PRIVATE KEY-----"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={apnsPrivateKey}
           onChange={(e) => setApnsPrivateKey(e.target.value)}
           className="w-full min-h-[120px] px-3 py-2 text-sm font-mono bg-background border border-input rounded-md resize-y"

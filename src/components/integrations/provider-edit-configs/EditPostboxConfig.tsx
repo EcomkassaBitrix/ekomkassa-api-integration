@@ -63,7 +63,7 @@ const EditPostboxConfig = ({
         <Label htmlFor="postbox-access-key">Access Key ID</Label>
         <Input
           id="postbox-access-key"
-          placeholder="Введите Access Key ID"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={postboxAccessKey}
           onChange={(e) => setPostboxAccessKey(e.target.value)}
           className="font-mono text-sm"
@@ -78,7 +78,7 @@ const EditPostboxConfig = ({
         <Input
           id="postbox-secret-key"
           type="password"
-          placeholder="Введите Secret Access Key"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={postboxSecretKey}
           onChange={(e) => setPostboxSecretKey(e.target.value)}
           className="font-mono text-sm"
@@ -93,7 +93,7 @@ const EditPostboxConfig = ({
         <Input
           id="postbox-from-email"
           type="email"
-          placeholder="noreply@example.com"
+          placeholder="Оставьте пустым, чтобы не менять"
           value={postboxFromEmail}
           onChange={(e) => setPostboxFromEmail(e.target.value)}
           className="font-mono text-sm"
