@@ -91,8 +91,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         'isBase64Encoded': False
                     }
 
-                # Если credentials не переданы явно — читаем из БД
-                if not smsaero_email or not smsaero_api_key:
+                # Если credentials не переданы явно и это не новый провайдер — читаем из БД
+                if (not smsaero_email or not smsaero_api_key) and provider_code != '_new_':
                     cur = conn.cursor()
                     cur.execute(
                         "SELECT config FROM providers WHERE provider_code = %s",
