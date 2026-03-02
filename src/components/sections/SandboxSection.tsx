@@ -15,6 +15,8 @@ interface Provider {
   usesPostbox: boolean;
   usesFcm: boolean;
   usesApns: boolean;
+  usesSmsAero: boolean;
+  usesTelegramOtp: boolean;
   lastAttemptAt: string | null;
 }
 
@@ -32,6 +34,11 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   const [isSending, setIsSending] = useState(false);
   const [response, setResponse] = useState<Record<string, unknown> | null>(null);
 
+  // Telegram OTP — двухшаговый флоу
+  const [tgStep, setTgStep] = useState<'phone' | 'code'>('phone');
+  const [tgCode, setTgCode] = useState('');
+  const [tgCodeSent, setTgCodeSent] = useState(false);
+
   const activeProviders = providers
     .filter(p => p.status === 'working' || p.status === 'configured')
     .map(p => ({
@@ -44,9 +51,14 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   const isFcmProvider = selectedProviderData?.usesFcm;
   const isApnsProvider = selectedProviderData?.usesApns;
   const isPushProvider = !!(isFcmProvider || isApnsProvider);
+  const isTelegramOtp = !!selectedProviderData?.usesTelegramOtp;
 
   const handleProviderChange = (providerCode: string) => {
     setSelectedProvider(providerCode);
+    setTgStep('phone');
+    setTgCode('');
+    setTgCodeSent(false);
+    setResponse(null);
 
     const provider = activeProviders.find(p => p.code === providerCode);
     if (!provider) return;
@@ -69,6 +81,12 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
       setSubject('');
       setPushTitle('');
       setDeviceToken('');
+    } else if (provider.usesTelegramOtp) {
+      setRecipient('+79991234567');
+      setMessage('');
+      setSubject('');
+      setPushTitle('');
+      setDeviceToken('');
     } else if (provider.usesSmsAero) {
       setRecipient('+79689363395');
       setMessage('Привет! Это тестовое SMS из Integration Hub.');
@@ -87,6 +105,53 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
   const loadExample = () => {
     const hasEmailProvider = activeProviders.some(p => p.usesPostbox);
     handleProviderChange(hasEmailProvider ? 'ek_email' : 'max');
+  };
+
+  const sendTgCode = async () => {
+    if (!selectedProvider || !recipient) return;
+    setIsSending(true);
+    setResponse(null);
+    try {
+      const res = await fetch('https://functions.poehali.dev/6ecd446a-71fc-4645-9447-63b3290a4f45', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' },
+        body: JSON.stringify({ provider_code: selectedProvider, phone: recipient })
+      });
+      const data = await res.json();
+      setResponse(data);
+      if (data.success) {
+        setTgStep('code');
+        setTgCodeSent(true);
+      }
+    } catch {
+      setResponse({ success: false, error: 'Ошибка соединения' });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const verifyTgCode = async () => {
+    if (!selectedProvider || !recipient || !tgCode) return;
+    setIsSending(true);
+    setResponse(null);
+    try {
+      const res = await fetch('https://functions.poehali.dev/75679f26-e849-45c2-bfcc-24759c4cae84', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' },
+        body: JSON.stringify({ provider_code: selectedProvider, phone: recipient, code: tgCode })
+      });
+      const data = await res.json();
+      setResponse(data);
+      if (data.success) {
+        setTgStep('phone');
+        setTgCode('');
+        setTgCodeSent(false);
+      }
+    } catch {
+      setResponse({ success: false, error: 'Ошибка соединения' });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -173,6 +238,102 @@ const SandboxSection = ({ providers }: SandboxSectionProps) => {
             <p className="text-sm text-muted-foreground">
               Добавьте и настройте интеграцию в разделе "Интеграции"
             </p>
+          </div>
+        ) : isTelegramOtp ? (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Интеграция</label>
+              <select
+                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                value={selectedProvider}
+                onChange={(e) => handleProviderChange(e.target.value)}
+              >
+                {activeProviders.map(p => (
+                  <option key={p.code} value={p.code}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Номер телефона</label>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 h-10 px-3 rounded-md border border-input bg-background text-sm font-mono"
+                  placeholder="+79991234567"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  disabled={tgStep === 'code'}
+                />
+                {tgStep === 'code' && (
+                  <Button variant="outline" size="sm" onClick={() => { setTgStep('phone'); setTgCode(''); setResponse(null); }}>
+                    <Icon name="RefreshCw" size={16} />
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Telegram пришлёт код на этот номер</p>
+            </div>
+
+            {tgStep === 'code' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Код из Telegram</label>
+                <input
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-mono tracking-widest text-center text-lg"
+                  placeholder="12345"
+                  maxLength={6}
+                  value={tgCode}
+                  onChange={(e) => setTgCode(e.target.value.replace(/\D/g, ''))}
+                />
+                <p className="text-xs text-muted-foreground">Введите код который Telegram прислал в приложение</p>
+              </div>
+            )}
+
+            {tgStep === 'phone' ? (
+              <Button onClick={sendTgCode} disabled={!recipient || isSending} className="w-full" size="lg">
+                {isSending ? (
+                  <><Icon name="Loader2" size={20} className="mr-2 animate-spin" />Отправка кода...</>
+                ) : (
+                  <><Icon name="Send" size={20} className="mr-2" />Отправить код в Telegram</>
+                )}
+              </Button>
+            ) : (
+              <Button onClick={verifyTgCode} disabled={!tgCode || tgCode.length < 4 || isSending} className="w-full" size="lg">
+                {isSending ? (
+                  <><Icon name="Loader2" size={20} className="mr-2 animate-spin" />Проверка...</>
+                ) : (
+                  <><Icon name="CheckCircle" size={20} className="mr-2" />Проверить код</>
+                )}
+              </Button>
+            )}
+
+            {response && (
+              <div className={`p-4 rounded-lg border ${response.success ? 'bg-green-500/10 border-green-500/20' : 'bg-destructive/10 border-destructive/20'}`}>
+                {response.success ? (
+                  <p className="text-sm text-green-500 flex items-center gap-2">
+                    <Icon name="CheckCircle" size={16} />
+                    {tgCodeSent && tgStep === 'code' ? 'Код отправлен! Проверьте Telegram.' : 'Код верный — верификация прошла успешно!'}
+                  </p>
+                ) : (
+                  <p className="text-sm text-destructive flex items-center gap-2">
+                    <Icon name="AlertCircle" size={16} />
+                    {response.error as string}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="p-4 bg-muted/50 rounded-lg border border-border">
+              <div className="flex items-start gap-3">
+                <Icon name="Info" size={20} className="text-primary mt-0.5" />
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground mb-1">Как это работает:</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>Введите номер телефона и нажмите "Отправить код"</li>
+                    <li>Telegram пришлёт код прямо в приложение</li>
+                    <li>Введите код и нажмите "Проверить"</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <SandboxForm

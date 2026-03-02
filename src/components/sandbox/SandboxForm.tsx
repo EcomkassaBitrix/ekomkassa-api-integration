@@ -18,6 +18,8 @@ interface Provider {
   usesPostbox: boolean;
   usesFcm: boolean;
   usesApns: boolean;
+  usesSmsAero?: boolean;
+  usesTelegramOtp?: boolean;
   lastAttemptAt: string | null;
 }
 
