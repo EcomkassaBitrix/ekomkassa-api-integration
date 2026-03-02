@@ -475,7 +475,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             cur = conn.cursor()
             cur.execute(
                 """UPDATE providers 
-                SET config = %s, updated_at = NOW(), is_active = true, connection_status = 'configured'
+                SET config = COALESCE(config, '{}'::jsonb) || %s::jsonb,
+                    updated_at = NOW(), is_active = true, connection_status = 'configured'
                 WHERE provider_code = %s
                 RETURNING provider_code, provider_name, is_active""",
                 (json.dumps(config), provider_code)

@@ -185,8 +185,8 @@ export const useProviders = () => {
         );
         const data = await resp.json();
         if (data.success && data.config) {
-          setSmsAeroEmail(data.config.smsaero_email || '');
-          setSmsAeroApiKey(data.config.smsaero_api_key || '');
+          setSmsAeroEmail('');
+          setSmsAeroApiKey('');
           setSmsAeroSign(data.config.smsaero_sign || '');
         }
       } catch (e) {
