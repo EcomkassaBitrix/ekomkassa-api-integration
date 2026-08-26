@@ -247,9 +247,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                                 connection_status = 'working'
                             else:
                                 # Check if error is about recipient, not provider configuration
-                                is_recipient_error = any(phrase in (last_error or '').lower() for phrase in [
+                                combined_text = f"{last_error or ''} {last_response or ''}".lower()
+                                is_recipient_error = any(phrase in combined_text for phrase in [
                                     'contact not found',
-                                    'not found by phone'
+                                    'not found by phone',
+                                    'phone_not_occupied',
+                                    'peer_id_invalid',
+                                    'user_not_mutual_contact',
+                                    'user_is_blocked',
+                                    'chat_write_forbidden',
+                                    'invalid phone',
+                                    'invalid recipient',
+                                    'not registered'
                                 ])
                                 
                                 # If it's a recipient error, provider is still configured correctly
