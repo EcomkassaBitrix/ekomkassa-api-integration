@@ -9,7 +9,7 @@ import SandboxSection from '@/components/sections/SandboxSection';
 import { useProviders } from '@/hooks/useProviders';
 import { useApiKeys } from '@/hooks/useApiKeys';
 import { useLogs } from '@/hooks/useLogs';
-import { APP_VERSION } from '@/lib/version';
+import { APP_VERSION, BUILD_COMMIT } from '@/lib/version';
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -77,7 +77,9 @@ const Index = () => {
           </nav>
 
           <div className="p-4 border-t border-border">
-            <p className="text-xs text-muted-foreground text-center">v{APP_VERSION}</p>
+            <p className="text-xs text-muted-foreground text-center" title={`Коммит ${BUILD_COMMIT}`}>
+              v{APP_VERSION}
+            </p>
           </div>
         </aside>
 
