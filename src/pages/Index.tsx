@@ -9,6 +9,7 @@ import SandboxSection from '@/components/sections/SandboxSection';
 import { useProviders } from '@/hooks/useProviders';
 import { useApiKeys } from '@/hooks/useApiKeys';
 import { useLogs } from '@/hooks/useLogs';
+import { APP_VERSION } from '@/lib/version';
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -38,7 +39,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
-        <aside className="w-64 border-r border-border bg-card h-screen sticky top-0">
+        <aside className="w-64 border-r border-border bg-card h-screen sticky top-0 flex flex-col">
           <div className="p-6 border-b border-border">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
@@ -51,7 +52,7 @@ const Index = () => {
             </div>
           </div>
 
-          <nav className="p-4 space-y-1">
+          <nav className="p-4 space-y-1 flex-1">
             {[
               { id: 'dashboard', label: 'Дашборд', icon: 'LayoutDashboard' },
               { id: 'integrations', label: 'Интеграции', icon: 'Plug' },
@@ -74,6 +75,10 @@ const Index = () => {
               </button>
             ))}
           </nav>
+
+          <div className="p-4 border-t border-border">
+            <p className="text-xs text-muted-foreground text-center">v{APP_VERSION}</p>
+          </div>
         </aside>
 
         <main className="flex-1">
