@@ -1,0 +1,1 @@
+UPDATE t_p25765938_ekomkassa_api_integr.api_keys SET expiry_date = NULL WHERE id = 7;
