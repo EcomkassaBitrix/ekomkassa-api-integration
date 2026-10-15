@@ -1,0 +1,24 @@
+{
+  "tests": [
+    {
+      "name": "Test hook without key",
+      "method": "GET",
+      "path": "/?action=hook&dealId=1",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "ok": false
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test meta without API key",
+      "method": "GET",
+      "path": "/?action=meta",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Invalid API key"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

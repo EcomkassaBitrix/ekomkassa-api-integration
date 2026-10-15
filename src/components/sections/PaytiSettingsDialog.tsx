@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-export const PAYTI_URL = 'https://functions.poehali.dev/c55cf921-d1ec-4fc7-a6e2-59c730988a1e';
+export const PAYTI_URL = 'https://functions.poehali.dev/c459207f-4d47-4bca-bf92-591823a29583';
 export const PAYTI_API_KEY = 'ek_live_j8h3k2n4m5p6q7r8';
 
 export const paytiFetch = async (action: string, opts: { method?: string; query?: string; body?: unknown } = {}) => {
