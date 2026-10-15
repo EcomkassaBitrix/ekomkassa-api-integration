@@ -14,6 +14,14 @@ import { APP_VERSION, BUILD_COMMIT } from '@/lib/version';
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [menuOpen, setMenuOpen] = useState(() => localStorage.getItem('menuOpen') !== 'false');
+
+  const toggleMenu = () => {
+    setMenuOpen((v) => {
+      localStorage.setItem('menuOpen', String(!v));
+      return !v;
+    });
+  };
   
   const providers = useProviders();
   const apiKeys = useApiKeys();
@@ -40,7 +48,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
-        <aside className="w-64 border-r border-border bg-card h-screen sticky top-0 flex flex-col">
+        <aside className={`w-64 border-r border-border bg-card h-screen sticky top-0 flex-col ${menuOpen ? 'flex' : 'hidden'}`}>
           <div className="p-6 border-b border-border">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
@@ -88,6 +96,16 @@ const Index = () => {
         <main className="flex-1">
           <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
             <div className="px-8 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleMenu}
+                title={menuOpen ? 'Скрыть меню' : 'Показать меню'}
+                aria-label={menuOpen ? 'Скрыть меню' : 'Показать меню'}
+              >
+                <Icon name={menuOpen ? 'PanelLeftClose' : 'PanelLeftOpen'} size={18} />
+              </Button>
               <div>
                 <h2 className="text-2xl font-bold">
                   {activeSection === 'dashboard' && 'Дашборд'}
@@ -107,6 +125,7 @@ const Index = () => {
                   {activeSection === 'logs' && 'История запросов и событий'}
                   {activeSection === 'docs' && 'API справка и примеры интеграции'}
                 </p>
+              </div>
               </div>
               {activeSection === 'integrations' && (
                 <Button size="sm" className="gap-2" onClick={() => providers.setAddProviderDialogOpen(true)}>
