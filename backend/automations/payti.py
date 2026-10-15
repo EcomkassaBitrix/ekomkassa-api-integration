@@ -446,17 +446,30 @@ def rule_match(bx, ctx, entity, field, value):
     return want in raws or want in names
 
 
+def cash_type(bx, ctx, settings):
+    for ent, fld in ((settings.get('mode_entity'), settings.get('mode_field')), (settings.get('mode_r_entity'), settings.get('mode_r_field'))):
+        if ent and fld:
+            try:
+                v = str(entity_value(bx, ctx, ent, fld) or '').strip()
+            except Exception:
+                v = ''
+            return v or 'не указан'
+    return ''
+
+
 def pick_mode(bx, ctx, settings, mode_param):
     if mode_param in ('A', 'R'):
         return mode_param, 'Указан в запросе'
     a = rule_match(bx, ctx, settings.get('mode_entity'), settings.get('mode_field'), settings.get('mode_value'))
     r = rule_match(bx, ctx, settings.get('mode_r_entity'), settings.get('mode_r_field'), settings.get('mode_r_value'))
+    if a is False and r is False:
+        return None, f"Тип кассы «{ctx.get('cash_type') or 'не указан'}» не подходит: нужен «{settings.get('mode_value')}» или «{settings.get('mode_r_value')}»"
     if a:
-        return 'A', f"Правило «Миг»: {settings.get('mode_field')} = {settings.get('mode_value')}"
+        return 'A', f"Правило «Пэйти»: {settings.get('mode_field')} = {settings.get('mode_value')}"
     if r:
         return 'R', f"Правило «Регистрация в ЛК»: {settings.get('mode_r_field')} = {settings.get('mode_r_value')}"
     if a is False and r is None:
-        return 'R', f"Правило «Миг» не совпало: {settings.get('mode_field')} ≠ {settings.get('mode_value')}"
+        return 'R', f"Правило «Пэйти» не совпало: {settings.get('mode_field')} ≠ {settings.get('mode_value')}"
     if r is False and a is None:
         return 'A', f"Правило «Регистрация в ЛК» не совпало: {settings.get('mode_r_field')} ≠ {settings.get('mode_r_value')}"
     return settings.get('default_registration_mode') or 'A', 'Режим по умолчанию'
@@ -510,10 +523,12 @@ def prepare(conn, bx, deal_id, env, mode_param, overrides, steps):
     settings = get_settings(conn)
     ctx = collect(bx, deal_id, steps)
     ctx['password'] = get_password(conn, deal_id)
+    ctx['cash_type'] = cash_type(bx, ctx, settings)
     mode, mode_source = pick_mode(bx, ctx, settings, mode_param)
     fields, values = resolve_fields(bx, ctx, settings, overrides)
-    steps.append({'step': 'Маппинг', 'ok': True, 'info': f'Режим {mode} ({mode_source})'})
-    errors = validate(values, mode)
+    steps.append({'step': 'Тип кассы', 'ok': bool(ctx['cash_type']) and ctx['cash_type'] != 'не указан', 'info': ctx['cash_type'] or 'Правило не настроено'})
+    steps.append({'step': 'Маппинг', 'ok': mode is not None, 'info': f'Режим {mode} ({mode_source})' if mode else mode_source})
+    errors = validate(values, mode) if mode else [f"Тип кассы «{ctx['cash_type'] or 'не указан'}» не подходит для автоматической регистрации"]
     steps.append({'step': 'Проверка', 'ok': not errors, 'info': '; '.join(errors) or 'Всё заполнено'})
     return settings, ctx, mode, mode_source, fields, values, errors
 
@@ -545,7 +560,13 @@ def do_register(conn, bx, deal_id, env, mode_param, overrides, force, source, us
 
     settings, ctx, mode, mode_source, fields, values, errors = prepare(conn, bx, deal_id, env, mode_param, overrides, steps)
     payload = build_payload(values)
-    result.update(mode=mode, login=values.get('user.login'))
+    result.update(mode=mode, modeSource=mode_source, cashType=ctx.get('cash_type'), login=values.get('user.login'))
+
+    if mode is None:
+        comment(bx, deal_id, f"Екомкасса / Payti\nРегистрация не выполнена: тип кассы «{ctx.get('cash_type') or 'не указан'}» не подходит для автоматической регистрации в Payti.", steps)
+        save_attempt(conn, ctx, env, None, 'unsupported_type', values, source, user, code='unsupported_type', msg=errors[0], req=masked(payload))
+        result.update(status='unsupported_type', error=errors[0])
+        return result
 
     if errors:
         comment(bx, deal_id, 'Екомкасса / Payti\nРегистрация не выполнена, не заполнены данные:\n- ' + '\n- '.join(errors), steps)
@@ -664,7 +685,7 @@ def handle(event, action):
             result = do_register(conn, Bitrix(), deal_id, env, mode_param, {}, False, 'hook', 'bitrix24')
             return resp(200, {
                 'ok': result.get('ok', False), 'status': result.get('status'), 'dealId': deal_id,
-                'environment': env, 'mode': result.get('mode'), 'login': result.get('login'),
+                'environment': env, 'mode': result.get('mode'), 'cashType': result.get('cashType'), 'login': result.get('login'),
                 'firmId': result.get('firmId'), 'error': result.get('error'),
             })
 
@@ -761,7 +782,7 @@ def handle(event, action):
             for f in fields:
                 if f['path'] == 'user.password':
                     f['value'] = '***'
-            out = {'ok': not errors, 'dealId': deal_id, 'environment': env, 'mode': mode, 'modeSource': mode_source,
+            out = {'ok': not errors, 'dealId': deal_id, 'environment': env, 'mode': mode, 'modeSource': mode_source, 'cashType': ctx.get('cash_type'),
                    'fields': fields, 'errors': errors, 'steps': steps, 'links': links(bx, ctx)}
             if action == 'dry-run':
                 out['request'] = masked(build_payload(values))

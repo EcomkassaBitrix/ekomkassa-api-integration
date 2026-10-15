@@ -36,11 +36,13 @@ interface Result {
   firmId?: string;
   mode?: string;
   modeSource?: string;
+  cashType?: string;
 }
 
 const STATUS_TEXT: Record<string, string> = {
   success: 'Клиент успешно зарегистрирован в Payti',
   already_registered: 'Эта сделка уже зарегистрирована на этом контуре. Включите «Повторить принудительно», если нужен повтор',
+  unsupported_type: 'Тип кассы не подходит для автоматической регистрации в Payti. Ничего не отправлено',
   validation_failed: 'Не хватает данных для регистрации. Заполните поля вручную или поправьте CRM',
   payti_validation_error: 'Payti отклонил данные (400). Проверьте значения полей',
   duplicate: 'Payti сообщает, что такой клиент уже есть (409)',
@@ -190,6 +192,18 @@ const PaytiConsole = () => {
           <p className="font-medium">
             {(res.status && STATUS_TEXT[res.status]) || (res.ok ? 'Данные собраны, ошибок нет' : res.error || 'Есть ошибки')}
           </p>
+          {(res.cashType || res.mode !== undefined) && (
+            <div className="flex gap-6 mt-2 text-muted-foreground flex-wrap">
+              {res.cashType !== undefined && <span>Тип кассы: <b className="text-foreground">{res.cashType || 'не указан'}</b></span>}
+              <span>
+                Режим скрипта:{' '}
+                <b className="text-foreground">
+                  {res.mode === 'A' ? 'A — агентский, с кассой' : res.mode === 'R' ? 'R — обычный, регистрация в ЛК' : 'не определён, регистрация не будет выполнена'}
+                </b>
+              </span>
+              {res.modeSource && <span>({res.modeSource})</span>}
+            </div>
+          )}
           {res.errors && res.errors.length > 0 && (
             <ul className="list-disc pl-5 mt-2 text-destructive">
               {res.errors.map((e) => <li key={e}>{e}</li>)}
