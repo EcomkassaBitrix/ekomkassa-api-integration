@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import PaytiSettingsDialog, { paytiFetch, PAYTI_URL } from './PaytiSettingsDialog';
 import AttemptsHistory from './AttemptsHistory';
+import HookCollapsible from './HookCollapsible';
 
 interface FieldRow {
   path: string;
@@ -153,6 +154,37 @@ const PaytiConsole = () => {
         </div>
       </Card>
 
+      <HookCollapsible>
+        <p className="text-sm text-muted-foreground">Соберите ссылку и подставьте свой ключ — остальные параметры уже в ней.</p>
+        <div className="flex gap-6 text-sm items-center flex-wrap">
+          <div className="flex gap-2 items-center">
+            <span className="text-xs uppercase text-muted-foreground">Контур</span>
+            {(['prod', 'test'] as const).map((e) => (
+              <Button key={e} size="sm" variant={hookEnv === e ? 'default' : 'outline'} onClick={() => setHookEnv(e)}>{e.toUpperCase()}</Button>
+            ))}
+          </div>
+          <div className="flex gap-2 items-center">
+            <span className="text-xs uppercase text-muted-foreground">Режим</span>
+            {([['A', 'A — агентский'], ['R', 'R — обычный'], ['', 'По правилу']] as const).map(([m, l]) => (
+              <Button key={l} size="sm" variant={hookMode === m ? 'default' : 'outline'} onClick={() => setHookMode(m)}>{l}</Button>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-md bg-muted/50 p-4">
+          <div className="flex justify-between mb-1">
+            <span className="text-xs uppercase text-muted-foreground">Для робота в сделке</span>
+            <CopyBtn text={hookUrl} />
+          </div>
+          <p className="font-mono text-xs break-all">{hookUrl}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Робот «Исходящий вебхук» на нужной стадии: вставьте ссылку в поле «Хендлер». {'{{ID}}'} робот заменит номером сделки сам.
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Вместо ВАШ_КЛЮЧ подставьте любой активный ключ из раздела «API Ключи». Режим в ссылке сильнее правила из настроек.
+        </p>
+      </HookCollapsible>
+
       {res && (
         <Card className={`p-4 text-sm ${res.ok ? 'border-primary/40' : 'border-destructive/40'}`}>
           <p className="font-medium">
@@ -265,41 +297,6 @@ const PaytiConsole = () => {
       </Card>
 
       <AttemptsHistory action="history" refreshKey={historyKey} />
-
-      <Card className="p-6 space-y-4">
-        <p className="font-medium flex items-center gap-2">
-          <Icon name="Webhook" size={18} />
-          Запуск из Битрикс24
-        </p>
-        <p className="text-sm text-muted-foreground">Соберите ссылку и подставьте свой ключ — остальные параметры уже в ней.</p>
-        <div className="flex gap-6 text-sm items-center flex-wrap">
-          <div className="flex gap-2 items-center">
-            <span className="text-xs uppercase text-muted-foreground">Контур</span>
-            {(['prod', 'test'] as const).map((e) => (
-              <Button key={e} size="sm" variant={hookEnv === e ? 'default' : 'outline'} onClick={() => setHookEnv(e)}>{e.toUpperCase()}</Button>
-            ))}
-          </div>
-          <div className="flex gap-2 items-center">
-            <span className="text-xs uppercase text-muted-foreground">Режим</span>
-            {([['A', 'A — агентский'], ['R', 'R — обычный'], ['', 'По правилу']] as const).map(([m, l]) => (
-              <Button key={l} size="sm" variant={hookMode === m ? 'default' : 'outline'} onClick={() => setHookMode(m)}>{l}</Button>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-md bg-muted/50 p-4">
-          <div className="flex justify-between mb-1">
-            <span className="text-xs uppercase text-muted-foreground">Для робота в сделке</span>
-            <CopyBtn text={hookUrl} />
-          </div>
-          <p className="font-mono text-xs break-all">{hookUrl}</p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Робот «Исходящий вебхук» на нужной стадии: вставьте ссылку в поле «Хендлер». {'{{ID}}'} робот заменит номером сделки сам.
-          </p>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Вместо ВАШ_КЛЮЧ подставьте любой активный ключ из раздела «API Ключи». Режим в ссылке сильнее правила из настроек.
-        </p>
-      </Card>
 
       <PaytiSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} meta={meta} onSaved={loadMeta} />
     </div>

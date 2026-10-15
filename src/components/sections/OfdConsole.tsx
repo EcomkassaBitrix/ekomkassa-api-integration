@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { paytiFetch, PAYTI_URL } from './PaytiSettingsDialog';
 import AttemptsHistory from './AttemptsHistory';
+import HookCollapsible from './HookCollapsible';
 
 interface FieldRow {
   path: string;
@@ -122,6 +123,20 @@ const OfdConsole = () => {
         </div>
       </Card>
 
+      <HookCollapsible>
+        <div className="rounded-md bg-muted/50 p-4">
+          <div className="flex justify-between mb-1">
+            <span className="text-xs uppercase text-muted-foreground">Для робота в сделке</span>
+            <CopyBtn text={hookUrl} />
+          </div>
+          <p className="font-mono text-xs break-all">{hookUrl}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Робот «Исходящий вебхук» на нужной стадии: вставьте ссылку в поле «Хендлер». {'{{ID}}'} робот заменит номером сделки сам.
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground">Вместо ВАШ_КЛЮЧ подставьте любой активный ключ из раздела «API Ключи»: он общий для Payti и ОФД.</p>
+      </HookCollapsible>
+
       {res && (
         <Card className={`p-4 text-sm ${res.ok ? 'border-primary/40' : 'border-destructive/40'}`}>
           <p className="font-medium">
@@ -220,24 +235,6 @@ const OfdConsole = () => {
       </Card>
 
       <AttemptsHistory action="ofd-history" refreshKey={historyKey} />
-
-      <Card className="p-6 space-y-3">
-        <p className="font-medium flex items-center gap-2">
-          <Icon name="Webhook" size={18} />
-          Запуск из Битрикс24
-        </p>
-        <div className="rounded-md bg-muted/50 p-4">
-          <div className="flex justify-between mb-1">
-            <span className="text-xs uppercase text-muted-foreground">Для робота в сделке</span>
-            <CopyBtn text={hookUrl} />
-          </div>
-          <p className="font-mono text-xs break-all">{hookUrl}</p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Робот «Исходящий вебхук» на нужной стадии: вставьте ссылку в поле «Хендлер». {'{{ID}}'} робот заменит номером сделки сам.
-          </p>
-        </div>
-        <p className="text-xs text-muted-foreground">Вместо ВАШ_КЛЮЧ подставьте любой активный ключ из раздела «API Ключи»: он общий для Payti и ОФД.</p>
-      </Card>
     </div>
   );
 };
