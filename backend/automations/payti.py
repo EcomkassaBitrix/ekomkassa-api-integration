@@ -173,11 +173,22 @@ def get_settings(conn):
     return row
 
 
+def cfg_mode(cfg):
+    return str(cfg.get('mode') or cfg.get('type') or 'AUTO').upper()
+
+
+def cfg_entity(cfg):
+    return str(cfg.get('entity') or 'deal').lower()
+
+
 def entity_value(bx, ctx, entity, code):
+    entity = str(entity or 'deal').lower()
     data = ctx.get(entity) or {}
     v = data.get(code)
     if isinstance(v, list):
-        return multi_first(v)
+        if v and isinstance(v[0], dict):
+            return multi_first(v)
+        return ', '.join(str(bx.enum_name(entity, code, x)) for x in v)
     if v in (None, ''):
         return ''
     return bx.enum_name(entity, code, v)
@@ -273,7 +284,7 @@ def auto_value(path, ctx):
                 r = requests.get(FIRM_INFO + inn, timeout=6)
                 if r.status_code == 200:
                     d = r.json()
-                    d = d.get('data', d) if isinstance(d, dict) else {}
+                    d = (d.get('payload') or d.get('data') or d) if isinstance(d, dict) else {}
                     v = d.get('address') or d.get('legalAddress') or ''
                     if v:
                         return v, 'Справочник по ИНН'
@@ -324,16 +335,19 @@ def resolve_fields(bx, ctx, settings, overrides):
     out = []
     values = {}
     for path, label in FIELDS:
-        cfg = mapping.get(path) or {'type': 'AUTO'}
-        mtype = (cfg.get('type') or 'AUTO').upper()
+        cfg = mapping.get(path) or {}
+        mtype = cfg_mode(cfg)
         value, source, method = '', '', mtype
         if path in (overrides or {}) and str(overrides[path]).strip() != '':
             value, source, method = str(overrides[path]).strip(), 'Ввод вручную', 'MANUAL'
         elif mtype == 'STATIC':
             value, source = cfg.get('value', ''), 'Фиксированное значение'
         elif mtype == 'CRM':
-            value = entity_value(bx, ctx, cfg.get('entity', 'deal'), cfg.get('field', ''))
-            source = f"{ENTITIES.get(cfg.get('entity'), '')}: {cfg.get('field', '')}"
+            value = entity_value(bx, ctx, cfg_entity(cfg), cfg.get('field', ''))
+            source = f"{ENTITIES.get(cfg_entity(cfg), '')}: {cfg.get('field', '')}"
+            if not str(value or '').strip():
+                value, auto_src = auto_value(path, ctx)
+                source += f' (пусто, взято по умолчанию: {auto_src})' if value else ' (пусто)'
         else:
             value, source = auto_value(path, ctx)
         if path == 'firm.taxVariant':
@@ -410,10 +424,12 @@ def pick_mode(bx, ctx, settings, mode_param):
         return mode_param, 'Указан в запросе'
     entity, field, value = settings.get('mode_entity'), settings.get('mode_field'), settings.get('mode_value')
     if entity and field and value:
+        entity = str(entity).lower()
         raw = (ctx.get(entity) or {}).get(field)
-        name = entity_value(bx, ctx, entity, field)
+        raws = [str(x).strip().lower() for x in raw] if isinstance(raw, list) else [str(raw).strip().lower()]
+        names = [x.strip().lower() for x in str(entity_value(bx, ctx, entity, field)).split(',')]
         want = str(value).strip().lower()
-        if str(raw).strip().lower() == want or str(name).strip().lower() == want:
+        if want in raws or want in names:
             return 'A', f'Правило: {field} = {value}'
         return 'R', f'Правило: {field} ≠ {value}'
     return settings.get('default_registration_mode') or 'A', 'Режим по умолчанию'
@@ -685,12 +701,20 @@ def handle(event, action):
             return resp(400, {'error': 'Не задан BITRIX_WEBHOOK_URL'})
 
         if action == 'crm-fields':
-            entity = params.get('entity', 'deal')
+            entity = str(params.get('entity', 'deal')).lower()
             if entity not in ENTITIES:
                 return resp(400, {'error': 'Неизвестная сущность'})
             meta = bx.fields(entity)
-            items = [{'code': k, 'title': (v.get('formLabel') or v.get('listLabel') or v.get('title') or k) if isinstance(v, dict) else k}
-                     for k, v in meta.items()]
+            items = []
+            for k, v in meta.items():
+                if not isinstance(v, dict):
+                    continue
+                label = v.get('formLabel') or v.get('listLabel') or v.get('title') or k
+                if isinstance(label, dict):
+                    label = label.get('ru') or next(iter(label.values()), k)
+                enum = [{'id': str(i.get('ID')), 'value': i.get('VALUE')} for i in (v.get('items') or []) if isinstance(i, dict)]
+                items.append({'code': k, 'title': str(label), 'type': v.get('type'), 'items': enum})
+            items.sort(key=lambda x: (not x['code'].startswith('UF_'), x['title'].lower()))
             return resp(200, {'fields': items})
 
         deal_id = digits(body.get('dealId') or params.get('dealId'))

@@ -8,7 +8,7 @@ import requests
 from psycopg2.extras import Json
 
 import payti
-from payti import Bitrix, CORS, collect, digits, entity_value, fix_case, links, multi_first, norm_phone, parse_deal_id, resp, db
+from payti import cfg_entity, cfg_mode, Bitrix, CORS, collect, digits, entity_value, fix_case, links, multi_first, norm_phone, parse_deal_id, resp, db
 
 OFD_URL = 'https://ofd.ru/api/integration/partner/v2/PartnerCreateClientCabinet'
 FIELDS = [
@@ -63,16 +63,19 @@ def resolve(bx, ctx, settings, overrides):
     mapping = settings.get('mapping_json') or {}
     rows, values = [], {}
     for path, label in FIELDS:
-        cfg = mapping.get(path) or {'type': 'AUTO'}
-        mtype = (cfg.get('type') or 'AUTO').upper()
+        cfg = mapping.get(path) or {}
+        mtype = cfg_mode(cfg)
         method = mtype
         if path in overrides and str(overrides[path]).strip():
             value, source, method = str(overrides[path]).strip(), 'Ввод вручную', 'MANUAL'
         elif mtype == 'STATIC':
             value, source = cfg.get('value', ''), 'Фиксированное значение'
         elif mtype == 'CRM':
-            value = entity_value(bx, ctx, cfg.get('entity', 'deal'), cfg.get('field', ''))
-            source = f"{payti.ENTITIES.get(cfg.get('entity'), '')}: {cfg.get('field', '')}"
+            value = entity_value(bx, ctx, cfg_entity(cfg), cfg.get('field', ''))
+            source = f"{payti.ENTITIES.get(cfg_entity(cfg), '')}: {cfg.get('field', '')}"
+            if not str(value or '').strip():
+                value, auto_src = auto_value(path, ctx)
+                source += f' (пусто, взято по умолчанию: {auto_src})' if value else ' (пусто)'
         else:
             value, source = auto_value(path, ctx)
         if path in ('Inn', 'Kpp'):
