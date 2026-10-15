@@ -106,9 +106,9 @@ const PaytiSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
     return (
       <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)} disabled={!entity}>
         <option value="">{placeholder}</option>
-        {value && !known && <option value={value}>{value}</option>}
+        {value && !known && <option value={value}>{list.length === 0 ? 'Загрузка...' : 'Поле удалено из CRM'}</option>}
         {list.map((f) => (
-          <option key={f.code} value={f.code}>{f.title} ({f.code})</option>
+          <option key={f.code} value={f.code}>{f.title}</option>
         ))}
       </select>
     );
@@ -122,9 +122,9 @@ const PaytiSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
       <label className="text-xs uppercase text-muted-foreground">{label}</label>
       <select className={selectCls} value={s[key] || ''} onChange={(e) => setS({ ...s, [key]: e.target.value })}>
         <option value="">Не записывать</option>
-        {s[key] && !dealFields.some((f) => f.code === s[key]) && <option value={s[key]}>{s[key]}</option>}
+        {s[key] && !dealFields.some((f) => f.code === s[key]) && <option value={s[key]}>{dealFields.length === 0 ? 'Загрузка...' : 'Поле удалено из CRM'}</option>}
         {dealFields.map((f) => (
-          <option key={f.code} value={f.code}>{f.title} ({f.code})</option>
+          <option key={f.code} value={f.code}>{f.title}</option>
         ))}
       </select>
     </div>
@@ -177,7 +177,7 @@ const PaytiSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
               </div>
               <p className="text-xs text-muted-foreground">
                 {s.mode_entity && s.mode_field && s.mode_value
-                  ? `Режим A, если «${s.mode_value}» в поле ${s.mode_field}; иначе R`
+                  ? `Режим A, если в поле «${modeField?.title || s.mode_field}» значение «${s.mode_value}»; иначе R`
                   : 'Правило не задано — режим выбирается вручную на странице'}
               </p>
             </div>
