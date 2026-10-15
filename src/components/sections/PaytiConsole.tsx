@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import PaytiSettingsDialog, { paytiFetch, PAYTI_URL } from './PaytiSettingsDialog';
+import AttemptsHistory from './AttemptsHistory';
 
 interface FieldRow {
   path: string;
@@ -64,6 +65,7 @@ const PaytiConsole = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hookEnv, setHookEnv] = useState<'test' | 'prod'>('test');
   const [hookMode, setHookMode] = useState<'A' | 'R' | ''>('A');
+  const [historyKey, setHistoryKey] = useState(0);
 
   const loadMeta = () => paytiFetch('meta').then(setMeta);
   useEffect(() => {
@@ -80,6 +82,7 @@ const PaytiConsole = () => {
     });
     setRes(data);
     setBusy('');
+    if (action === 'register') setHistoryKey((k) => k + 1);
   };
 
   const missing = (res?.fields || []).filter((f) => !f.value);
@@ -260,6 +263,8 @@ const PaytiConsole = () => {
           <p className="text-sm text-muted-foreground">Журнал появится после запуска.</p>
         )}
       </Card>
+
+      <AttemptsHistory action="history" refreshKey={historyKey} />
 
       <Card className="p-6 space-y-4">
         <p className="font-medium flex items-center gap-2">

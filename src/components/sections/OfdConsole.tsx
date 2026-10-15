@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { paytiFetch, PAYTI_URL } from './PaytiSettingsDialog';
+import AttemptsHistory from './AttemptsHistory';
 
 interface FieldRow {
   path: string;
@@ -57,6 +58,7 @@ const OfdConsole = () => {
   const [res, setRes] = useState<Result | null>(null);
   const [agreementField, setAgreementField] = useState('');
   const [saved, setSaved] = useState(false);
+  const [historyKey, setHistoryKey] = useState(0);
 
   useEffect(() => {
     paytiFetch('ofd-meta').then(setMeta);
@@ -69,6 +71,7 @@ const OfdConsole = () => {
     setBusy(action);
     setRes(await paytiFetch(action, { method: 'POST', body: { dealId, force, overrides } }));
     setBusy('');
+    if (action === 'ofd-register') setHistoryKey((k) => k + 1);
   };
 
   const saveField = async () => {
@@ -215,6 +218,8 @@ const OfdConsole = () => {
           <p className="text-sm text-muted-foreground">Журнал появится после запуска.</p>
         )}
       </Card>
+
+      <AttemptsHistory action="ofd-history" refreshKey={historyKey} />
 
       <Card className="p-6 space-y-3">
         <p className="font-medium flex items-center gap-2">
