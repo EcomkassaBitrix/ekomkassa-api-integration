@@ -43,18 +43,27 @@ export const useLogs = () => {
   const retryMessage = async (messageId: string) => {
     setRetryingMessage(messageId);
     try {
-      const response = await fetch('https://functions.poehali.dev/179a2b88-4c3b-4ebd-84f9-612b0c2b6227', {
+      const detailsResponse = await fetch(`https://functions.poehali.dev/3f1bb824-7d73-4f4b-aa7a-dcbb53e38309?message_id=${messageId}`, {
+        headers: { 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' }
+      });
+      const detailsData = await detailsResponse.json();
+      const original = detailsData.message;
+      if (!detailsData.success || !original) {
+        return;
+      }
+      await fetch('https://functions.poehali.dev/ace36e55-b169-41f2-9d2b-546f92221bb7', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
         },
-        body: JSON.stringify({ message_id: messageId })
+        body: JSON.stringify({
+          provider: original.provider,
+          recipient: original.recipient,
+          message: original.message_text
+        })
       });
-      const data = await response.json();
-      if (data.success) {
-        await loadLogs();
-      }
+      await loadLogs();
     } catch (error) {
       console.error('Failed to retry message:', error);
     } finally {
