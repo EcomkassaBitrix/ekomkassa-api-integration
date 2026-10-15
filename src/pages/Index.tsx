@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
-import { logout } from '@/lib/auth';
+import { logout, authCall } from '@/lib/auth';
+import AccessSection from '@/components/sections/AccessSection';
 import IntegrationsSection from '@/components/sections/IntegrationsSection';
 import ApiKeysSection from '@/components/sections/ApiKeysSection';
 import LogsSection from '@/components/sections/LogsSection';
@@ -15,6 +16,8 @@ import { APP_VERSION, BUILD_COMMIT } from '@/lib/version';
 
 const Index = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [isOwner, setIsOwner] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(() => localStorage.getItem('menuOpen') !== 'false');
 
   const toggleMenu = () => {
@@ -44,6 +47,7 @@ const Index = () => {
     providers.loadProviders();
     apiKeys.loadApiKeys();
     logs.loadLogs();
+    authCall('me').then(({ data }) => setIsOwner(!!data.isOwner));
   }, []);
 
   return (
@@ -71,6 +75,7 @@ const Index = () => {
               { id: 'sandbox', label: 'Песочница', icon: 'Send' },
               { id: 'logs', label: 'Логи', icon: 'FileText' },
               { id: 'docs', label: 'Документация', icon: 'BookOpen' },
+              ...(isOwner ? [{ id: 'access', label: 'Доступы', icon: 'Users' }] : []),
             ].map((item) => (
               <button
                 key={item.id}
@@ -120,6 +125,7 @@ const Index = () => {
                   {activeSection === 'sandbox' && 'Песочница'}
                   {activeSection === 'logs' && 'Логи запросов'}
                   {activeSection === 'docs' && 'Документация API'}
+                  {activeSection === 'access' && 'Доступы'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   {activeSection === 'dashboard' && 'Общая статистика и мониторинг системы'}
@@ -129,6 +135,7 @@ const Index = () => {
                   {activeSection === 'sandbox' && 'Тестирование отправки сообщений'}
                   {activeSection === 'logs' && 'История запросов и событий'}
                   {activeSection === 'docs' && 'API справка и примеры интеграции'}
+                  {activeSection === 'access' && 'Кто может заходить в кабинет'}
                 </p>
               </div>
               </div>
@@ -136,6 +143,12 @@ const Index = () => {
                 <Button size="sm" className="gap-2" onClick={() => providers.setAddProviderDialogOpen(true)}>
                   <Icon name="Plus" size={16} />
                   Добавить подключение
+                </Button>
+              )}
+              {activeSection === 'access' && isOwner && (
+                <Button size="sm" className="gap-2" onClick={() => setInviteOpen(true)}>
+                  <Icon name="UserPlus" size={16} />
+                  Пригласить
                 </Button>
               )}
               {activeSection === 'keys' && (
@@ -158,6 +171,8 @@ const Index = () => {
               )}
 
               {activeSection === 'automations' && <AutomationsSection />}
+
+              {activeSection === 'access' && isOwner && <AccessSection inviteOpen={inviteOpen} setInviteOpen={setInviteOpen} />}
 
               {activeSection === 'integrations' && (
                 <IntegrationsSection

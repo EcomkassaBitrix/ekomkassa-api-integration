@@ -60,7 +60,7 @@ def user_by_token(cur, token):
     if not token:
         return None
     cur.execute(
-        """SELECT u.id, u.email, u.phone FROM auth_sessions s
+        """SELECT u.id, u.email, u.phone, u.is_owner FROM auth_sessions s
         JOIN auth_users u ON u.id = s.user_id
         WHERE s.token_hash = %s AND s.expires_at > NOW() AND u.is_active = true""",
         (sha(token),),
@@ -108,7 +108,7 @@ def handler(event: dict, context) -> dict:
             user = user_by_token(cur, token)
             if not user:
                 return resp(401, {'ok': False, 'error': 'Не авторизован'})
-            return resp(200, {'ok': True, 'email': user['email']})
+            return resp(200, {'ok': True, 'email': user['email'], 'isOwner': bool(user['is_owner'])})
 
         if action == 'logout':
             if token:
@@ -182,7 +182,82 @@ def handler(event: dict, context) -> dict:
             )
             cur.execute("DELETE FROM auth_sessions WHERE expires_at < NOW()")
             conn.commit()
+            cur.execute("UPDATE auth_users SET last_login_at = NOW() WHERE id = %s", (user['id'],))
+            conn.commit()
             return resp(200, {'ok': True, 'token': new_token, 'email': user['email']})
+
+        if action.startswith('users-'):
+            me = user_by_token(cur, token)
+            if not me:
+                return resp(401, {'ok': False, 'error': 'Не авторизован'})
+            if not me['is_owner']:
+                return resp(403, {'ok': False, 'error': 'Раздел доступен только владельцу'})
+
+            if action == 'users-list':
+                cur.execute(
+                    "SELECT id, name, email, phone, is_active, is_owner, created_at, last_login_at FROM auth_users ORDER BY is_owner DESC, id"
+                )
+                return resp(200, {'ok': True, 'users': cur.fetchall()})
+
+            if action == 'users-invite':
+                email = str(body.get('email', '')).strip().lower()
+                name = str(body.get('name', '')).strip()[:100]
+                phone = norm_phone(body.get('phone', ''))
+                if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+                    return resp(400, {'ok': False, 'error': 'Укажите корректную почту'})
+                if phone and not re.match(r'^7\d{10}$', phone):
+                    return resp(400, {'ok': False, 'error': 'Телефон в формате 89991234567'})
+                cur.execute("SELECT id FROM auth_users WHERE lower(email) = %s", (email,))
+                if cur.fetchone():
+                    return resp(400, {'ok': False, 'error': 'Пользователь с такой почтой уже есть'})
+                if phone:
+                    cur.execute("SELECT id FROM auth_users WHERE phone = %s", (phone,))
+                    if cur.fetchone():
+                        return resp(400, {'ok': False, 'error': 'Пользователь с таким телефоном уже есть'})
+                cur.execute(
+                    "INSERT INTO auth_users (email, phone, name, invited_by) VALUES (%s, %s, %s, %s) RETURNING id",
+                    (email, phone, name, me['id']),
+                )
+                new_id = cur.fetchone()['id']
+                conn.commit()
+                origin = str(body.get('origin', '')).strip()
+                link = origin if origin.startswith('http') else ''
+                text = (f"{name + ', вам' if name else 'Вам'} открыт доступ к Ekomkassa Integration Hub.\n\n"
+                        + (f"Перейдите по ссылке: {link}\n" if link else '')
+                        + f"Введите эту почту ({email}) и получите код входа на почту или в мессенджер.")
+                try:
+                    r = requests.post(
+                        SEND_URL,
+                        json={'provider': 'ek_email', 'recipient': email, 'message': text, 'subject': 'Приглашение в Ekomkassa Integration Hub'},
+                        headers={'X-Api-Key': api_key(cur)}, timeout=15,
+                    )
+                    sent = r.status_code == 200 and bool(r.json().get('success'))
+                except Exception:
+                    sent = False
+                return resp(200, {'ok': True, 'id': new_id, 'inviteSent': sent})
+
+            target_id = body.get('id')
+            cur.execute("SELECT id, is_owner FROM auth_users WHERE id = %s", (target_id,))
+            target = cur.fetchone()
+            if not target:
+                return resp(404, {'ok': False, 'error': 'Пользователь не найден'})
+            if target['is_owner']:
+                return resp(400, {'ok': False, 'error': 'Владельца изменить нельзя'})
+
+            if action == 'users-toggle':
+                active = bool(body.get('active'))
+                cur.execute("UPDATE auth_users SET is_active = %s WHERE id = %s", (active, target['id']))
+                if not active:
+                    cur.execute("DELETE FROM auth_sessions WHERE user_id = %s", (target['id'],))
+                conn.commit()
+                return resp(200, {'ok': True})
+
+            if action == 'users-delete':
+                cur.execute("DELETE FROM auth_sessions WHERE user_id = %s", (target['id'],))
+                cur.execute("DELETE FROM auth_codes WHERE user_id = %s", (target['id'],))
+                cur.execute("DELETE FROM auth_users WHERE id = %s", (target['id'],))
+                conn.commit()
+                return resp(200, {'ok': True})
 
         return resp(400, {'ok': False, 'error': 'Неизвестное действие'})
     finally:

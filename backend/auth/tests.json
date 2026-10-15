@@ -10,8 +10,17 @@
       "name": "Verify with wrong code",
       "method": "POST",
       "path": "/?action=verify",
-      "body": {"identifier": "services@ecomkassa.ru", "code": "000000"},
+      "body": {
+        "identifier": "services@ecomkassa.ru",
+        "code": "000000"
+      },
       "expectedStatus": 400
+    },
+    {
+      "name": "Users list without token",
+      "method": "GET",
+      "path": "/?action=users-list",
+      "expectedStatus": 401
     }
   ]
 }
