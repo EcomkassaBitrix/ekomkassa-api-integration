@@ -31,10 +31,10 @@ const OfdSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
   const [crm, setCrm] = useState<Record<string, CrmField[]>>({});
   const [saving, setSaving] = useState(false);
 
-  const loadEntity = async (entity: string) => {
+  const loadEntity = async (entity: string, force = false) => {
     const key = entity.toUpperCase();
-    if (!key || crm[key]) return;
-    setCrm((c) => ({ ...c, [key]: [] }));
+    if (!key || (!force && crm[key])) return;
+    if (!crm[key]) setCrm((c) => ({ ...c, [key]: [] }));
     const d = await paytiFetch('crm-fields', { query: `entity=${key.toLowerCase()}` });
     setCrm((c) => ({ ...c, [key]: d.fields || [] }));
   };
@@ -57,7 +57,7 @@ const OfdSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
       setAgreementField(st.result_agreement_field || '');
       const used = new Set<string>(['DEAL']);
       Object.values(m).forEach((c) => c.mode === 'CRM' && c.entity && used.add(c.entity));
-      used.forEach((e) => loadEntity(e));
+      used.forEach((e) => loadEntity(e, true));
     });
   }, [open]);
 
