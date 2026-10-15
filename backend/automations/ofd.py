@@ -48,8 +48,7 @@ def auto_value(path, ctx):
         v = multi_first(contact.get('EMAIL'), skip=lambda x: 'wappi' in x.lower())
         return v.strip().lower(), 'Email основного контакта'
     if path == 'Name':
-        fio = ' '.join(str(contact.get(k) or '').strip() for k in ('LAST_NAME', 'NAME', 'SECOND_NAME') if contact.get(k)).strip()
-        return fix_case(fio), 'ФИО контакта'
+        return payti.auto_value('user.cashier', ctx)
     if path == 'Phone':
         for src, name in ((multi_first(contact.get('PHONE')), 'Контакт'), (req.get('RQ_PHONE'), 'Реквизиты'), (multi_first(company.get('PHONE')), 'Компания')):
             p = norm_phone(src)
