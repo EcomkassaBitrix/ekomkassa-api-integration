@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
+import { logout } from '@/lib/auth';
 import IntegrationsSection from '@/components/sections/IntegrationsSection';
 import ApiKeysSection from '@/components/sections/ApiKeysSection';
 import LogsSection from '@/components/sections/LogsSection';
@@ -86,7 +87,11 @@ const Index = () => {
             ))}
           </nav>
 
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border space-y-2">
+            <button onClick={logout} className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground py-2 rounded-lg hover:bg-muted transition-all">
+              <Icon name="LogOut" size={16} />
+              Выйти
+            </button>
             <p className="text-xs text-muted-foreground text-center" title={`Коммит ${BUILD_COMMIT}`}>
               v{APP_VERSION}
             </p>

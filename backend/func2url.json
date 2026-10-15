@@ -1,4 +1,5 @@
 {
+  "auth": "https://functions.poehali.dev/d8ddffa8-e3ea-4f62-b09e-7913ddd853fd",
   "automations": "https://functions.poehali.dev/c459207f-4d47-4bca-bf92-591823a29583",
   "tg-send": "https://functions.poehali.dev/6ecd446a-71fc-4645-9447-63b3290a4f45",
   "tg-verify": "https://functions.poehali.dev/75679f26-e849-45c2-bfcc-24759c4cae84",
