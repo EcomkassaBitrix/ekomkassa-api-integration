@@ -19,6 +19,16 @@
         "error": "Invalid API key"
       },
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test ofd hook without key",
+      "method": "GET",
+      "path": "/?action=ofd-hook&dealId=1",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "ok": false
+      },
+      "bodyMatcher": "partial"
     }
   ]
 }

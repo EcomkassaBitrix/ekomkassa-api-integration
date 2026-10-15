@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
 import Icon from '@/components/ui/icon';
 import PaytiConsole from './PaytiConsole';
+import OfdConsole from './OfdConsole';
 
 const tabs = [
   { id: 'lk', label: 'ЛК Екомкасса (Payti)', icon: 'UserCog' },
@@ -31,12 +31,7 @@ const AutomationsSection = () => {
       </div>
 
       {tab === 'lk' && <PaytiConsole />}
-      {tab === 'ofd' && (
-        <Card className="p-12 text-center text-muted-foreground">
-          <Icon name="Receipt" size={40} className="mx-auto mb-3 opacity-50" />
-          Автоматизация для ОФД будет добавлена следующим этапом
-        </Card>
-      )}
+      {tab === 'ofd' && <OfdConsole />}
     </div>
   );
 };
