@@ -341,7 +341,7 @@ def auto_value(path, ctx):
                 return fix_case(name), 'ИП: ФИО из названия'
         elif req.get('RQ_DIRECTOR'):
             return fix_case(req.get('RQ_DIRECTOR')), 'ООО: генеральный директор'
-        fio = f"{contact.get('LAST_NAME', '')} {contact.get('NAME', '')} {contact.get('SECOND_NAME', '')}".strip()
+        fio = ' '.join(str(contact.get(k) or '').strip() for k in ('LAST_NAME', 'NAME', 'SECOND_NAME') if contact.get(k)).strip()
         return fix_case(fio), 'ФИО контакта'
     return '', ''
 

@@ -7,6 +7,7 @@ import Icon from '@/components/ui/icon';
 import { paytiFetch, PAYTI_URL } from './PaytiSettingsDialog';
 import AttemptsHistory from './AttemptsHistory';
 import HookCollapsible from './HookCollapsible';
+import OfdSettingsDialog from './OfdSettingsDialog';
 
 interface FieldRow {
   path: string;
@@ -57,13 +58,12 @@ const OfdConsole = () => {
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
   const [res, setRes] = useState<Result | null>(null);
-  const [agreementField, setAgreementField] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);
 
+  const loadMeta = () => paytiFetch('ofd-meta').then(setMeta);
   useEffect(() => {
-    paytiFetch('ofd-meta').then(setMeta);
-    paytiFetch('ofd-settings').then((d) => setAgreementField(d.settings?.result_agreement_field || ''));
+    loadMeta();
   }, []);
 
   const run = async (action: 'ofd-preview' | 'ofd-register') => {
@@ -75,38 +75,29 @@ const OfdConsole = () => {
     if (action === 'ofd-register') setHistoryKey((k) => k + 1);
   };
 
-  const saveField = async () => {
-    await paytiFetch('ofd-settings', { method: 'POST', body: { result_agreement_field: agreementField } });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
   const hookUrl = `${PAYTI_URL}?action=ofd-hook&key=ВАШ_КЛЮЧ&dealId={{ID}}`;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-sm">
-        <Badge variant={meta?.ofdKeyConfigured ? 'default' : 'destructive'}>
-          {meta?.ofdKeyConfigured ? 'Ключ ОФД задан' : 'Ключ ОФД не задан'}
-        </Badge>
-        <Badge variant={meta?.bitrixConfigured ? 'default' : 'destructive'}>
-          {meta?.bitrixConfigured ? 'Битрикс24 подключён' : 'Битрикс24 не подключён'}
-        </Badge>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm">
+          <Badge variant={meta?.ofdKeyConfigured ? 'default' : 'destructive'}>
+            {meta?.ofdKeyConfigured ? 'Ключ ОФД задан' : 'Ключ ОФД не задан'}
+          </Badge>
+          <Badge variant={meta?.bitrixConfigured ? 'default' : 'destructive'}>
+            {meta?.bitrixConfigured ? 'Битрикс24 подключён' : 'Битрикс24 не подключён'}
+          </Badge>
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => setSettingsOpen(true)}>
+          <Icon name="Settings" size={16} />
+          Настройки полей
+        </Button>
       </div>
 
       <Card className="p-6 space-y-4">
-        <div className="grid grid-cols-[1fr_1fr] gap-4">
-          <div className="space-y-1">
-            <label className="text-xs uppercase text-muted-foreground">ID сделки</label>
-            <Input value={dealId} onChange={(e) => setDealId(e.target.value)} placeholder="12345" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs uppercase text-muted-foreground">Поле сделки для ID организации в ОФД</label>
-            <div className="flex gap-2">
-              <Input value={agreementField} onChange={(e) => setAgreementField(e.target.value)} placeholder="UF_CRM_..." />
-              <Button variant="outline" onClick={saveField}>{saved ? 'Сохранено' : 'Сохранить'}</Button>
-            </div>
-          </div>
+        <div className="space-y-1 max-w-sm">
+          <label className="text-xs uppercase text-muted-foreground">ID сделки</label>
+          <Input value={dealId} onChange={(e) => setDealId(e.target.value)} placeholder="12345" />
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -235,6 +226,8 @@ const OfdConsole = () => {
       </Card>
 
       <AttemptsHistory action="ofd-history" refreshKey={historyKey} />
+
+      <OfdSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} meta={meta} onSaved={loadMeta} />
     </div>
   );
 };
