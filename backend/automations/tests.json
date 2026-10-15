@@ -1,1 +1,31 @@
-{"tests": [{"name": "Options", "method": "OPTIONS", "path": "/", "expectedStatus": 200}, {"name": "No key", "method": "GET", "path": "/?kind=lk", "expectedStatus": 401}]}
+{
+  "tests": [
+    {
+      "name": "Test missing API key",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "kind": "lk",
+        "deal_id": "123"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "API key required"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test invalid API key",
+      "method": "GET",
+      "path": "/?kind=lk",
+      "headers": {
+        "X-Api-Key": "invalid_key"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Invalid API key"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
