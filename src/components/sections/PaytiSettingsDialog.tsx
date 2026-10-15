@@ -69,6 +69,9 @@ const PaytiSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
         mode_entity: String(st.mode_entity || '').toUpperCase(),
         mode_field: st.mode_field || '',
         mode_value: st.mode_value || '',
+        mode_r_entity: String(st.mode_r_entity || '').toUpperCase(),
+        mode_r_field: st.mode_r_field || '',
+        mode_r_value: st.mode_r_value || '',
         result_login_field: st.result_login_field || '',
         result_password_field: st.result_password_field || '',
         result_store_field: st.result_store_field || '',
@@ -76,6 +79,7 @@ const PaytiSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
       setS(next);
       const used = new Set<string>(['DEAL']);
       if (next.mode_entity) used.add(next.mode_entity);
+      if (next.mode_r_entity) used.add(next.mode_r_entity);
       Object.values(m).forEach((c) => c.mode === 'CRM' && c.entity && used.add(c.entity));
       used.forEach((e) => loadEntity(e));
     });
@@ -114,8 +118,58 @@ const PaytiSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
     );
   };
 
-  const modeField = (crm[s.mode_entity || ''] || []).find((f) => f.code === s.mode_field);
   const dealFields = crm.DEAL || [];
+
+  const modeRule = (o: { prefix: 'mode' | 'mode_r'; title: string; hint: string; valueLabel: string; letter: 'A' | 'R' }) => {
+    const ent = s[`${o.prefix}_entity`] || '';
+    const fld = s[`${o.prefix}_field`] || '';
+    const val = s[`${o.prefix}_value`] || '';
+    const fieldMeta = (crm[ent] || []).find((f) => f.code === fld);
+    return (
+      <div className="grid grid-cols-[280px_1fr] gap-6 p-6">
+        <div>
+          <p className="font-medium">{o.title}</p>
+          <p className="text-xs text-muted-foreground mb-2">mode = {o.letter}</p>
+          <p className="text-xs text-muted-foreground">{o.hint}</p>
+        </div>
+        <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-3">
+            <select
+              className={selectCls}
+              value={ent}
+              onChange={(e) => {
+                setS({ ...s, [`${o.prefix}_entity`]: e.target.value, [`${o.prefix}_field`]: '', [`${o.prefix}_value`]: '' });
+                loadEntity(e.target.value);
+              }}
+            >
+              <option value="">Где искать...</option>
+              {entityOptions.map((x) => (
+                <option key={x.code} value={x.code}>{x.label}</option>
+              ))}
+            </select>
+            <FieldSelect entity={ent} value={fld} placeholder="Поле..." onChange={(v) => setS({ ...s, [`${o.prefix}_field`]: v, [`${o.prefix}_value`]: '' })} />
+            {fieldMeta && fieldMeta.items.length > 0 ? (
+              <select className={selectCls} value={val} onChange={(e) => setS({ ...s, [`${o.prefix}_value`]: e.target.value })}>
+                <option value="">{o.valueLabel}</option>
+                {val && !fieldMeta.items.some((i) => i.value === val) && <option value={val}>{val}</option>}
+                {fieldMeta.items.map((i) => (
+                  <option key={i.id} value={i.value}>{i.value}</option>
+                ))}
+              </select>
+            ) : (
+              <Input placeholder={o.valueLabel} value={val} disabled={!fld} onChange={(e) => setS({ ...s, [`${o.prefix}_value`]: e.target.value })} />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {ent && fld && val
+              ? `Режим ${o.letter}, если в поле «${fieldMeta?.title || fld}» значение «${val}»`
+              : 'Правило не задано'}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
 
   const resultSelect = (key: string, label: string) => (
     <div className="space-y-1">
@@ -139,49 +193,21 @@ const PaytiSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
         </DialogHeader>
 
         <div className="divide-y divide-border">
-          <div className="grid grid-cols-[280px_1fr] gap-6 p-6">
-            <div>
-              <p className="font-medium">Режим регистрации Payti</p>
-              <p className="text-xs text-muted-foreground mb-2">mode</p>
-              <p className="text-xs text-muted-foreground">
-                Совпало значение поля — режим A (агентский, с кассой). Не совпало — режим R (обычный). Без правила берётся режим, выбранный на странице.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-3">
-                <select
-                  className={selectCls}
-                  value={s.mode_entity || ''}
-                  onChange={(e) => {
-                    setS({ ...s, mode_entity: e.target.value, mode_field: '', mode_value: '' });
-                    loadEntity(e.target.value);
-                  }}
-                >
-                  <option value="">Где искать...</option>
-                  {entityOptions.map((o) => (
-                    <option key={o.code} value={o.code}>{o.label}</option>
-                  ))}
-                </select>
-                <FieldSelect entity={s.mode_entity || ''} value={s.mode_field || ''} placeholder="Поле..." onChange={(v) => setS({ ...s, mode_field: v, mode_value: '' })} />
-                {modeField && modeField.items.length > 0 ? (
-                  <select className={selectCls} value={s.mode_value || ''} onChange={(e) => setS({ ...s, mode_value: e.target.value })}>
-                    <option value="">Значение для A</option>
-                    {s.mode_value && !modeField.items.some((i) => i.value === s.mode_value) && <option value={s.mode_value}>{s.mode_value}</option>}
-                    {modeField.items.map((i) => (
-                      <option key={i.id} value={i.value}>{i.value}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <Input placeholder="Значение для A" value={s.mode_value || ''} disabled={!s.mode_field} onChange={(e) => setS({ ...s, mode_value: e.target.value })} />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {s.mode_entity && s.mode_field && s.mode_value
-                  ? `Режим A, если в поле «${modeField?.title || s.mode_field}» значение «${s.mode_value}»; иначе R`
-                  : 'Правило не задано — режим выбирается вручную на странице'}
-              </p>
-            </div>
-          </div>
+          {modeRule({
+            prefix: 'mode',
+            title: 'Режим регистрации «Миг»',
+            hint: 'Агентский режим A, с кассой Payti. Если в сделке совпало значение поля — регистрация пойдёт в режиме A.',
+            valueLabel: 'Значение для A',
+            letter: 'A',
+          })}
+
+          {modeRule({
+            prefix: 'mode_r',
+            title: 'Регистрация в ЛК',
+            hint: 'Обычный режим R, без кассы. Если в сделке совпало значение поля — регистрация пойдёт в режиме R.',
+            valueLabel: 'Значение для R',
+            letter: 'R',
+          })}
 
           <div className="grid grid-cols-[280px_1fr] gap-6 p-6">
             <div>

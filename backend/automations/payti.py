@@ -435,19 +435,30 @@ def get_password(conn, deal_id):
     return pw
 
 
+def rule_match(bx, ctx, entity, field, value):
+    if not (entity and field and value):
+        return None
+    entity = str(entity).lower()
+    raw = (ctx.get(entity) or {}).get(field)
+    raws = [str(x).strip().lower() for x in raw] if isinstance(raw, list) else [str(raw).strip().lower()]
+    names = [x.strip().lower() for x in str(entity_value(bx, ctx, entity, field)).split(',')]
+    want = str(value).strip().lower()
+    return want in raws or want in names
+
+
 def pick_mode(bx, ctx, settings, mode_param):
     if mode_param in ('A', 'R'):
         return mode_param, 'Указан в запросе'
-    entity, field, value = settings.get('mode_entity'), settings.get('mode_field'), settings.get('mode_value')
-    if entity and field and value:
-        entity = str(entity).lower()
-        raw = (ctx.get(entity) or {}).get(field)
-        raws = [str(x).strip().lower() for x in raw] if isinstance(raw, list) else [str(raw).strip().lower()]
-        names = [x.strip().lower() for x in str(entity_value(bx, ctx, entity, field)).split(',')]
-        want = str(value).strip().lower()
-        if want in raws or want in names:
-            return 'A', f'Правило: {field} = {value}'
-        return 'R', f'Правило: {field} ≠ {value}'
+    a = rule_match(bx, ctx, settings.get('mode_entity'), settings.get('mode_field'), settings.get('mode_value'))
+    r = rule_match(bx, ctx, settings.get('mode_r_entity'), settings.get('mode_r_field'), settings.get('mode_r_value'))
+    if a:
+        return 'A', f"Правило «Миг»: {settings.get('mode_field')} = {settings.get('mode_value')}"
+    if r:
+        return 'R', f"Правило «Регистрация в ЛК»: {settings.get('mode_r_field')} = {settings.get('mode_r_value')}"
+    if a is False and r is None:
+        return 'R', f"Правило «Миг» не совпало: {settings.get('mode_field')} ≠ {settings.get('mode_value')}"
+    if r is False and a is None:
+        return 'A', f"Правило «Регистрация в ЛК» не совпало: {settings.get('mode_r_field')} ≠ {settings.get('mode_r_value')}"
     return settings.get('default_registration_mode') or 'A', 'Режим по умолчанию'
 
 
@@ -688,7 +699,7 @@ def handle(event, action):
         if action == 'settings':
             if method == 'POST':
                 s = get_settings(conn)
-                cols = ['default_environment', 'default_registration_mode', 'mode_entity', 'mode_field', 'mode_value',
+                cols = ['default_environment', 'default_registration_mode', 'mode_entity', 'mode_field', 'mode_value', 'mode_r_entity', 'mode_r_field', 'mode_r_value',
                         'result_login_field', 'result_password_field', 'result_store_field']
                 sets, vals = [], []
                 if 'mapping_json' in body:
