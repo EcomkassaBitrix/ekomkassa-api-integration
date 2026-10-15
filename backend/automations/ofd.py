@@ -8,7 +8,7 @@ import requests
 from psycopg2.extras import Json
 
 import payti
-from payti import cfg_entity, cfg_mode, Bitrix, CORS, collect, digits, entity_value, fix_case, links, multi_first, norm_phone, parse_deal_id, resp, db
+from payti import hook_key_valid, cfg_entity, cfg_mode, Bitrix, CORS, collect, digits, entity_value, fix_case, links, multi_first, norm_phone, parse_deal_id, resp, db
 
 OFD_URL = 'https://ofd.ru/api/integration/partner/v2/PartnerCreateClientCabinet'
 FIELDS = [
@@ -220,9 +220,8 @@ def handle(event, action):
     conn = db()
     try:
         if action == 'ofd-hook':
-            expected = os.environ.get('PAYTI_HOOK_KEY', '')
-            given = params.get('key') or headers.get('x-hook-key') or ''
-            if not expected or not hmac.compare_digest(str(given), expected):
+            given = params.get('key') or headers.get('x-hook-key') or headers.get('x-api-key') or ''
+            if not hook_key_valid(conn, given):
                 return resp(401, {'ok': False, 'error': 'Неверный ключ'})
             deal_id = parse_deal_id(params, body_raw, headers)
             if not deal_id:
@@ -245,7 +244,6 @@ def handle(event, action):
                 'entities': payti.ENTITIES,
                 'ofdKeyConfigured': bool(os.environ.get('OFD_API_KEY')),
                 'bitrixConfigured': bool(os.environ.get('BITRIX_WEBHOOK_URL')),
-                'hookKeyConfigured': bool(os.environ.get('PAYTI_HOOK_KEY')),
             })
 
         if action == 'ofd-settings':

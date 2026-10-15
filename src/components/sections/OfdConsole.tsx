@@ -88,9 +88,6 @@ const OfdConsole = () => {
         <Badge variant={meta?.bitrixConfigured ? 'default' : 'destructive'}>
           {meta?.bitrixConfigured ? 'Битрикс24 подключён' : 'Битрикс24 не подключён'}
         </Badge>
-        <Badge variant={meta?.hookKeyConfigured ? 'default' : 'destructive'}>
-          {meta?.hookKeyConfigured ? 'Ключ хука задан' : 'Ключ хука не задан'}
-        </Badge>
       </div>
 
       <Card className="p-6 space-y-4">
@@ -234,7 +231,7 @@ const OfdConsole = () => {
             Робот «Исходящий вебхук» на нужной стадии: вставьте ссылку в поле «Хендлер». {'{{ID}}'} робот заменит номером сделки сам.
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">Вместо ВАШ_КЛЮЧ подставьте значение секрета PAYTI_HOOK_KEY: он общий для Payti и ОФД.</p>
+        <p className="text-xs text-muted-foreground">Вместо ВАШ_КЛЮЧ подставьте любой активный ключ из раздела «API Ключи»: он общий для Payti и ОФД.</p>
       </Card>
     </div>
   );

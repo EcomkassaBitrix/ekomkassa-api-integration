@@ -95,9 +95,6 @@ const PaytiConsole = () => {
           <Badge variant={meta?.bitrixConfigured ? 'default' : 'destructive'}>
             {meta?.bitrixConfigured ? 'Битрикс24 подключён' : 'Битрикс24 не подключён'}
           </Badge>
-          <Badge variant={meta?.hookKeyConfigured ? 'default' : 'destructive'}>
-            {meta?.hookKeyConfigured ? 'Ключ хука задан' : 'Ключ хука не задан'}
-          </Badge>
         </div>
         <Button variant="outline" size="sm" className="gap-2" onClick={() => setSettingsOpen(true)}>
           <Icon name="Settings" size={16} />
@@ -295,7 +292,7 @@ const PaytiConsole = () => {
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Вместо ВАШ_КЛЮЧ подставьте значение секрета PAYTI_HOOK_KEY. Режим в ссылке сильнее правила из настроек.
+          Вместо ВАШ_КЛЮЧ подставьте любой активный ключ из раздела «API Ключи». Режим в ссылке сильнее правила из настроек.
         </p>
       </Card>
 

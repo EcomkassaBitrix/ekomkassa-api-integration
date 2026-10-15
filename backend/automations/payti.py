@@ -71,6 +71,22 @@ def db():
     return psycopg2.connect(os.environ['DATABASE_URL'], cursor_factory=RealDictCursor)
 
 
+def hook_key_valid(conn, given):
+    if not given:
+        return False
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM api_keys WHERE api_key = %s AND is_active = true AND (expiry_date IS NULL OR expiry_date > NOW())",
+        (str(given),),
+    )
+    row = cur.fetchone()
+    if row:
+        cur.execute("UPDATE api_keys SET last_used_at = NOW() WHERE id = %s", (row['id'],))
+        conn.commit()
+    cur.close()
+    return row is not None
+
+
 class Bitrix:
     def __init__(self):
         self.url = os.environ.get('BITRIX_WEBHOOK_URL', '').rstrip('/') + '/'
@@ -625,9 +641,8 @@ def handle(event, action):
     conn = db()
     try:
         if action == 'hook':
-            expected = os.environ.get('PAYTI_HOOK_KEY', '')
-            given = params.get('key') or headers.get('x-hook-key') or ''
-            if not expected or not hmac.compare_digest(str(given), expected):
+            given = params.get('key') or headers.get('x-hook-key') or headers.get('x-api-key') or ''
+            if not hook_key_valid(conn, given):
                 return resp(401, {'ok': False, 'error': 'Неверный ключ'})
             deal_id = parse_deal_id(params, body_raw, headers)
             if not deal_id:
@@ -658,7 +673,6 @@ def handle(event, action):
                 'fields': [{'path': p, 'label': l} for p, l in FIELDS],
                 'entities': ENTITIES, 'taxCodes': TAX_CODES, 'environments': ENVS,
                 'bitrixConfigured': bool(os.environ.get('BITRIX_WEBHOOK_URL')),
-                'hookKeyConfigured': bool(os.environ.get('PAYTI_HOOK_KEY')),
             })
 
         if action == 'ping':
