@@ -29,6 +29,24 @@
         "ok": false
       },
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Fns hook without key",
+      "method": "GET",
+      "path": "/?action=fns-hook&dealId=1",
+      "expectedStatus": 401
+    },
+    {
+      "name": "Fns meta without API key",
+      "method": "GET",
+      "path": "/?action=fns-meta",
+      "expectedStatus": 401
+    },
+    {
+      "name": "Fns public get with bad token",
+      "method": "GET",
+      "path": "/?action=fns-public-get&token=nope",
+      "expectedStatus": 404
     }
   ]
 }

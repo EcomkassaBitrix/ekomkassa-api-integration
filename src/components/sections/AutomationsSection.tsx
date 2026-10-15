@@ -2,10 +2,12 @@ import { useState } from 'react';
 import Icon from '@/components/ui/icon';
 import PaytiConsole from './PaytiConsole';
 import OfdConsole from './OfdConsole';
+import FnsConsole from './FnsConsole';
 
 const tabs = [
   { id: 'lk', label: 'ЛК Екомкасса (Payti)', icon: 'UserCog' },
   { id: 'ofd', label: 'ОФД', icon: 'Receipt' },
+  { id: 'fns', label: 'Регистрация кассы в ФНС', icon: 'FileSignature' },
 ];
 
 const AutomationsSection = () => {
@@ -32,6 +34,7 @@ const AutomationsSection = () => {
 
       {tab === 'lk' && <PaytiConsole />}
       {tab === 'ofd' && <OfdConsole />}
+      {tab === 'fns' && <FnsConsole />}
     </div>
   );
 };

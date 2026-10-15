@@ -236,7 +236,7 @@ def collect(bx, deal_id, steps):
         contact = bx.call('crm.contact.get', {'id': contact_id}) or {}
     ctx['contact'] = contact
     ctx['contact_id'] = contact_id
-    steps.append({'step': 'Контакт', 'ok': bool(contact), 'info': f"{contact.get('NAME', '')} {contact.get('LAST_NAME', '')}".strip() or 'Не найден'})
+    steps.append({'step': 'Контакт', 'ok': bool(contact), 'info': ' '.join(str(contact.get(k) or '') for k in ('NAME', 'LAST_NAME')).strip() or 'Не найден'})
 
     req = {}
     req_id = None
