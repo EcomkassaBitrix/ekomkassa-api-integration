@@ -266,7 +266,7 @@ def collect(bx, deal_id, steps):
     if ctx['company_id']:
         for a in bx.call('crm.address.list', {'filter': {'ENTITY_TYPE_ID': 4, 'ENTITY_ID': ctx['company_id']}}) or []:
             ctx['addr'][('company', str(a.get('TYPE_ID')))] = fmt_address(a)
-    steps.append({'step': 'Адреса', 'ok': bool(ctx['addr']), 'info': f'Найдено: {len(ctx["addr"])}'})
+    steps.append({'step': 'Адреса', 'ok': True, 'info': f'В CRM найдено: {len(ctx["addr"])}' if ctx['addr'] else 'В CRM адресов нет, берём из справочника по ИНН'})
     return ctx
 
 
