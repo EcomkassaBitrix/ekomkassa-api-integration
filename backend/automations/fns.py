@@ -26,7 +26,10 @@ FIELDS = [
     ('Agent', 'Платёжный агент (да/нет)'),
     ('Marking', 'Маркированные товары (да/нет)'),
     ('ExcisableGoods', 'Подакцизные товары (да/нет)'),
+    ('OfdLogin', 'Логин кабинета ОФД клиента'),
+    ('OfdPassword', 'Пароль кабинета ОФД клиента'),
 ]
+SECRET_FIELDS = ('OfdLogin', 'OfdPassword')
 BOOLS = ('Internet', 'Agent', 'Marking', 'ExcisableGoods')
 ACTIONS = {
     'fns-meta', 'fns-settings', 'fns-preview', 'fns-create', 'fns-history', 'fns-events', 'fns-refresh', 'fns-hook',
@@ -95,6 +98,10 @@ def auto_value(path, ctx):
 
 
 def normalize(path, value):
+    if path == 'OfdPassword':
+        return str(value or '')
+    if path == 'OfdLogin':
+        return str(value or '').strip()
     if path in ('Inn', 'Kpp', 'FnNumber', 'FormatVersion'):
         return digits(value)
     if path in BOOLS:
@@ -102,10 +109,12 @@ def normalize(path, value):
     return ' '.join(str(value or '').split())
 
 
-def resolve(bx, ctx, settings, overrides):
+def resolve(bx, ctx, settings, overrides, only=None):
     mapping = settings.get('mapping_json') or {}
     rows, values = [], {}
     for path, label in FIELDS:
+        if only and path not in only:
+            continue
         cfg = mapping.get(path) or {}
         mtype = cfg_mode(cfg)
         method = mtype
@@ -123,8 +132,34 @@ def resolve(bx, ctx, settings, overrides):
             value, source = auto_value(path, ctx)
         value = normalize(path, value)
         values[path] = value
-        rows.append({'path': path, 'label': label, 'value': value, 'source': source, 'method': method})
+        shown = ('••••••' if value else '') if path == 'OfdPassword' else value
+        rows.append({'path': path, 'label': label, 'value': shown, 'source': source, 'method': method})
     return rows, values
+
+
+def creds_errors(values):
+    errors = []
+    if not values.get('OfdLogin'):
+        errors.append('Не найден логин кабинета ОФД клиента: укажите поле CRM в настройках')
+    if not values.get('OfdPassword'):
+        errors.append('Не найден пароль кабинета ОФД клиента: укажите поле CRM в настройках')
+    return errors
+
+
+def creds_from_crm(conn, bx, deal_id):
+    ctx = collect(bx, deal_id, [])
+    _, values = resolve(bx, ctx, get_settings(conn), {}, only=SECRET_FIELDS)
+    return values.get('OfdLogin', ''), values.get('OfdPassword', '')
+
+
+def auth_for_deal(conn, bx, deal_id):
+    try:
+        login, password = creds_from_crm(conn, bx, deal_id)
+    except Exception as e:
+        raise OfdError(f'Не удалось прочитать логин и пароль ОФД из сделки: {e}')
+    if not login or not password:
+        raise OfdError('В сделке не найдены логин и пароль кабинета ОФД клиента')
+    return ofd_auth(login, password)
 
 
 def validate(values):
@@ -188,16 +223,9 @@ def err_message(body, http_status):
     return f'ОФД вернул {http_status}'
 
 
-def creds_configured():
-    return bool(os.environ.get('OFD_LOGIN') and os.environ.get('OFD_PASSWORD'))
-
-
-def ofd_auth():
-    if not creds_configured():
-        raise OfdError('Не заданы секреты OFD_LOGIN и OFD_PASSWORD')
+def ofd_auth(login, password):
     try:
-        r = requests.post(f'{OFD_API}/Authorization/CreateAuthToken',
-                          json={'Login': os.environ['OFD_LOGIN'], 'Password': os.environ['OFD_PASSWORD']}, timeout=10)
+        r = requests.post(f'{OFD_API}/Authorization/CreateAuthToken', json={'Login': login, 'Password': password}, timeout=10)
     except Exception as e:
         raise OfdError(f'Сеть или таймаут при входе в ОФД: {e}', network=True)
     body = safe_json(r)
@@ -266,11 +294,11 @@ def row_by_token(conn, token):
     return row
 
 
-def prepare(conn, bx, deal_id, overrides, steps):
+def prepare(conn, bx, deal_id, overrides, steps, need_creds=False):
     settings = get_settings(conn)
     ctx = collect(bx, deal_id, steps)
     rows, values = resolve(bx, ctx, settings, overrides)
-    errors = validate(values)
+    errors = validate(values) + (creds_errors(values) if need_creds else [])
     steps.append({'step': 'Проверка', 'ok': not errors, 'info': '; '.join(errors) or 'Всё заполнено'})
     return settings, ctx, rows, values, errors
 
@@ -302,7 +330,7 @@ def create_application(conn, bx, deal_id, overrides, mode, force, source, origin
                           error=None)
             return result
 
-    settings, ctx, rows, values, errors = prepare(conn, bx, deal_id, overrides, steps)
+    settings, ctx, rows, values, errors = prepare(conn, bx, deal_id, overrides, steps, need_creds=not test)
     payload = build_payload(values)
     result.update(request=payload)
 
@@ -321,7 +349,7 @@ def create_application(conn, bx, deal_id, overrides, mode, force, source, origin
         steps.append({'step': 'Тестовая заявка', 'ok': True, 'info': 'Запросы в ОФД не отправлялись'})
     else:
         try:
-            ofd_token = ofd_auth()
+            ofd_token = ofd_auth(values['OfdLogin'], values['OfdPassword'])
             data = ofd_call('POST', '', ofd_token, payload)
         except OfdError as e:
             status = 'temporary_error' if e.network else ('ofd_validation_error' if e.http_status == 400 else 'ofd_error')
@@ -329,8 +357,7 @@ def create_application(conn, bx, deal_id, overrides, mode, force, source, origin
             steps.append({'step': 'Заявка в ОФД', 'ok': False, 'info': str(e)})
             for s in steps:
                 add_event(conn, app_id, s['step'], s['ok'], s['info'])
-            if status != 'ofd_error' or creds_configured():
-                payti.comment(bx, deal_id, f'ОФД: заявка на регистрацию кассы не создана. {e}', steps)
+            payti.comment(bx, deal_id, f'ОФД: заявка на регистрацию кассы не создана. {e}', steps)
             result.update(status=status, applicationId=app_id, error=str(e))
             return result
         app_id = insert_app(conn, ctx, values, rows, payload, 'created', source, token=token, ofd_id=data.get('Id'), resp_payload=data)
@@ -360,7 +387,7 @@ def sync_status(conn, bx, row):
     if not row.get('ofd_application_id') or str(row['status']).startswith('test_'):
         return row
     try:
-        data = ofd_call('GET', f"/{row['ofd_application_id']}", ofd_auth())
+        data = ofd_call('GET', f"/{row['ofd_application_id']}", auth_for_deal(conn, bx, row['deal_id']))
     except OfdError as e:
         add_event(conn, row['id'], 'Проверка статуса', False, str(e))
         return row
@@ -424,7 +451,7 @@ def handle_public(conn, action, params, body):
             doc = {'Id': 'test-document', 'Content': base64.b64encode(text.encode()).decode(), 'Description': 'Тестовый документ (в ОФД не отправляется)', 'FileName': 'test'}
         else:
             try:
-                data = ofd_call('POST', f"/{row['ofd_application_id']}/prepareDocuments", ofd_auth(),
+                data = ofd_call('POST', f"/{row['ofd_application_id']}/prepareDocuments", auth_for_deal(conn, Bitrix(), row['deal_id']),
                                 {'GivenName': given, 'LastName': last, 'Position': position})
             except OfdError as e:
                 add_event(conn, row['id'], 'Подготовка к подписи', False, str(e))
@@ -460,7 +487,7 @@ def handle_public(conn, action, params, body):
             add_event(conn, row['id'], 'Подпись', True, f'Тест: подпись получена ({len(signature)} символов), в ОФД не отправлялась')
             return resp(200, {'ok': True, 'status': 'test_signed'})
         try:
-            ofd_call('POST', f"/{row['ofd_application_id']}/sign", ofd_auth(), {'DocumentId': document_id, 'Signature': signature})
+            ofd_call('POST', f"/{row['ofd_application_id']}/sign", auth_for_deal(conn, Bitrix(), row['deal_id']), {'DocumentId': document_id, 'Signature': signature})
         except OfdError as e:
             if e.network:
                 update_app(conn, row['id'], status='sign_uncertain', error_message=str(e))
@@ -515,7 +542,6 @@ def handle(event, action):
             return resp(200, {
                 'fields': [{'path': p, 'label': l} for p, l in FIELDS],
                 'entities': payti.ENTITIES,
-                'ofdCredsConfigured': creds_configured(),
                 'bitrixConfigured': bool(os.environ.get('BITRIX_WEBHOOK_URL')),
             })
 
@@ -579,7 +605,7 @@ def handle(event, action):
                 return resp(200, {'ok': False, 'error': str(e), 'steps': steps})
             return resp(200, {'ok': not errors, 'dealId': deal_id, 'fields': rows, 'errors': errors, 'steps': steps,
                               'links': links(bx, ctx), 'request': build_payload(values),
-                              'ofdCredsConfigured': creds_configured()})
+                              'warnings': creds_errors(values)})
 
         if action == 'fns-create':
             mode = 'test' if body.get('mode') == 'test' else 'real'

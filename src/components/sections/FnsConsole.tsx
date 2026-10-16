@@ -24,6 +24,7 @@ interface Result {
   errors?: string[];
   links?: Record<string, string>;
   request?: unknown;
+  warnings?: string[];
   link?: string;
   mode?: string;
 }
@@ -86,9 +87,6 @@ const FnsConsole = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm">
-          <Badge variant={meta?.ofdCredsConfigured ? 'default' : 'destructive'}>
-            {meta?.ofdCredsConfigured ? 'Логин и пароль ОФД заданы' : 'Логин и пароль ОФД не заданы'}
-          </Badge>
           <Badge variant={meta?.bitrixConfigured ? 'default' : 'destructive'}>
             {meta?.bitrixConfigured ? 'Битрикс24 подключён' : 'Битрикс24 не подключён'}
           </Badge>
@@ -111,7 +109,7 @@ const FnsConsole = () => {
           <Button variant="outline" onClick={() => create('test')} disabled={!!busy || !dealId}>
             {busy === 'test' ? 'Создаю...' : 'Тестовая заявка (без ОФД)'}
           </Button>
-          <Button onClick={() => create('real')} disabled={!!busy || !dealId || !meta?.ofdCredsConfigured} title={meta?.ofdCredsConfigured ? '' : 'Сначала добавьте логин и пароль ОФД'}>
+          <Button onClick={() => create('real')} disabled={!!busy || !dealId}>
             {busy === 'real' ? 'Создаю...' : 'Создать заявку в ОФД'}
           </Button>
           <label className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
@@ -147,6 +145,11 @@ const FnsConsole = () => {
           {res.errors && res.errors.length > 0 && (
             <ul className="list-disc pl-5 mt-2 text-destructive">
               {res.errors.map((e) => <li key={e}>{e}</li>)}
+            </ul>
+          )}
+          {res.warnings && res.warnings.length > 0 && (
+            <ul className="list-disc pl-5 mt-2 text-muted-foreground">
+              {res.warnings.map((e) => <li key={e}>{e} (нужно для боевой заявки, для теста не требуется)</li>)}
             </ul>
           )}
           {res.error && res.status && !STATUS_TEXT[res.status] && <p className="text-destructive mt-1">{res.error}</p>}
