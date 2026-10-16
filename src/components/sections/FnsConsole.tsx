@@ -109,6 +109,7 @@ const FnsConsole = () => {
 
   const hookUrl = `${PAYTI_URL}?action=fns-hook${hookTest ? '&mode=test' : ''}${hookPurpose ? `&purpose=${hookPurpose}` : ''}&key=ВАШ_КЛЮЧ&dealId={{ID}}`;
   const missing = res?.fields?.filter((f) => !f.value) || [];
+  const multiOf = (path: string) => !!meta?.fields?.find((m: { path: string }) => m.path === path)?.multi;
   const optionsOf = (path: string) => meta?.fields?.find((m: { path: string }) => m.path === path)?.options || null;
 
   return (
@@ -252,6 +253,24 @@ const FnsConsole = () => {
                   <td className="px-4 py-2">
                     {f.value || f.path === 'Kpp' ? (
                       <span className="font-mono">{f.value || '—'}</span>
+                    ) : multiOf(f.path) ? (
+                      <div className="flex flex-col gap-1">
+                        {optionsOf(f.path)!.map((o: { value: string; label: string }) => {
+                          const picked = (overrides[f.path] || '').split(',').map((x) => x.trim()).filter(Boolean);
+                          return (
+                            <label key={o.value} className="flex items-center gap-2 text-xs">
+                              <input
+                                type="checkbox"
+                                checked={picked.includes(o.value)}
+                                onChange={(e) =>
+                                  setOverrides({ ...overrides, [f.path]: (e.target.checked ? [...picked, o.value] : picked.filter((x) => x !== o.value)).join(', ') })
+                                }
+                              />
+                              {o.label}
+                            </label>
+                          );
+                        })}
+                      </div>
                     ) : optionsOf(f.path) ? (
                       <select
                         className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"

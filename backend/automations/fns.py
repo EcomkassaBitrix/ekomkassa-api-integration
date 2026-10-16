@@ -21,12 +21,33 @@ FIELDS = [
     ('FnNumber', 'Номер фискального накопителя'),
     ('Model', 'Модель кассы'),
     ('FullAddress', 'Адрес установки кассы'),
+    ('PostalCode', 'Почтовый индекс адреса установки'),
+    ('RegionCode', 'Код региона адреса установки'),
+    ('Region', 'Регион адреса установки'),
+    ('Settlement', 'Населённый пункт'),
+    ('HouseNumber', 'Номер дома'),
+    ('Building', 'Строение'),
+    ('Office', 'Офис или помещение'),
+    ('FiasCode', 'Код ФИАС адреса'),
+    ('FnName', 'Название фискального накопителя'),
     ('InstallmentPlace', 'Место расчётов (адрес или сайт)'),
     ('FormatVersion', 'Версия ФФД (2, 3 или 4)'),
     ('Internet', 'Расчёты в интернете (да/нет)'),
     ('Agent', 'Платёжный агент (да/нет)'),
     ('Marking', 'Маркированные товары (да/нет)'),
     ('ExcisableGoods', 'Подакцизные товары (да/нет)'),
+    ('Offline', 'Автономный режим (да/нет)'),
+    ('Gambling', 'Азартные игры (да/нет)'),
+    ('Lottery', 'Лотереи (да/нет)'),
+    ('AutomatedDevice', 'Принтер в автомате (да/нет)'),
+    ('Mobile', 'Развозная и разносная торговля (да/нет)'),
+    ('Banking', 'Банковский платёжный агент (да/нет)'),
+    ('FormsForReports', 'Оказание услуг (да/нет)'),
+    ('PawnShop', 'Ломбард (да/нет)'),
+    ('Insurance', 'Страховые выплаты (да/нет)'),
+    ('MchdNumber', 'МЧД: номер доверенности'),
+    ('MchdDate', 'МЧД: дата доверенности'),
+    ('MchdId', 'МЧД: идентификатор доверенности'),
     ('RegNumber', 'Регистрационный номер кассы (РНМ)'),
     ('ReregReasons', 'Причины перерегистрации (через запятую)'),
     ('UnregReason', 'Причина снятия с учёта (утеряна, украдена, сломана)'),
@@ -43,7 +64,28 @@ FIELDS = [
     ('OfdPassword', 'Пароль кабинета ОФД клиента'),
 ]
 LABELS = dict(FIELDS)
+BOOLS = ('Internet', 'Agent', 'Marking', 'ExcisableGoods', 'Offline', 'Gambling', 'Lottery', 'AutomatedDevice', 'Mobile', 'Banking', 'FormsForReports', 'PawnShop', 'Insurance')
+EXTRA_BOOLS = ('Offline', 'PawnShop', 'Insurance')
+ADDR_PARTS = ('PostalCode', 'RegionCode', 'Region', 'Settlement', 'HouseNumber', 'Building', 'Office', 'FiasCode')
+MULTI = ('ReregReasons',)
+YESNO = [{'value': 'да', 'label': 'Да'}, {'value': 'нет', 'label': 'Нет'}]
 OPTIONS = {
+    **{k: YESNO for k in BOOLS},
+    'ReregReasons': [
+        {'value': 'FnChanged', 'label': 'Замена фискального накопителя'},
+        {'value': 'InstallmentPlaceChanged', 'label': 'Изменение адреса и места установки'},
+        {'value': 'OfdChaged', 'label': 'Смена оператора фискальных данных'},
+        {'value': 'UserChanged', 'label': 'Смена организации'},
+        {'value': 'AutomatedDeviceChanged', 'label': 'Изменение автоматического устройства'},
+        {'value': 'SwitchedFromOfflineToOnlineMode', 'label': 'Переход из автономного режима в онлайн'},
+        {'value': 'SwitchedFromOnlineToOfflineMode', 'label': 'Переход из онлайн в автономный режим'},
+        {'value': 'Other', 'label': 'Другие причины'},
+    ],
+    'UnregReason': [
+        {'value': 'Lost', 'label': 'Касса утеряна'},
+        {'value': 'Stolen', 'label': 'Касса украдена'},
+        {'value': 'Broken', 'label': 'Касса сломана'},
+    ],
     'FormatVersion': [
         {'value': '2', 'label': '2 — ФФД 1.05'},
         {'value': '3', 'label': '3 — ФФД 1.1'},
@@ -51,11 +93,10 @@ OPTIONS = {
     ],
 }
 SECRET_FIELDS = ('OfdLogin', 'OfdPassword')
-BOOLS = ('Internet', 'Agent', 'Marking', 'ExcisableGoods')
 REPORT_FIELDS = ('ReportDateTime', 'ReportDocumentNumber', 'ReportFiscalSign')
 CLOSED_FIELDS = ('ClosedFdDateTime', 'ClosedFdNumber', 'ClosedFpValue', 'InstalledFdDateTime', 'InstalledFdNumber', 'InstalledFpValue')
 DT_FIELDS = ('ClosedFdDateTime', 'InstalledFdDateTime', 'ReportDateTime')
-NUM_FIELDS = ('Inn', 'Kpp', 'FnNumber', 'FormatVersion', 'RegNumber', 'ClosedFdNumber', 'ClosedFpValue', 'InstalledFdNumber', 'InstalledFpValue', 'ReportDocumentNumber', 'ReportFiscalSign')
+NUM_FIELDS = ('PostalCode', 'RegionCode', 'Inn', 'Kpp', 'FnNumber', 'FormatVersion', 'RegNumber', 'ClosedFdNumber', 'ClosedFpValue', 'InstalledFdNumber', 'InstalledFpValue', 'ReportDocumentNumber', 'ReportFiscalSign')
 PURPOSES = {'InitialRegistration': 'Регистрация кассы', 'Reregistration': 'Перерегистрация кассы', 'Unregistration': 'Снятие кассы с учёта', 'Report': 'Отчёт о регистрации'}
 PURPOSE_LETTER = {'InitialRegistration': 'I', 'Reregistration': 'R', 'Unregistration': 'U', 'Report': 'P'}
 ALIASES = {
@@ -231,6 +272,19 @@ def auto_value(path, ctx):
     return '', 'Не определяется автоматически'
 
 
+def map_value(path, value, cfg):
+    vm = {str(k).strip().lower(): v for k, v in (cfg.get('valueMap') or {}).items() if str(v).strip()}
+    if not vm or not str(value or '').strip():
+        return value
+    parts = [p.strip() for p in str(value).split(',')] if path in MULTI else [str(value).strip()]
+    return ', '.join(str(vm.get(p.lower(), p)) for p in parts if p)
+
+
+def looks_like_site(v):
+    t = str(v or '').strip().lower()
+    return bool(t) and ' ' not in t and (t.startswith('http') or bool(re.match(r'^[a-zа-я0-9-]+(\.[a-zа-я0-9-]+)+(/.*)?$', t)))
+
+
 def normalize(path, value):
     if path == 'OfdPassword':
         return str(value or '')
@@ -244,6 +298,8 @@ def normalize(path, value):
         return parse_dt(value)
     if path in BOOLS:
         return 'да' if truthy(value) else 'нет'
+    if path in DT_FIELDS or path == 'MchdDate':
+        return parse_dt(value)
     return ' '.join(str(value or '').split())
 
 
@@ -260,12 +316,22 @@ def resolve(bx, ctx, settings, overrides, only=None, purpose='InitialRegistratio
             value, source, method = str(overrides[path]).strip(), 'Ввод вручную', 'MANUAL'
         elif mtype == 'STATIC':
             value, source = cfg.get('value', ''), 'Фиксированное значение'
+        elif mtype == 'FILLED':
+            raw = entity_value(bx, ctx, cfg_entity(cfg), cfg.get('field', ''))
+            filled = bool(str(raw or '').strip())
+            value = 'да' if filled else 'нет'
+            source = f"{payti.ENTITIES.get(cfg_entity(cfg), '')}: {cfg.get('field', '')} — {'заполнено' if filled else 'пусто'}"
         elif mtype == 'CRM':
             value = entity_value(bx, ctx, cfg_entity(cfg), cfg.get('field', ''))
             source = f"{payti.ENTITIES.get(cfg_entity(cfg), '')}: {cfg.get('field', '')}"
             if not str(value or '').strip():
                 value, auto_src = auto_value(path, ctx)
                 source += f' (пусто, взято по умолчанию: {auto_src})' if value else ' (пусто)'
+            else:
+                mapped = map_value(path, value, cfg)
+                if mapped != value:
+                    source += f' (значение «{value}» → «{mapped}»)'
+                    value = mapped
         else:
             value, source = auto_value(path, ctx)
         value = normalize(path, value)
@@ -274,7 +340,26 @@ def resolve(bx, ctx, settings, overrides, only=None, purpose='InitialRegistratio
         sc = scope_of(path)
         rows.append({'path': path, 'label': label, 'value': shown, 'source': source, 'method': method, 'scope': sc,
                      'applies': PURPOSE_LETTER.get(purpose, 'I') in sc})
+    smart_defaults(rows, values, mapping, overrides)
     return rows, values
+
+
+def smart_defaults(rows, values, mapping, overrides):
+    def setrow(path, value, source):
+        values[path] = value
+        for r in rows:
+            if r['path'] == path:
+                r['value'], r['source'] = value, source
+
+    def is_auto(path):
+        return path not in overrides and cfg_mode(mapping.get(path) or {}) == 'AUTO'
+
+    if 'Internet' in values and is_auto('Internet'):
+        site = looks_like_site(values.get('InstallmentPlace'))
+        setrow('Internet', 'да' if site else 'нет', 'По умолчанию: место расчётов похоже на сайт' if site else 'По умолчанию: место расчётов не сайт')
+    if 'ReregReasons' in values and is_auto('ReregReasons') and not values.get('ReregReasons'):
+        if all(values.get(k) for k in CLOSED_FIELDS):
+            setrow('ReregReasons', 'FnChanged', 'По умолчанию: заполнены данные закрытого и нового ФН')
 
 
 def creds_errors(values):
@@ -355,20 +440,23 @@ def validate_report(values):
 
 
 def build_payload(values, purpose='InitialRegistration'):
-    usage = {k: values.get(k) == 'да' for k in BOOLS}
-    usage.update({'Gambling': False, 'Lottery': False, 'AutomatedDevice': False, 'Mobile': False, 'Banking': False, 'FormsForReports': False})
+    usage = {k: values.get(k) == 'да' for k in BOOLS if k not in EXTRA_BOOLS or values.get(k) == 'да'}
     company = {'Inn': values.get('Inn', '')}
     if values.get('Kpp'):
         company['Kpp'] = values['Kpp']
+    if values.get('MchdNumber') or values.get('MchdId'):
+        company['RepresentativeDetails'] = {'Number': values.get('MchdNumber', ''), 'EvaluateDate': values.get('MchdDate', ''), 'DocId': values.get('MchdId', '')}
     kkt = {
         'SerialNumber': values.get('SerialNumber', ''),
         'FnNumber': values.get('FnNumber', ''),
         'Model': values.get('Model', ''),
-        'InstallmentAddress': {'FullAddress': values.get('FullAddress', '')},
+        'InstallmentAddress': {'FullAddress': values.get('FullAddress', ''), **{k: values[k] for k in ADDR_PARTS if values.get(k)}},
         'InstallmentPlace': values.get('InstallmentPlace', ''),
         'UsageMode': usage,
         'FormatVersion': int(values.get('FormatVersion') or 4),
     }
+    if values.get('FnName'):
+        kkt['FnName'] = values['FnName']
     if purpose in ('Reregistration', 'Unregistration'):
         kkt['RegNumber'] = values.get('RegNumber', '')
     if purpose == 'Reregistration':
@@ -880,7 +968,7 @@ def handle(event, action):
 
         if action == 'fns-meta':
             return resp(200, {
-                'fields': [{'path': p, 'label': l, 'scope': scope_of(p), 'options': OPTIONS.get(p)} for p, l in FIELDS],
+                'fields': [{'path': p, 'label': l, 'scope': scope_of(p), 'options': OPTIONS.get(p), 'multi': p in MULTI} for p, l in FIELDS],
                 'purposes': PURPOSES,
                 'entities': payti.ENTITIES,
                 'bitrixConfigured': bool(os.environ.get('BITRIX_WEBHOOK_URL')),

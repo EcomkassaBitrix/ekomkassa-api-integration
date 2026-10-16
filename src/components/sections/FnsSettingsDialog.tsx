@@ -5,10 +5,15 @@ import { Input } from '@/components/ui/input';
 import { paytiFetch } from './PaytiSettingsDialog';
 
 interface MapCfg {
-  mode: 'AUTO' | 'CRM' | 'STATIC';
+  mode: 'AUTO' | 'CRM' | 'STATIC' | 'FILLED';
   entity: string;
   field: string;
   value: string;
+  valueMap?: Record<string, string>;
+}
+interface Opt {
+  value: string;
+  label: string;
 }
 interface CrmField {
   code: string;
@@ -21,11 +26,18 @@ const PURPOSE_ROWS: [string, string][] = [
   ['Unregistration', 'Снятие кассы с учёта'],
   ['Report', 'Отчёт о регистрации'],
 ];
+const AUTO_HINT: Record<string, string> = {
+  Internet: 'да, если место расчётов похоже на сайт',
+  ReregReasons: 'замена ФН, если заполнены данные старого и нового ФН',
+  FormatVersion: '4 (ФФД 1.2)',
+  FullAddress: 'адрес из реквизитов',
+  InstallmentPlace: 'как адрес установки',
+};
 const SCOPE_TEXT: Record<string, string> = { IRU: '', RU: 'перерегистрация, снятие', R: 'перерегистрация', U: 'снятие с учёта', P: 'отчёт о регистрации' };
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  meta: { fields: { path: string; label: string; scope?: string; options?: { value: string; label: string }[] | null }[]; entities: Record<string, string> } | null;
+  meta: { fields: { path: string; label: string; scope?: string; multi?: boolean; options?: Opt[] | null }[]; entities: Record<string, string> } | null;
   onSaved: () => void;
 }
 
@@ -63,6 +75,7 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
           entity: String(c.entity || '').toUpperCase(),
           field: c.field || '',
           value: c.value || '',
+          valueMap: c.valueMap || {},
         };
       });
       setMapping(m);
@@ -104,6 +117,8 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
   };
 
   const dealFields = crm.DEAL || [];
+  const isBool = (f: { options?: Opt[] | null }) => !!f.options && f.options.length === 2 && f.options[0].value === 'да';
+  const crmItems = (cfg: MapCfg) => (crm[cfg.entity.toUpperCase()] || []).find((x) => x.code === cfg.field)?.items || [];
   const entityOptions = Object.entries(meta?.entities || {}).map(([k, v]) => ({ code: k.toUpperCase(), label: v }));
 
   const DealSelect = ({ value, onChange, empty }: { value: string; onChange: (v: string) => void; empty: string }) => (
@@ -207,8 +222,9 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
                     <option value="AUTO">По умолчанию</option>
                     <option value="CRM">Своё поле из CRM</option>
                     <option value="STATIC">Фиксированное значение</option>
+                    {isBool(f) && <option value="FILLED">Да, если поле CRM заполнено</option>}
                   </select>
-                  {cfg.mode === 'CRM' && (
+                  {(cfg.mode === 'CRM' || cfg.mode === 'FILLED') && (
                     <div className="grid grid-cols-2 gap-3">
                       <select className={selectCls} value={cfg.entity} onChange={(e) => setMap(f.path, { entity: e.target.value, field: '' })}>
                         <option value="">Где искать...</option>
@@ -228,7 +244,28 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
                     </select>
                   )}
                   {cfg.mode === 'STATIC' && !f.options && <Input placeholder="Значение" value={cfg.value} onChange={(e) => setMap(f.path, { value: e.target.value })} />}
-                  {cfg.mode === 'AUTO' && <span className="text-xs text-muted-foreground">по правилам системы</span>}
+                  {cfg.mode === 'AUTO' && <span className="text-xs text-muted-foreground">{AUTO_HINT[f.path] || 'по правилам системы'}</span>}
+                  {cfg.mode === 'CRM' && f.options && cfg.field && (
+                    <div className="col-span-3 rounded-md bg-muted/40 p-3 space-y-2">
+                      <p className="text-xs text-muted-foreground">Сопоставьте значения поля CRM со значениями ОФД. Несопоставленные передаются как есть.</p>
+                      {crmItems(cfg).length === 0 && <p className="text-xs text-muted-foreground">У поля нет списка значений: если там свободный текст, система попробует распознать его сама.</p>}
+                      {crmItems(cfg).map((it) => (
+                        <div key={it.id} className="grid grid-cols-[1fr_1fr] gap-3 items-center">
+                          <span className="text-sm">{it.value}</span>
+                          <select
+                            className={selectCls}
+                            value={cfg.valueMap?.[it.value] || ''}
+                            onChange={(e) => setMap(f.path, { valueMap: { ...(cfg.valueMap || {}), [it.value]: e.target.value } })}
+                          >
+                            <option value="">Как есть</option>
+                            {f.options.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
