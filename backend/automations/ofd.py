@@ -136,12 +136,15 @@ def prepare(conn, bx, deal_id, overrides, steps):
 
 def error_text(body, http_status):
     if isinstance(body, dict):
-        err = body.get('Error') or body.get('error') or body
+        errs = body.get('Errors') or body.get('errors')
+        err = (errs[0] if isinstance(errs, list) and errs else None) or body.get('Error') or body.get('error') or body
         if isinstance(err, dict):
             code = err.get('Code') or err.get('code') or ''
             msg = err.get('Message') or err.get('message') or ''
-            return code, f'{code} {msg}'.strip()
-        return '', str(err)[:300]
+            if code or msg:
+                return code, f'{code} {msg}'.strip()
+        elif err is not body:
+            return '', str(err)[:300]
     return '', f'ОФД вернул {http_status}'
 
 

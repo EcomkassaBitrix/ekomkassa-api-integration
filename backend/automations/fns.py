@@ -215,10 +215,13 @@ def safe_json(r):
 
 def err_message(body, http_status):
     if isinstance(body, dict):
-        err = body.get('Error') or body.get('error')
+        errs = body.get('Errors') or body.get('errors')
+        err = (errs[0] if isinstance(errs, list) and errs else None) or body.get('Error') or body.get('error')
         if isinstance(err, dict):
-            return f"{err.get('Code', '')} {err.get('Message', '')}".strip()
-        if err:
+            text = f"{err.get('Code', '')} {err.get('Message', '')}".strip()
+            if text:
+                return text
+        elif err:
             return str(err)[:300]
     return f'ОФД вернул {http_status}'
 

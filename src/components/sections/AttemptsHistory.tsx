@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { paytiFetch } from './PaytiSettingsDialog';
+import AttemptDetailDialog from './AttemptDetailDialog';
 
 interface Attempt {
   id: number;
@@ -31,6 +32,7 @@ const STATUS: Record<string, string> = {
   success: 'Успешно',
   already_registered: 'Уже зарегистрирован',
   already_exists: 'Уже существует',
+  ofd_error: 'Ошибка ОФД',
   validation_failed: 'Не хватает данных',
   validation_error: 'Не хватает данных',
   payti_validation_error: 'Payti отклонил данные',
@@ -48,6 +50,7 @@ const SOURCE: Record<string, string> = {
 const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
   const [items, setItems] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [detailId, setDetailId] = useState<number | null>(null);
   const isPayti = action === 'history';
 
   const load = async () => {
@@ -80,18 +83,19 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
             <th className="text-left px-4 py-2 font-medium">{isPayti ? 'Логин' : 'Email'}</th>
             <th className="text-left px-4 py-2 font-medium">Статус</th>
             <th className="text-left px-4 py-2 font-medium">Источник</th>
+            <th className="px-4 py-2" />
           </tr>
         </thead>
         <tbody>
           {items.length === 0 && (
             <tr>
-              <td colSpan={isPayti ? 7 : 5} className="text-center py-10 text-muted-foreground">
+              <td colSpan={isPayti ? 8 : 6} className="text-center py-10 text-muted-foreground">
                 {loading ? 'Загружаю...' : 'Попыток пока не было'}
               </td>
             </tr>
           )}
           {items.map((a) => (
-            <tr key={a.id} className="border-t border-border align-top">
+            <tr key={a.id} className="border-t border-border align-top cursor-pointer hover:bg-muted/30" onClick={() => setDetailId(a.id)}>
               <td className="px-4 py-2 whitespace-nowrap">{new Date(a.created_at).toLocaleString('ru-RU')}</td>
               <td className="px-4 py-2 font-mono">{a.deal_id}</td>
               {isPayti && <td className="px-4 py-2 uppercase">{a.environment}</td>}
@@ -104,10 +108,12 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
                 )}
               </td>
               <td className="px-4 py-2 text-muted-foreground">{SOURCE[a.source || ''] || a.source || '—'}</td>
+              <td className="px-4 py-2 text-muted-foreground"><Icon name="FileSearch" size={16} /></td>
             </tr>
           ))}
         </tbody>
       </table>
+      <AttemptDetailDialog kind={isPayti ? 'payti' : 'ofd'} id={detailId} onClose={() => setDetailId(null)} />
     </Card>
   );
 };

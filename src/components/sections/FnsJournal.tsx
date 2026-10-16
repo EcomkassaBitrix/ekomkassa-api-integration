@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { paytiFetch } from './PaytiSettingsDialog';
+import AttemptDetailDialog from './AttemptDetailDialog';
 
 interface App {
   id: number;
@@ -56,6 +57,7 @@ const FnsJournal = ({ refreshKey, baseUrl }: Props) => {
   const [open, setOpen] = useState<number | null>(null);
   const [events, setEvents] = useState<Ev[]>([]);
   const [busy, setBusy] = useState<number | null>(null);
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -134,6 +136,9 @@ const FnsJournal = ({ refreshKey, baseUrl }: Props) => {
                     {a.error_message && <p className="text-xs text-muted-foreground mt-1 max-w-xs break-words">{a.error_message}</p>}
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <button className="text-muted-foreground hover:text-foreground mr-3" title="Запрос и ответ" onClick={() => setDetailId(a.id)}>
+                      <Icon name="FileSearch" size={16} />
+                    </button>
                     {a.public_token && (
                       <button className="text-muted-foreground hover:text-foreground mr-3" title="Копировать ссылку для подписи" onClick={() => navigator.clipboard.writeText(linkOf(a))}>
                         <Icon name="Link" size={16} />
@@ -165,6 +170,7 @@ const FnsJournal = ({ refreshKey, baseUrl }: Props) => {
           })}
         </tbody>
       </table>
+      <AttemptDetailDialog kind="fns" id={detailId} onClose={() => setDetailId(null)} />
     </Card>
   );
 };

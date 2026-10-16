@@ -47,6 +47,12 @@
       "method": "GET",
       "path": "/?action=fns-public-get&token=nope",
       "expectedStatus": 404
+    },
+    {
+      "name": "Attempt detail without API key",
+      "method": "GET",
+      "path": "/?action=attempt-detail&kind=ofd&id=1",
+      "expectedStatus": 401
     }
   ]
 }

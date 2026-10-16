@@ -1,6 +1,7 @@
 import payti
 import ofd
 import fns
+import details
 
 
 def handler(event, context):
@@ -14,4 +15,6 @@ def handler(event, context):
         return ofd.handle(event, action)
     if action in fns.ACTIONS:
         return fns.handle(event, action)
+    if action in details.ACTIONS:
+        return details.handle(event, action)
     return payti.resp(400, {'error': 'Unknown action'})
