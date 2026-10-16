@@ -43,6 +43,13 @@ FIELDS = [
     ('OfdPassword', 'Пароль кабинета ОФД клиента'),
 ]
 LABELS = dict(FIELDS)
+OPTIONS = {
+    'FormatVersion': [
+        {'value': '2', 'label': '2 — ФФД 1.05'},
+        {'value': '3', 'label': '3 — ФФД 1.1'},
+        {'value': '4', 'label': '4 — ФФД 1.2'},
+    ],
+}
 SECRET_FIELDS = ('OfdLogin', 'OfdPassword')
 BOOLS = ('Internet', 'Agent', 'Marking', 'ExcisableGoods')
 REPORT_FIELDS = ('ReportDateTime', 'ReportDocumentNumber', 'ReportFiscalSign')
@@ -102,6 +109,19 @@ def scope_of(path):
 def purpose_from_param(v):
     key = str(v or '').strip().lower().replace(' ', '')
     return ALIASES.get(key) or (v if v in PURPOSES else None)
+
+
+def norm_ffd(v):
+    s = str(v or '').strip().lower().replace(',', '.')
+    if s in ('2', '3', '4'):
+        return s
+    if '1.05' in s:
+        return '2'
+    if '1.2' in s:
+        return '4'
+    if '1.1' in s:
+        return '3'
+    return digits(s)
 
 
 def parse_dt(v):
@@ -216,6 +236,8 @@ def normalize(path, value):
         return str(value or '')
     if path == 'OfdLogin':
         return str(value or '').strip()
+    if path == 'FormatVersion':
+        return norm_ffd(value)
     if path in NUM_FIELDS:
         return digits(value)
     if path in DT_FIELDS:
@@ -299,7 +321,7 @@ def validate(values, purpose='InitialRegistration'):
     if not values.get('InstallmentPlace'):
         errors.append('Не заполнено: место расчётов')
     if values.get('FormatVersion') not in ('2', '3', '4'):
-        errors.append('Версия ФФД должна быть 2, 3 или 4')
+        errors.append('Версия ФФД должна быть 2 (ФФД 1.05), 3 (ФФД 1.1) или 4 (ФФД 1.2)')
     if purpose in ('Reregistration', 'Unregistration') and len(values.get('RegNumber', '')) != 16:
         errors.append('Регистрационный номер кассы (РНМ) должен содержать 16 цифр')
     if purpose == 'Reregistration':
@@ -858,7 +880,7 @@ def handle(event, action):
 
         if action == 'fns-meta':
             return resp(200, {
-                'fields': [{'path': p, 'label': l, 'scope': scope_of(p)} for p, l in FIELDS],
+                'fields': [{'path': p, 'label': l, 'scope': scope_of(p), 'options': OPTIONS.get(p)} for p, l in FIELDS],
                 'purposes': PURPOSES,
                 'entities': payti.ENTITIES,
                 'bitrixConfigured': bool(os.environ.get('BITRIX_WEBHOOK_URL')),

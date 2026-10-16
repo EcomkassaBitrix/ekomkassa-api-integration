@@ -25,7 +25,7 @@ const SCOPE_TEXT: Record<string, string> = { IRU: '', RU: 'перерегист�
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  meta: { fields: { path: string; label: string; scope?: string }[]; entities: Record<string, string> } | null;
+  meta: { fields: { path: string; label: string; scope?: string; options?: { value: string; label: string }[] | null }[]; entities: Record<string, string> } | null;
   onSaved: () => void;
 }
 
@@ -219,7 +219,15 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
                       <FieldSelect entity={cfg.entity} value={cfg.field} onChange={(v) => setMap(f.path, { field: v })} />
                     </div>
                   )}
-                  {cfg.mode === 'STATIC' && <Input placeholder="Значение" value={cfg.value} onChange={(e) => setMap(f.path, { value: e.target.value })} />}
+                  {cfg.mode === 'STATIC' && f.options && (
+                    <select className={selectCls} value={cfg.value} onChange={(e) => setMap(f.path, { value: e.target.value })}>
+                      <option value="">Выберите значение...</option>
+                      {f.options.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  )}
+                  {cfg.mode === 'STATIC' && !f.options && <Input placeholder="Значение" value={cfg.value} onChange={(e) => setMap(f.path, { value: e.target.value })} />}
                   {cfg.mode === 'AUTO' && <span className="text-xs text-muted-foreground">по правилам системы</span>}
                 </div>
               );

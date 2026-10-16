@@ -109,6 +109,7 @@ const FnsConsole = () => {
 
   const hookUrl = `${PAYTI_URL}?action=fns-hook${hookTest ? '&mode=test' : ''}${hookPurpose ? `&purpose=${hookPurpose}` : ''}&key=ВАШ_КЛЮЧ&dealId={{ID}}`;
   const missing = res?.fields?.filter((f) => !f.value) || [];
+  const optionsOf = (path: string) => meta?.fields?.find((m: { path: string }) => m.path === path)?.options || null;
 
   return (
     <div className="space-y-6">
@@ -251,6 +252,17 @@ const FnsConsole = () => {
                   <td className="px-4 py-2">
                     {f.value || f.path === 'Kpp' ? (
                       <span className="font-mono">{f.value || '—'}</span>
+                    ) : optionsOf(f.path) ? (
+                      <select
+                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        value={overrides[f.path] || ''}
+                        onChange={(e) => setOverrides({ ...overrides, [f.path]: e.target.value })}
+                      >
+                        <option value="">Не заполнено, выберите</option>
+                        {optionsOf(f.path)!.map((o: { value: string; label: string }) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
                     ) : (
                       <Input
                         className="h-8"
