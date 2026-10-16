@@ -1,0 +1,1 @@
+UPDATE t_p25765938_ekomkassa_api_integr.fns_address_memory SET parts = '{}'::jsonb, address_key = 'test-entry-neutralized' WHERE inn = '771705779568' AND address_key = '115280, г москва, ул ленинская слобода, д 19';

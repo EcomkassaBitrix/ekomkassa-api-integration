@@ -10,6 +10,7 @@ import requests
 from psycopg2.extras import Json
 
 import payti
+from address import parse_address
 from payti import hook_key_valid, cfg_entity, cfg_mode, Bitrix, collect, digits, entity_value, links, parse_deal_id, resp, db
 
 OFD_API = 'https://ofd.ru/api'
@@ -26,6 +27,7 @@ FIELDS = [
     ('RegionCode', 'Код региона адреса установки'),
     ('Region', 'Регион адреса установки'),
     ('Settlement', 'Населённый пункт'),
+    ('Street', 'Улица'),
     ('HouseNumber', 'Номер дома'),
     ('Building', 'Строение'),
     ('Office', 'Офис или помещение'),
@@ -67,7 +69,7 @@ FIELDS = [
 LABELS = dict(FIELDS)
 BOOLS = ('Internet', 'Agent', 'Marking', 'ExcisableGoods', 'Offline', 'Gambling', 'Lottery', 'AutomatedDevice', 'Mobile', 'Banking', 'FormsForReports', 'PawnShop', 'Insurance')
 EXTRA_BOOLS = ('Offline', 'PawnShop', 'Insurance')
-ADDR_PARTS = ('PostalCode', 'RegionCode', 'Region', 'Settlement', 'HouseNumber', 'Building', 'Office', 'FiasCode')
+ADDR_PARTS = ('PostalCode', 'RegionCode', 'Region', 'Settlement', 'Street', 'HouseNumber', 'Building', 'Office', 'FiasCode')
 MULTI = ('ReregReasons',)
 YESNO = [{'value': 'да', 'label': 'Да'}, {'value': 'нет', 'label': 'Нет'}]
 OPTIONS = {
@@ -406,6 +408,12 @@ def validate(values, purpose='InitialRegistration'):
         errors.append('Не заполнено: адрес установки кассы')
     if not values.get('InstallmentPlace'):
         errors.append('Не заполнено: место расчётов')
+    if not re.match(r'^\d{6}$', values.get('PostalCode', '')):
+        errors.append('Не определён почтовый индекс адреса установки (6 цифр): введите его вручную, значение запомнится для этого адреса')
+    if not re.match(r'^\d{2}$', values.get('RegionCode', '')):
+        errors.append('Не определён код региона адреса установки (2 цифры): введите вручную, значение запомнится для этого адреса')
+    if not values.get('Region'):
+        errors.append('Не определено название региона адреса установки: введите вручную, значение запомнится для этого адреса')
     if values.get('FormatVersion') not in ('2', '3', '4'):
         errors.append('Версия ФФД должна быть 2 (ФФД 1.05), 3 (ФФД 1.1) или 4 (ФФД 1.2)')
     if purpose in ('Reregistration', 'Unregistration') and len(values.get('RegNumber', '')) != 16:
@@ -644,7 +652,45 @@ def pick_purpose(bx, ctx, settings, param):
     return None, f'Значение «{val}» поля {fld} не подходит ни к одному назначению. Укажите соответствие в настройках'
 
 
-def prepare(conn, bx, deal_id, overrides, steps, need_creds=False, purpose_param=None, ctx=None):
+def addr_key(values):
+    return ' '.join(str(values.get('FullAddress') or '').lower().replace('ё', 'е').split())
+
+
+def apply_address(conn, rows, values, mapping, overrides, remember=False):
+    inn, key = values.get('Inn') or '', addr_key(values)
+    if not (inn and key):
+        return
+    cur = conn.cursor()
+    cur.execute("SELECT parts FROM fns_address_memory WHERE inn = %s AND address_key = %s", (inn, key))
+    row = cur.fetchone()
+    mem = (row or {}).get('parts') or {}
+    parsed = parse_address(values.get('FullAddress'))
+
+    def put(path, value, source):
+        values[path] = value
+        for r in rows:
+            if r['path'] == path:
+                r['value'], r['source'] = value, source
+
+    for p in ADDR_PARTS:
+        if values.get(p) or p in overrides and str(overrides[p]).strip():
+            continue
+        if cfg_mode(mapping.get(p) or {}) not in ('AUTO', 'CRM'):
+            continue
+        if mem.get(p):
+            put(p, normalize(p, mem[p]), 'Запомнено для этого адреса')
+        elif parsed.get(p):
+            put(p, normalize(p, parsed[p]), 'Разобрано из полного адреса')
+    if remember and any(p in overrides and str(overrides[p]).strip() for p in ADDR_PARTS):
+        parts = {p: values[p] for p in ADDR_PARTS if values.get(p)}
+        cur.execute(
+            """INSERT INTO fns_address_memory (inn, address_key, parts) VALUES (%s, %s, %s)
+            ON CONFLICT (inn, address_key) DO UPDATE SET parts = EXCLUDED.parts, updated_at = NOW()""", (inn, key, Json(parts)))
+        conn.commit()
+    cur.close()
+
+
+def prepare(conn, bx, deal_id, overrides, steps, need_creds=False, purpose_param=None, ctx=None, remember=False):
     settings = get_settings(conn)
     ctx = ctx or collect(bx, deal_id, steps)
     purpose, src = pick_purpose(bx, ctx, settings, purpose_param)
@@ -657,6 +703,7 @@ def prepare(conn, bx, deal_id, overrides, steps, need_creds=False, purpose_param
         errors = validate_report(values) + (creds_errors(values) if need_creds else [])
     else:
         rows, values = resolve(bx, ctx, settings, overrides, purpose=purpose)
+        apply_address(conn, rows, values, settings.get('mapping_json') or {}, overrides, remember=remember)
         errors = validate(values, purpose) + (creds_errors(values) if need_creds else [])
     steps.append({'step': 'Проверка', 'ok': not errors, 'info': '; '.join(errors) or 'Всё заполнено'})
     return settings, ctx, rows, values, errors, purpose, src
@@ -670,7 +717,7 @@ def create_application(conn, bx, deal_id, overrides, mode, force, source, origin
     steps = []
     result = {'ok': False, 'dealId': deal_id, 'mode': mode, 'steps': steps}
     test = mode == 'test'
-    settings, ctx, rows, values, errors, purpose, purpose_src = prepare(conn, bx, deal_id, overrides, steps, need_creds=not test, purpose_param=purpose_param)
+    settings, ctx, rows, values, errors, purpose, purpose_src = prepare(conn, bx, deal_id, overrides, steps, need_creds=not test, purpose_param=purpose_param, remember=True)
     base = (origin or settings.get('sign_base_url') or '').rstrip('/')
     result.update(purpose=purpose, purposeSource=purpose_src)
 
