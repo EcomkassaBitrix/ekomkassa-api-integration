@@ -408,6 +408,8 @@ def validate(values, purpose='InitialRegistration'):
         errors.append('Не заполнено: адрес установки кассы')
     if not values.get('InstallmentPlace'):
         errors.append('Не заполнено: место расчётов')
+    if not values.get('HouseNumber') or values.get('_AddrWeak'):
+        errors.append('Адрес неполный: нужен адрес до дома (улица и номер дома). Введите полный адрес установки кассы, например «115230, г Москва, проезд Электролитный, д 3, стр 1»')
     if not re.match(r'^\d{6}$', values.get('PostalCode', '')):
         errors.append('Не определён почтовый индекс адреса установки (6 цифр): введите его вручную, значение запомнится для этого адреса')
     if not re.match(r'^\d{2}$', values.get('RegionCode', '')):
@@ -665,10 +667,10 @@ def apply_address(conn, rows, values, mapping, overrides, remember=False):
     row = cur.fetchone()
     mem = (row or {}).get('parts') or {}
     parsed = parse_address(values.get('FullAddress'))
-    dd, dd_note = {}, ''
+    dd, dd_note, dd_level = {}, '', 0
     token = os.environ.get('DADATA_API_KEY', '')
     if token and not mem.get('PostalCode'):
-        dd, dd_note, _ = dadata_lookup(values.get('FullAddress'), token)
+        dd, dd_note, dd_level = dadata_lookup(values.get('FullAddress'), token)
 
     def put(path, value, source):
         values[path] = value
@@ -687,6 +689,8 @@ def apply_address(conn, rows, values, mapping, overrides, remember=False):
             put(p, normalize(p, dd[p]), f'DaData ({dd_note})')
         elif parsed.get(p):
             put(p, normalize(p, parsed[p]), 'Разобрано из полного адреса' + (f' (DaData: {dd_note})' if token and dd_note and not dd else ''))
+    typed_postal = 'PostalCode' in overrides and str(overrides['PostalCode']).strip()
+    values['_AddrWeak'] = bool(dd and dd_level and dd_level < 8 and not mem and not typed_postal)
     if remember and any(p in overrides and str(overrides[p]).strip() for p in ADDR_PARTS):
         parts = {p: values[p] for p in ADDR_PARTS if values.get(p)}
         cur.execute(
