@@ -76,14 +76,6 @@ const FnsConsole = () => {
   const [hookTest, setHookTest] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [hookPurpose, setHookPurpose] = useState('');
-  const [access, setAccess] = useState<any>(null);
-  const [checking, setChecking] = useState(false);
-
-  const checkAccess = async () => {
-    setChecking(true);
-    setAccess(await paytiFetch('fns-access-check'));
-    setChecking(false);
-  };
 
   const loadMeta = () => paytiFetch('fns-meta').then(setMeta);
   useEffect(() => {
@@ -119,9 +111,6 @@ const FnsConsole = () => {
           <Badge variant={meta?.bitrixConfigured ? 'default' : 'destructive'}>
             {meta?.bitrixConfigured ? 'Битрикс24 подключён' : 'Битрикс24 не подключён'}
           </Badge>
-          <button className="text-xs underline text-muted-foreground hover:text-foreground" onClick={checkAccess} disabled={checking}>
-            {checking ? 'Проверяю...' : 'Проверить партнёрский ключ'}
-          </button>
         </div>
         <Button variant="outline" size="sm" className="gap-2" onClick={() => setSettingsOpen(true)}>
           <Icon name="Settings" size={16} />
@@ -158,21 +147,6 @@ const FnsConsole = () => {
           </label>
         </div>
       </Card>
-
-      {access && (
-        <Card className="p-4 text-sm space-y-2">
-          <p className="font-medium">
-            {access.partnerKeyAccepted ? 'ОФД принимает партнёрский ключ на методах заявок' : 'ОФД не принимает партнёрский ключ на методах заявок'}
-          </p>
-          {access.probes.map((p: any) => (
-            <div key={p.name} className="flex justify-between gap-4 text-xs">
-              <span className="text-muted-foreground">{p.name}</span>
-              <span className="font-mono break-all text-right">{p.skipped ? 'пропущено' : p.error || `${p.http} ${p.body || ''}`}</span>
-            </div>
-          ))}
-          {!access.partnerKeyAccepted && <p className="text-xs text-muted-foreground">Для заявок используется логин и пароль кабинета ОФД клиента из CRM.</p>}
-        </Card>
-      )}
 
       <HookCollapsible>
         <div className="flex gap-2 items-center text-sm flex-wrap">
