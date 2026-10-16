@@ -130,6 +130,12 @@ def norm_phone(s):
     return d
 
 
+def payti_phone(s):
+    d = digits(s)
+    d = norm_phone(d)
+    return f'+{d}' if len(d) == 11 and d[0] == '7' else ''
+
+
 def multi_first(v, skip=None):
     if isinstance(v, list):
         for it in v:
@@ -315,7 +321,7 @@ def auto_value(path, ctx):
         return v, 'Как юридический адрес'
     if path == 'firm.phone':
         for src, name in ((multi_first(contact.get('PHONE')), 'Контакт'), (req.get('RQ_PHONE'), 'Реквизиты'), (multi_first(company.get('PHONE')), 'Компания')):
-            p = norm_phone(src)
+            p = payti_phone(src)
             if p:
                 return p, name
         return '', 'Не найден'
@@ -371,7 +377,10 @@ def resolve_fields(bx, ctx, settings, overrides):
         elif path == 'firm.taxId':
             value = digits(value)
         elif path == 'firm.phone':
-            value = norm_phone(value)
+            raw = value
+            value = payti_phone(raw)
+            if raw and not value:
+                value = digits(raw)
         elif path == 'user.login':
             value = str(value or '').strip().lower()
         values[path] = value
@@ -407,6 +416,9 @@ def validate(values, mode):
             errors.append(f'Не заполнено: {label}')
     if len(values.get('firm.taxId', '')) not in (10, 12):
         errors.append('ИНН должен содержать 10 или 12 цифр')
+    phone = values.get('firm.phone', '')
+    if phone and not re.match(r'^\+7\d{10}$', phone):
+        errors.append('Телефон должен быть российским, 11 цифр: +7XXXXXXXXXX')
     if not values.get('firm.taxVariant'):
         errors.append('Система налогообложения не определена или её нет в списке Payti')
     login = values.get('user.login', '')
