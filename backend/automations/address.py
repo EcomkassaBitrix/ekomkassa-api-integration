@@ -167,3 +167,47 @@ def parse_address(text):
         if m:
             out['HouseNumber'] = m.group(1).replace(' ', '')
     return out
+
+
+DADATA_URL = 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address'
+
+
+def dadata_lookup(text, token):
+    import requests
+    q = ' '.join(str(text or '').split())
+    if not (q and token):
+        return {}, '', 0
+    try:
+        r = requests.post(
+            DADATA_URL, json={'query': q, 'count': 1},
+            headers={'Authorization': f'Token {token}', 'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=4)
+    except Exception:
+        return {}, 'сервис недоступен', 0
+    if r.status_code != 200:
+        return {}, f'ответ {r.status_code}', 0
+    try:
+        sug = r.json().get('suggestions') or []
+    except Exception:
+        return {}, 'неразборчивый ответ', 0
+    if not sug:
+        return {}, 'адрес не найден', 0
+    d = sug[0].get('data') or {}
+    level = int(d.get('fias_level') or 0)
+    kladr = str(d.get('region_kladr_id') or d.get('kladr_id') or '')
+    place = d.get('city_with_type') or d.get('settlement_with_type') or d.get('area_with_type') or ''
+    block = ' '.join(x for x in (d.get('block_type'), d.get('block')) if x)
+    flat = ' '.join(x for x in (d.get('flat_type'), d.get('flat')) if x)
+    parts = {
+        'PostalCode': d.get('postal_code') or '',
+        'RegionCode': kladr[:2] if kladr[:2].isdigit() else '',
+        'Region': d.get('region_with_type') or '',
+        'Settlement': place,
+        'Street': d.get('street_with_type') or '',
+        'HouseNumber': d.get('house') or '',
+        'Building': block,
+        'Office': flat,
+        'FiasCode': d.get('house_fias_id') or d.get('fias_id') or '',
+    }
+    parts = {k: str(v) for k, v in parts.items() if v}
+    note = 'до дома' if level >= 8 else 'адрес найден неточно, без дома'
+    return parts, note, level

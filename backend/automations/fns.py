@@ -10,7 +10,7 @@ import requests
 from psycopg2.extras import Json
 
 import payti
-from address import parse_address
+from address import parse_address, dadata_lookup
 from payti import hook_key_valid, cfg_entity, cfg_mode, Bitrix, collect, digits, entity_value, links, parse_deal_id, resp, db
 
 OFD_API = 'https://ofd.ru/api'
@@ -665,6 +665,10 @@ def apply_address(conn, rows, values, mapping, overrides, remember=False):
     row = cur.fetchone()
     mem = (row or {}).get('parts') or {}
     parsed = parse_address(values.get('FullAddress'))
+    dd, dd_note = {}, ''
+    token = os.environ.get('DADATA_API_KEY', '')
+    if token and not mem.get('PostalCode'):
+        dd, dd_note, _ = dadata_lookup(values.get('FullAddress'), token)
 
     def put(path, value, source):
         values[path] = value
@@ -679,8 +683,10 @@ def apply_address(conn, rows, values, mapping, overrides, remember=False):
             continue
         if mem.get(p):
             put(p, normalize(p, mem[p]), 'Запомнено для этого адреса')
+        elif dd.get(p):
+            put(p, normalize(p, dd[p]), f'DaData ({dd_note})')
         elif parsed.get(p):
-            put(p, normalize(p, parsed[p]), 'Разобрано из полного адреса')
+            put(p, normalize(p, parsed[p]), 'Разобрано из полного адреса' + (f' (DaData: {dd_note})' if token and dd_note and not dd else ''))
     if remember and any(p in overrides and str(overrides[p]).strip() for p in ADDR_PARTS):
         parts = {p: values[p] for p in ADDR_PARTS if values.get(p)}
         cur.execute(
