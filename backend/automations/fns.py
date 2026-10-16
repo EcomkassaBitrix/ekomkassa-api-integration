@@ -3,6 +3,7 @@ import json
 import os
 import re
 import secrets
+import time
 from datetime import datetime, timezone
 
 import requests
@@ -115,7 +116,7 @@ SCOPE = {
 REREG_FLAGS = ('AutomatedDeviceChanged', 'FnChanged', 'InstallmentPlaceChanged', 'OfdChaged', 'Other', 'SwitchedFromOfflineToOnlineMode', 'SwitchedFromOnlineToOfflineMode', 'UserChanged')
 UNREG_FLAGS = ('Lost', 'Stolen', 'Broken')
 ACTIONS = {
-    'fns-meta', 'fns-settings', 'fns-preview', 'fns-create', 'fns-history', 'fns-events', 'fns-refresh', 'fns-hook',
+    'fns-meta', 'fns-settings', 'fns-preview', 'fns-create', 'fns-history', 'fns-events', 'fns-refresh', 'fns-hook', 'fns-poll',
     'fns-public-get', 'fns-public-prepare', 'fns-public-sign', 'fns-access-check',
 }
 PUBLIC = {'fns-public-get', 'fns-public-prepare', 'fns-public-sign'}
@@ -795,12 +796,17 @@ def do_report(conn, bx, ctx, settings, values, rows, errors, steps, result, test
     return result
 
 
-def sync_status(conn, bx, row):
+def sync_status(conn, bx, row, quiet=False):
     if not row.get('ofd_application_id') or str(row['status']).startswith('test_'):
         return row
     try:
         data = ofd_call('GET', f"/{row['ofd_application_id']}", auth_for_deal(conn, bx, row['deal_id']))
     except OfdError as e:
+        if quiet:
+            if str(row.get('error_message') or '') != str(e):
+                add_event(conn, row['id'], 'Проверка статуса', False, str(e))
+                update_app(conn, row['id'], error_message=str(e))
+            return row
         add_event(conn, row['id'], 'Проверка статуса', False, str(e))
         if bx is not None:
             ofd_note(bx, row['deal_id'], row.get('purpose'), 'Не удалось проверить статус', error=str(e), raw=e.body)
@@ -818,7 +824,7 @@ def sync_status(conn, bx, row):
         agr = digits(data.get('KktAgreementId'))
         rnm = agr if len(agr) == 16 else ''
     rnm = rnm or row.get('rnm') or ''
-    update_app(conn, row['id'], status=new_status, status_reason=reason, rnm=rnm, response_payload=data)
+    update_app(conn, row['id'], status=new_status, status_reason=reason, rnm=rnm, response_payload=data, error_message=None)
     add_event(conn, row['id'], 'Проверка статуса', True, f"{ofd_status}/{stage}{' · ' + reason if reason else ''}{' · РНМ ' + rnm if rnm else ''}")
     if new_status != row['status'] and bx is not None:
         settings = get_settings(conn)
@@ -832,6 +838,38 @@ def sync_status(conn, bx, row):
         ofd_note(bx, row['deal_id'], row.get('purpose'), hint, data=data)
     row.update(status=new_status, status_reason=reason, rnm=rnm)
     return row
+
+
+def poll(conn, bx, limit, min_age):
+    started = time.time()
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT * FROM fns_applications
+        WHERE ofd_application_id IS NOT NULL AND status IN ('sent_to_fns', 'sign_uncertain')
+        AND created_at > NOW() - INTERVAL '45 days'
+        AND (last_polled_at IS NULL OR last_polled_at < NOW() - INTERVAL '1 minute' * %s)
+        ORDER BY last_polled_at NULLS FIRST, id LIMIT %s""", (min_age, limit + 1))
+    rows = cur.fetchall()
+    cur.close()
+    due_more = len(rows) > limit
+    out = {'checked': 0, 'changed': [], 'failed': 0}
+    for row in rows[:limit]:
+        if out['checked'] and time.time() - started > 2.5:
+            due_more = True
+            break
+        update_app(conn, row['id'], last_polled_at=datetime.utcnow())
+        before = row['status']
+        try:
+            after = sync_status(conn, bx, row, quiet=True)['status']
+        except Exception as e:
+            out['failed'] += 1
+            add_event(conn, row['id'], 'Проверка статуса', False, str(e))
+            continue
+        out['checked'] += 1
+        if after != before:
+            out['changed'].append({'id': row['id'], 'dealId': row['deal_id'], 'from': before, 'to': after})
+    out['more'] = due_more
+    return out
 
 
 def public_view(row):
@@ -956,6 +994,17 @@ def handle(event, action):
             result = create_application(conn, Bitrix(), deal_id, {}, mode, False, 'hook', purpose_param=params.get('purpose'))
             return resp(200, {'ok': result.get('ok', False), 'status': result.get('status'), 'dealId': deal_id, 'purpose': result.get('purpose'),
                               'mode': mode, 'link': result.get('link'), 'error': result.get('error')})
+
+        if action == 'fns-poll':
+            given = params.get('key') or headers.get('x-hook-key') or headers.get('x-api-key') or ''
+            if not hook_key_valid(conn, given):
+                return resp(401, {'ok': False, 'error': 'Неверный ключ'})
+            bx = Bitrix()
+            if not bx.url.startswith('http'):
+                return resp(400, {'ok': False, 'error': 'Не задан BITRIX_WEBHOOK_URL'})
+            limit = min(max(int(digits(params.get('limit')) or 2), 1), 5)
+            min_age = min(max(int(digits(params.get('minAge')) or 5), 0), 1440)
+            return resp(200, {'ok': True, **poll(conn, bx, limit, min_age)})
 
         cur = conn.cursor()
         cur.execute("SELECT id FROM api_keys WHERE api_key = %s AND is_active = true", (headers.get('x-api-key') or '',))

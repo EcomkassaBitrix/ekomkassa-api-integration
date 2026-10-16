@@ -54,5 +54,11 @@
       "path": "/?action=attempt-detail&kind=ofd&id=1",
       "expectedStatus": 401
     }
+    ,{
+      "name": "Fns poll without key",
+      "method": "GET",
+      "path": "/?action=fns-poll",
+      "expectedStatus": 401
+    }
   ]
 }

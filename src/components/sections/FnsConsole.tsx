@@ -100,6 +100,7 @@ const FnsConsole = () => {
   };
 
   const hookUrl = `${PAYTI_URL}?action=fns-hook${hookTest ? '&mode=test' : ''}${hookPurpose ? `&purpose=${hookPurpose}` : ''}&key=ВАШ_КЛЮЧ&dealId={{ID}}`;
+  const pollUrl = `${PAYTI_URL}?action=fns-poll&key=ВАШ_КЛЮЧ`;
   const missing = res?.fields?.filter((f) => !f.value) || [];
   const multiOf = (path: string) => !!meta?.fields?.find((m: { path: string }) => m.path === path)?.multi;
   const optionsOf = (path: string) => meta?.fields?.find((m: { path: string }) => m.path === path)?.options || null;
@@ -170,6 +171,16 @@ const FnsConsole = () => {
           <p className="font-mono text-xs break-all">{hookUrl}</p>
           <p className="text-xs text-muted-foreground mt-2">
             Робот «Исходящий вебхук» на нужной стадии: вставьте ссылку в поле «Хендлер». Он создаст заявку и положит ссылку для подписи в комментарий сделки.
+          </p>
+        </div>
+        <div className="rounded-md bg-muted/50 p-4">
+          <div className="flex justify-between mb-1">
+            <span className="text-xs uppercase text-muted-foreground">Регулярная проверка статусов (для планировщика)</span>
+            <CopyBtn text={pollUrl} />
+          </div>
+          <p className="font-mono text-xs break-all">{pollUrl}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Вызывайте раз в 10–15 минут. Ссылка проверяет в ОФД заявки, отправленные в ФНС, и пишет ответы (РНМ, одобрение, отказ) в комментарии сделок. За один вызов проверяются до двух заявок, остальные подхватит следующий вызов.
           </p>
         </div>
         <p className="text-xs text-muted-foreground">Вместо ВАШ_КЛЮЧ подставьте любой активный ключ из раздела «API Ключи». Ссылка клиенту строится от адреса сайта из настроек полей.</p>
