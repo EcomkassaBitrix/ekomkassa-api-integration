@@ -13,11 +13,19 @@ interface MapCfg {
 interface CrmField {
   code: string;
   title: string;
+  items?: { id: string; value: string }[];
 }
+const PURPOSE_ROWS: [string, string][] = [
+  ['InitialRegistration', 'Регистрация кассы'],
+  ['Reregistration', 'Перерегистрация кассы'],
+  ['Unregistration', 'Снятие кассы с учёта'],
+  ['Report', 'Отчёт о регистрации'],
+];
+const SCOPE_TEXT: Record<string, string> = { IRU: '', RU: 'перерегистрация, снятие', R: 'перерегистрация', U: 'снятие с учёта', P: 'отчёт о регистрации' };
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  meta: { fields: { path: string; label: string }[]; entities: Record<string, string> } | null;
+  meta: { fields: { path: string; label: string; scope?: string }[]; entities: Record<string, string> } | null;
   onSaved: () => void;
 }
 
@@ -29,6 +37,9 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
   const [linkField, setLinkField] = useState('');
   const [rnmField, setRnmField] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
+  const [pEntity, setPEntity] = useState('DEAL');
+  const [pField, setPField] = useState('');
+  const [pValues, setPValues] = useState<Record<string, string>>({});
   const [crm, setCrm] = useState<Record<string, CrmField[]>>({});
   const [saving, setSaving] = useState(false);
 
@@ -58,6 +69,9 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
       setLinkField(st.result_link_field || '');
       setRnmField(st.result_rnm_field || '');
       setBaseUrl(st.sign_base_url || window.location.origin);
+      setPEntity(String(st.purpose_entity || 'DEAL').toUpperCase());
+      setPField(st.purpose_field || '');
+      setPValues(st.purpose_values || {});
       const used = new Set<string>(['DEAL']);
       Object.values(m).forEach((c) => c.mode === 'CRM' && c.entity && used.add(c.entity));
       used.forEach((e) => loadEntity(e, true));
@@ -74,7 +88,15 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
     setSaving(true);
     await paytiFetch('fns-settings', {
       method: 'POST',
-      body: { mapping_json: mapping, result_link_field: linkField, result_rnm_field: rnmField, sign_base_url: baseUrl.trim().replace(/\/$/, '') },
+      body: {
+        mapping_json: mapping,
+        result_link_field: linkField,
+        result_rnm_field: rnmField,
+        sign_base_url: baseUrl.trim().replace(/\/$/, ''),
+        purpose_entity: pEntity,
+        purpose_field: pField,
+        purpose_values: pValues,
+      },
     });
     setSaving(false);
     onSaved();
@@ -136,6 +158,42 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
           </div>
 
           <div className="p-6 space-y-3">
+            <p className="font-medium">Назначение заявки</p>
+            <p className="text-xs text-muted-foreground">Поле сделки, по которому выбирается, что делать: зарегистрировать кассу, перерегистрировать, снять с учёта или отправить отчёт. В хуке можно указать назначение вручную, тогда это правило не используется.</p>
+            <div className="grid grid-cols-2 gap-3 max-w-2xl">
+              <select className={selectCls} value={pEntity} onChange={(e) => { setPEntity(e.target.value); setPField(''); loadEntity(e.target.value); }}>
+                {entityOptions.map((o) => (
+                  <option key={o.code} value={o.code}>{o.label}</option>
+                ))}
+              </select>
+              <FieldSelect entity={pEntity} value={pField} onChange={setPField} />
+            </div>
+            {pField && (
+              <div className="space-y-2 max-w-2xl">
+                {PURPOSE_ROWS.map(([code, label]) => {
+                  const items = (crm[pEntity.toUpperCase()] || []).find((f) => f.code === pField)?.items || [];
+                  return (
+                    <div key={code} className="grid grid-cols-[220px_1fr] gap-3 items-center">
+                      <span className="text-sm">{label}</span>
+                      <div>
+                        <Input
+                          list={`purpose-${code}`}
+                          placeholder="Значение поля (можно несколько через запятую)"
+                          value={pValues[code] || ''}
+                          onChange={(e) => setPValues({ ...pValues, [code]: e.target.value })}
+                        />
+                        <datalist id={`purpose-${code}`}>
+                          {items.map((i) => <option key={i.id} value={i.value} />)}
+                        </datalist>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="p-6 space-y-3">
             <p className="font-medium">Откуда брать поля</p>
             {meta?.fields.map((f) => {
               const cfg = cfgOf(f.path);
@@ -143,7 +201,7 @@ const FnsSettingsDialog = ({ open, onOpenChange, meta, onSaved }: Props) => {
                 <div key={f.path} className="grid grid-cols-[220px_200px_1fr] gap-3 items-center">
                   <div>
                     <p className="text-sm">{f.label}</p>
-                    <p className="text-xs text-muted-foreground">{f.path}</p>
+                    <p className="text-xs text-muted-foreground">{SCOPE_TEXT[f.scope || 'IRU'] ? `только: ${SCOPE_TEXT[f.scope || 'IRU']}` : f.path}</p>
                   </div>
                   <select className={selectCls} value={cfg.mode} onChange={(e) => setMap(f.path, { mode: e.target.value as MapCfg['mode'] })}>
                     <option value="AUTO">По умолчанию</option>

@@ -10,6 +10,8 @@ interface App {
   id: number;
   deal_id: string;
   status: string;
+  purpose?: string;
+  stage?: string;
   inn?: string;
   company_name?: string;
   serial_number?: string;
@@ -33,6 +35,7 @@ const STATUS: Record<string, { text: string; tone: 'default' | 'secondary' | 'de
   signing: { text: 'Подпись отправляется', tone: 'secondary' },
   sign_uncertain: { text: 'Подпись: нет ответа ОФД', tone: 'destructive' },
   sent_to_fns: { text: 'Отправлена в ФНС', tone: 'default' },
+  report_needed: { text: 'Нужен отчёт о регистрации', tone: 'destructive' },
   approved: { text: 'Зарегистрирована, РНМ получен', tone: 'default' },
   rejected: { text: 'ФНС отклонила', tone: 'destructive' },
   test_created: { text: 'Тест: ждёт подписи', tone: 'secondary' },
@@ -44,6 +47,7 @@ const STATUS: Record<string, { text: string; tone: 'default' | 'secondary' | 'de
   temporary_error: { text: 'Временная ошибка', tone: 'destructive' },
 };
 const SOURCE: Record<string, string> = { console: 'Консоль', hook: 'Хук из CRM' };
+const PURPOSE: Record<string, string> = { InitialRegistration: 'Регистрация', Reregistration: 'Перерегистрация', Unregistration: 'Снятие с учёта' };
 
 interface Props {
   refreshKey: number;
@@ -127,7 +131,7 @@ const FnsJournal = ({ refreshKey, baseUrl }: Props) => {
                   <td className="px-4 py-2 font-mono">{a.deal_id}</td>
                   <td className="px-4 py-2">
                     {a.company_name || '—'}
-                    <p className="text-xs text-muted-foreground">{a.inn} · {SOURCE[a.source || ''] || a.source}</p>
+                    <p className="text-xs text-muted-foreground">{PURPOSE[a.purpose || ''] || 'Регистрация'}{a.stage === 'report' ? ' · отчёт' : ''} · {a.inn} · {SOURCE[a.source || ''] || a.source}</p>
                   </td>
                   <td className="px-4 py-2 font-mono text-xs">{a.serial_number || '—'}</td>
                   <td className="px-4 py-2">
@@ -144,7 +148,7 @@ const FnsJournal = ({ refreshKey, baseUrl }: Props) => {
                         <Icon name="Link" size={16} />
                       </button>
                     )}
-                    {['sent_to_fns', 'created', 'awaiting_signature', 'sign_uncertain'].includes(a.status) && (
+                    {['sent_to_fns', 'created', 'awaiting_signature', 'sign_uncertain', 'report_needed'].includes(a.status) && (
                       <button className="text-muted-foreground hover:text-foreground" title="Обновить статус в ОФД" onClick={() => refresh(a.id)} disabled={busy === a.id}>
                         <Icon name="RefreshCw" size={16} className={busy === a.id ? 'animate-spin' : ''} />
                       </button>

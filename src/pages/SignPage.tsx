@@ -11,6 +11,9 @@ const PLUGIN_URL = 'https://www.cryptopro.ru/sites/default/files/products/cades/
 interface AppInfo {
   ok: boolean;
   status: string;
+  title?: string;
+  purpose?: string;
+  stage?: string;
   expired: boolean;
   test: boolean;
   companyName: string;
@@ -66,8 +69,9 @@ const loadPlugin = () =>
   });
 
 const DONE_TEXT: Record<string, string> = {
-  sent_to_fns: 'Заявка подписана и отправлена в налоговую. Ответ придёт в течение рабочего дня, подписывать ничего больше не нужно.',
-  approved: 'Касса зарегистрирована в налоговой.',
+  sent_to_fns: 'Документы подписаны и отправлены в налоговую. Ответ придёт в течение рабочего дня.',
+  report_needed: 'Налоговая присвоила номер кассы. Менеджер сообщит, когда нужно будет подписать отчёт о регистрации.',
+  approved: 'Налоговая приняла заявку.',
   rejected: 'Налоговая отклонила заявку.',
   test_signed: 'Тест пройден: подпись получена, в ОФД ничего не отправлено.',
   signing: 'Подпись отправляется, подождите минуту и обновите страницу.',
@@ -184,7 +188,7 @@ const SignPage = () => {
             <Icon name="FileSignature" size={22} className="text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-bold text-lg">Подпись заявки на регистрацию кассы</h1>
+            <h1 className="font-bold text-lg">{info?.title ? `Подпись: ${info.title.toLowerCase()}` : 'Подпись заявки по кассе'}</h1>
             <p className="text-xs text-muted-foreground">Ekomkassa</p>
           </div>
         </div>
@@ -200,6 +204,7 @@ const SignPage = () => {
             <Card className="p-6">
               <p className="font-medium mb-2">Данные заявки</p>
               <Row label="Организация" value={info.companyName} />
+              <Row label="Что подписываем" value={info.title} />
               <Row label="ИНН" value={info.inn} />
               <Row label="Модель кассы" value={info.model} />
               <Row label="Заводской номер" value={info.serialNumber} />

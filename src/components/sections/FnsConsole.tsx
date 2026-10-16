@@ -27,13 +27,30 @@ interface Result {
   warnings?: string[];
   link?: string;
   mode?: string;
+  purpose?: string | null;
+  purposeSource?: string;
 }
+
+const PURPOSES: [string, string][] = [
+  ['', 'По полю сделки'],
+  ['InitialRegistration', 'Регистрация'],
+  ['Reregistration', 'Перерегистрация'],
+  ['Unregistration', 'Снятие с учёта'],
+  ['Report', 'Отчёт о регистрации'],
+];
+const PURPOSE_NAME: Record<string, string> = {
+  InitialRegistration: 'Регистрация кассы',
+  Reregistration: 'Перерегистрация кассы',
+  Unregistration: 'Снятие кассы с учёта',
+  Report: 'Отчёт о регистрации',
+};
 
 const STATUS_TEXT: Record<string, string> = {
   created: 'Заявка создана в ОФД. Отправьте клиенту ссылку для подписи',
   test_created: 'Тестовая заявка создана, в ОФД ничего не отправлено. Откройте ссылку и пройдите подпись',
   link_exists: 'По сделке уже есть действующая ссылка для подписи',
   already_registered: 'Заявка по этой сделке уже отправлена в ФНС',
+  no_application: 'Нет заявки на регистрацию, которая ждёт отчёта. Обновите статус заявки в журнале после ответа ФНС',
   validation_failed: 'Не хватает данных. Заполните поля вручную или поправьте CRM',
   ofd_validation_error: 'ОФД отклонил данные заявки',
   ofd_error: 'ОФД не принял запрос',
@@ -57,6 +74,16 @@ const FnsConsole = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [journalKey, setJournalKey] = useState(0);
   const [hookTest, setHookTest] = useState(false);
+  const [purpose, setPurpose] = useState('');
+  const [hookPurpose, setHookPurpose] = useState('');
+  const [access, setAccess] = useState<any>(null);
+  const [checking, setChecking] = useState(false);
+
+  const checkAccess = async () => {
+    setChecking(true);
+    setAccess(await paytiFetch('fns-access-check'));
+    setChecking(false);
+  };
 
   const loadMeta = () => paytiFetch('fns-meta').then(setMeta);
   useEffect(() => {
@@ -66,7 +93,7 @@ const FnsConsole = () => {
   const preview = async () => {
     if (!dealId.trim()) return;
     setBusy('preview');
-    setRes(await paytiFetch('fns-preview', { method: 'POST', body: { dealId, overrides } }));
+    setRes(await paytiFetch('fns-preview', { method: 'POST', body: { dealId, overrides, purpose } }));
     setBusy('');
   };
 
@@ -74,13 +101,13 @@ const FnsConsole = () => {
     if (!dealId.trim()) return;
     if (mode === 'real' && !window.confirm('Будет создана реальная заявка в ОФД на регистрацию кассы. Продолжить?')) return;
     setBusy(mode);
-    const d = await paytiFetch('fns-create', { method: 'POST', body: { dealId, mode, force, overrides, origin: window.location.origin } });
+    const d = await paytiFetch('fns-create', { method: 'POST', body: { dealId, mode, force, overrides, purpose, origin: window.location.origin } });
     setRes({ ...d, fields: res?.fields, links: res?.links });
     setBusy('');
     setJournalKey((k) => k + 1);
   };
 
-  const hookUrl = `${PAYTI_URL}?action=fns-hook${hookTest ? '&mode=test' : ''}&key=ВАШ_КЛЮЧ&dealId={{ID}}`;
+  const hookUrl = `${PAYTI_URL}?action=fns-hook${hookTest ? '&mode=test' : ''}${hookPurpose ? `&purpose=${hookPurpose}` : ''}&key=ВАШ_КЛЮЧ&dealId={{ID}}`;
   const missing = res?.fields?.filter((f) => !f.value) || [];
 
   return (
@@ -90,6 +117,9 @@ const FnsConsole = () => {
           <Badge variant={meta?.bitrixConfigured ? 'default' : 'destructive'}>
             {meta?.bitrixConfigured ? 'Битрикс24 подключён' : 'Битрикс24 не подключён'}
           </Badge>
+          <button className="text-xs underline text-muted-foreground hover:text-foreground" onClick={checkAccess} disabled={checking}>
+            {checking ? 'Проверяю...' : 'Проверить партнёрский ключ'}
+          </button>
         </div>
         <Button variant="outline" size="sm" className="gap-2" onClick={() => setSettingsOpen(true)}>
           <Icon name="Settings" size={16} />
@@ -101,6 +131,14 @@ const FnsConsole = () => {
         <div className="space-y-1 max-w-sm">
           <label className="text-xs uppercase text-muted-foreground">ID сделки</label>
           <Input value={dealId} onChange={(e) => setDealId(e.target.value)} placeholder="12345" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs uppercase text-muted-foreground">Назначение</label>
+          <div className="flex gap-2 flex-wrap">
+            {PURPOSES.map(([code, label]) => (
+              <Button key={label} size="sm" variant={purpose === code ? 'default' : 'outline'} onClick={() => setPurpose(code)}>{label}</Button>
+            ))}
+          </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <Button variant="outline" onClick={preview} disabled={!!busy || !dealId}>
@@ -119,7 +157,29 @@ const FnsConsole = () => {
         </div>
       </Card>
 
+      {access && (
+        <Card className="p-4 text-sm space-y-2">
+          <p className="font-medium">
+            {access.partnerKeyAccepted ? 'ОФД принимает партнёрский ключ на методах заявок' : 'ОФД не принимает партнёрский ключ на методах заявок'}
+          </p>
+          {access.probes.map((p: any) => (
+            <div key={p.name} className="flex justify-between gap-4 text-xs">
+              <span className="text-muted-foreground">{p.name}</span>
+              <span className="font-mono break-all text-right">{p.skipped ? 'пропущено' : p.error || `${p.http} ${p.body || ''}`}</span>
+            </div>
+          ))}
+          {!access.partnerKeyAccepted && <p className="text-xs text-muted-foreground">Для заявок используется логин и пароль кабинета ОФД клиента из CRM.</p>}
+        </Card>
+      )}
+
       <HookCollapsible>
+        <div className="flex gap-2 items-center text-sm flex-wrap">
+          <span className="text-xs uppercase text-muted-foreground">Назначение</span>
+          {PURPOSES.map(([code, label]) => (
+            <Button key={label} size="sm" variant={hookPurpose === code ? 'default' : 'outline'} onClick={() => setHookPurpose(code)}>{label}</Button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">«По полю сделки» берёт назначение из поля, указанного в настройках полей. Для отчёта о регистрации обычно нужен отдельный робот на стадии после ответа ФНС.</p>
         <div className="flex gap-2 items-center text-sm">
           <span className="text-xs uppercase text-muted-foreground">Режим</span>
           {([[false, 'Боевой: заявка в ОФД'], [true, 'Тестовый: без ОФД']] as const).map(([t, l]) => (
@@ -141,6 +201,7 @@ const FnsConsole = () => {
 
       {res && (
         <Card className={`p-4 text-sm ${res.ok ? 'border-primary/40' : 'border-destructive/40'}`}>
+          {res.purpose && <p className="text-xs uppercase text-muted-foreground mb-1">{PURPOSE_NAME[res.purpose] || res.purpose}{res.purposeSource ? ` · ${res.purposeSource}` : ''}</p>}
           <p className="font-medium">{(res.status && STATUS_TEXT[res.status]) || (res.ok ? 'Данные собраны, ошибок нет' : res.error || 'Есть ошибки')}</p>
           {res.errors && res.errors.length > 0 && (
             <ul className="list-disc pl-5 mt-2 text-destructive">
