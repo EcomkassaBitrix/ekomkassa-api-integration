@@ -3,6 +3,7 @@ import hmac
 import json
 import os
 import re
+import time
 from datetime import datetime, timedelta
 
 import requests
@@ -21,8 +22,10 @@ FIELDS = [
     ('Phone', 'Телефон (необязательно)'),
 ]
 ACTIONS = {'ofd-meta', 'ofd-settings', 'ofd-preview', 'ofd-register', 'ofd-history', 'ofd-hook', 'ofd-retry'}
-MAX_ATTEMPTS = 3
-RETRY_MINUTES = 1
+REQUESTS_PER_SERIES = 3
+MAX_SERIES = 2
+RETRY_MINUTES = 15
+SERIES_BUDGET = 3.8
 
 
 def get_settings(conn):
@@ -167,42 +170,80 @@ STATUS_TEXT = {
 }
 
 
-def crm_log(bx, deal_id, steps, attempt, status, source, values=None, http_status=None, code=None, err=None, agreement=None, next_retry=False, extra=''):
-    lines = ['ОФД.ру', f'Попытка {attempt} из {MAX_ATTEMPTS}' if status == 'temporary_error' or attempt > 1 else 'Запрос на создание кабинета',
-             f'Результат: {STATUS_TEXT.get(status, status)}', f'Время (МСК): {msk_now()}', f'Источник: {source}']
+def crm_log(bx, deal_id, steps, series, status, source, values=None, tries=None, agreement=None, next_retry=False, err=None, extra=''):
+    lines = ['ОФД.ру', f'Серия запросов {series} из {MAX_SERIES}' if (status == 'temporary_error' or series > 1) else 'Запрос на создание кабинета',
+             f'Итог: {STATUS_TEXT.get(status, status)}', f'Время (МСК): {msk_now()}', f'Источник: {source}']
     if values:
         if values.get('Inn'):
             lines.append(f"ИНН: {values['Inn']}")
         if values.get('Email'):
             lines.append(f"Email: {values['Email']}")
-    if http_status:
-        lines.append(f'HTTP: {http_status}')
-    if code:
-        lines.append(f'Код ОФД: {code}')
-    if err:
+    for t in tries or []:
+        part = f"Запрос {t['n']}: HTTP {t['http']}" if t.get('http') else f"Запрос {t['n']}: без ответа"
+        if t.get('code'):
+            part += f", код {t['code']}"
+        if t.get('err'):
+            part += f", {t['err']}"
+        lines.append(part)
+    if err and not tries:
         lines.append(f'Сообщение: {err}')
     if agreement:
         lines.append(f'OfdAgreementId: {agreement}')
     if status == 'success':
         lines.append('Клиенту отправлено письмо со ссылкой для создания логина и пароля.')
     if next_retry:
-        lines.append(f'Следующая попытка примерно через {RETRY_MINUTES} мин.')
+        lines.append(f'Следующая серия запросов примерно через {RETRY_MINUTES} мин.')
     elif status == 'temporary_error':
-        lines.append(f'Все {MAX_ATTEMPTS} попытки исчерпаны. Кабинет мог частично создаться: проверьте в ОФД перед ручным повтором.')
+        lines.append('Попытки исчерпаны. Кабинет мог частично создаться: проверьте в ОФД перед ручным повтором.')
     if extra:
         lines.append(extra)
     payti.comment(bx, deal_id, '\n'.join(lines), steps)
 
 
-def do_register(conn, bx, deal_id, overrides, force, source, attempt=1, saved_payload=None):
+def send_series(payload, token):
+    tries, body, agreement = [], None, None
+    status = 'temporary_error'
+    deadline = time.time() + SERIES_BUDGET
+    for n in range(1, REQUESTS_PER_SERIES + 1):
+        left = deadline - time.time()
+        if n > 1 and left < 0.8:
+            break
+        t = {'n': n, 'http': None, 'code': '', 'err': ''}
+        status = 'temporary_error'
+        try:
+            r = requests.post(OFD_URL, params={'AuthToken': token}, json=payload, timeout=max(0.8, min(3.0, left)))
+            t['http'] = r.status_code
+            try:
+                body = r.json()
+            except Exception:
+                body = {'raw': r.text[:1000]}
+            if r.status_code == 200 and isinstance(body, dict) and body.get('Success'):
+                status = 'success'
+                agreement = (body.get('Data') or {}).get('OfdAgreementId')
+            else:
+                t['code'], t['err'] = error_text(body, r.status_code)
+                if 'AlreadyExists' in str(t['code']) or 'AlreadyExists' in str(t['err']):
+                    status = 'already_exists'
+                elif r.status_code == 400:
+                    status = 'ofd_validation_error'
+        except Exception as e:
+            t['err'] = f'Сеть или таймаут: {e}'
+        t['status'] = status
+        tries.append(t)
+        if status != 'temporary_error':
+            break
+    return status, tries, body, agreement
+
+
+def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_payload=None):
     steps = []
-    result = {'ok': False, 'dealId': deal_id, 'steps': steps, 'attempt': attempt}
+    result = {'ok': False, 'dealId': deal_id, 'steps': steps, 'attempt': series}
     cur = conn.cursor()
     cur.execute("SELECT agreement_id, email FROM ofd_registrations WHERE deal_id = %s AND status = 'success' ORDER BY id DESC LIMIT 1", (str(deal_id),))
     prev = cur.fetchone()
     cur.close()
     if prev and not force:
-        crm_log(bx, deal_id, steps, attempt, 'already_registered', source, {'Email': prev['email']}, agreement=prev['agreement_id'])
+        crm_log(bx, deal_id, steps, series, 'already_registered', source, {'Email': prev['email']}, agreement=prev['agreement_id'])
         result.update(status='already_registered', agreementId=prev['agreement_id'], email=prev['email'],
                       error='По этой сделке кабинет в ОФД уже создан')
         return result
@@ -218,39 +259,23 @@ def do_register(conn, bx, deal_id, overrides, force, source, attempt=1, saved_pa
     result['email'] = values.get('Email')
 
     if errors:
-        crm_log(bx, deal_id, steps, attempt, 'validation_failed', source, values, err='; '.join(errors))
-        save_attempt(conn, ctx, 'validation_failed', values, source, payload, code='validation_failed', msg='; '.join(errors), attempt=attempt)
+        crm_log(bx, deal_id, steps, series, 'validation_failed', source, values, err='; '.join(errors))
+        save_attempt(conn, ctx, 'validation_failed', values, source, payload, code='validation_failed', msg='; '.join(errors), attempt=series)
         result.update(status='validation_failed', error='; '.join(errors))
         return result
 
     token = os.environ.get('OFD_API_KEY', '')
     if not token:
-        crm_log(bx, deal_id, steps, attempt, 'error', source, values, err='Не задан секрет OFD_API_KEY')
+        crm_log(bx, deal_id, steps, series, 'error', source, values, err='Не задан секрет OFD_API_KEY')
         result.update(status='error', error='Не задан секрет OFD_API_KEY')
         return result
 
-    http_status, body, status, err, code, agreement = None, None, 'temporary_error', None, None, None
-    try:
-        r = requests.post(OFD_URL, params={'AuthToken': token}, json=payload, timeout=4)
-        http_status = r.status_code
-        try:
-            body = r.json()
-        except Exception:
-            body = {'raw': r.text[:1000]}
-        if r.status_code == 200 and isinstance(body, dict) and body.get('Success'):
-            status = 'success'
-            agreement = (body.get('Data') or {}).get('OfdAgreementId')
-        else:
-            code, err = error_text(body, r.status_code)
-            if 'AlreadyExists' in str(code) or 'AlreadyExists' in str(err):
-                status = 'already_exists'
-            elif r.status_code == 400:
-                status = 'ofd_validation_error'
-    except Exception as e:
-        err = f'Сеть или таймаут: {e}'
-    will_retry = status == 'temporary_error' and attempt < MAX_ATTEMPTS
-    steps.append({'step': 'Запрос в ОФД', 'ok': status == 'success', 'info': f'{status} ({http_status}), попытка {attempt}'})
-    save_attempt(conn, ctx, status, values, source, payload, http_status, code, err, body, agreement, attempt=attempt, retry=will_retry)
+    status, tries, body, agreement = send_series(payload, token)
+    last = tries[-1]
+    err, code, http_status = last['err'] or None, last['code'] or None, last['http']
+    will_retry = status == 'temporary_error' and series < MAX_SERIES
+    steps.append({'step': 'Запрос в ОФД', 'ok': status == 'success', 'info': f'{status}, запросов в серии: {len(tries)}, серия {series}'})
+    save_attempt(conn, ctx, status, values, source, payload, http_status, code, err, body, agreement, attempt=series, retry=will_retry)
 
     if status == 'success':
         settings = get_settings(conn)
@@ -262,12 +287,13 @@ def do_register(conn, bx, deal_id, overrides, force, source, attempt=1, saved_pa
         result.update(ok=True, status='success', agreementId=agreement, response=body)
     else:
         result.update(status=status, error=err, response=body)
-    crm_log(bx, deal_id, steps, attempt, status, source, values, http_status, code, err, agreement, next_retry=will_retry)
+    crm_log(bx, deal_id, steps, series, status, source, values, tries, agreement, next_retry=will_retry)
     result['willRetry'] = will_retry
+    result['requests'] = len(tries)
     return result
 
 
-def run_retries(conn, bx, limit=3):
+def run_retries(conn, bx, limit=1):
     cur = conn.cursor()
     cur.execute(
         """UPDATE ofd_registrations SET retry_done = TRUE WHERE id IN (
@@ -278,7 +304,7 @@ def run_retries(conn, bx, limit=3):
     cur.close()
     out = []
     for row in rows:
-        res = do_register(conn, bx, row['deal_id'], {}, False, 'retry', attempt=int(row['attempt'] or 1) + 1, saved_payload=row['request_payload'])
+        res = do_register(conn, bx, row['deal_id'], {}, False, 'retry', series=int(row['attempt'] or 1) + 1, saved_payload=row['request_payload'])
         out.append({'dealId': row['deal_id'], 'attempt': res.get('attempt'), 'status': res.get('status'), 'willRetry': res.get('willRetry', False)})
     return out
 

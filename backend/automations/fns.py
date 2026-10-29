@@ -1061,7 +1061,9 @@ def handle(event, action):
                 return resp(400, {'ok': False, 'error': 'Не задан BITRIX_WEBHOOK_URL'})
             limit = min(max(int(digits(params.get('limit')) or 2), 1), 5)
             min_age = min(max(int(digits(params.get('minAge')) or 5), 0), 1440)
-            return resp(200, {'ok': True, **poll(conn, bx, limit, min_age)})
+            import ofd
+            ofd_retried = ofd.run_retries(conn, bx, 1)
+            return resp(200, {'ok': True, **poll(conn, bx, limit, min_age), 'ofdRetried': ofd_retried})
 
         cur = conn.cursor()
         cur.execute("SELECT id FROM api_keys WHERE api_key = %s AND is_active = true", (headers.get('x-api-key') or '',))
