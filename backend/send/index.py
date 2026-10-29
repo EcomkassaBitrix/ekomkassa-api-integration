@@ -669,6 +669,78 @@ def attempt_delivery(message_id: str, provider: str, recipient: str,
                    None, '', error_msg, duration_ms, conn)
         return False, error_msg, False
 
+def retry_failed(conn, body: Dict[str, Any]) -> Dict[str, Any]:
+    """Повторно отправляет недоставленные сообщения пачкой. Адреса с ошибкой «invalid to» и уже доставленные пропускаются"""
+    provider = body.get('provider')
+    subject = body.get('subject')
+    prefix = body.get('text_prefix')
+    dry_run = bool(body.get('dry_run'))
+    limit = min(max(int(body.get('limit') or 8), 1), 20)
+    hours = min(max(int(body.get('since_hours') or 24), 1), 168)
+
+    is_active, provider_name, provider_type = check_provider_active(provider or '', conn)
+    if not provider_name or not is_active:
+        return {'success': False, 'error': 'Unknown or inactive provider'}
+
+    like = (prefix + '%') if prefix else None
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT m.message_id, m.recipient, m.message_text FROM messages m
+        WHERE m.provider = %s AND m.status = 'failed' AND m.attempts <= 3
+        AND m.created_at > NOW() - (%s * INTERVAL '1 hour')
+        AND (%s::text IS NULL OR m.message_text LIKE %s)
+        AND NOT EXISTS (SELECT 1 FROM messages d WHERE d.provider = m.provider
+            AND lower(d.recipient) = lower(m.recipient) AND d.message_text = m.message_text AND d.status = 'delivered')
+        AND NOT EXISTS (SELECT 1 FROM delivery_attempts a WHERE a.message_id = m.message_id
+            AND a.response_body ILIKE '%%invalid «to» addresses%%')
+        AND m.message_id = (SELECT m2.message_id FROM messages m2 WHERE m2.provider = m.provider
+            AND lower(m2.recipient) = lower(m.recipient) AND m2.message_text = m.message_text
+            AND m2.status = 'failed' ORDER BY m2.created_at DESC LIMIT 1)
+        ORDER BY m.created_at LIMIT %s""",
+        (provider, hours, like, like, limit)
+    )
+    rows = cur.fetchall()
+    cur.execute(
+        """SELECT count(DISTINCT lower(m.recipient)) AS n FROM messages m
+        WHERE m.provider = %s AND m.status = 'failed' AND m.attempts <= 3
+        AND m.created_at > NOW() - (%s * INTERVAL '1 hour')
+        AND (%s::text IS NULL OR m.message_text LIKE %s)
+        AND NOT EXISTS (SELECT 1 FROM messages d WHERE d.provider = m.provider
+            AND lower(d.recipient) = lower(m.recipient) AND d.message_text = m.message_text AND d.status = 'delivered')
+        AND NOT EXISTS (SELECT 1 FROM delivery_attempts a WHERE a.message_id = m.message_id
+            AND a.response_body ILIKE '%%invalid «to» addresses%%')""",
+        (provider, hours, like, like)
+    )
+    total = cur.fetchone()['n']
+    cur.close()
+
+    if dry_run:
+        return {'success': True, 'dry_run': True, 'remaining': total}
+
+    started = time.time()
+    delivered, failed, stopped = 0, 0, None
+    for row in rows:
+        if time.time() - started > 3.5:
+            stopped = 'time'
+            break
+        if provider_type == 'yandex_postbox' and quota_blocked(provider, conn):
+            stopped = 'quota'
+            break
+        success, error, _ = attempt_delivery(
+            row['message_id'], provider, row['recipient'].strip(), row['message_text'], 4, conn,
+            subject=subject, provider_type=provider_type
+        )
+        if success:
+            update_message_status(row['message_id'], 'delivered', 4, None, conn)
+            delivered += 1
+        else:
+            update_message_status(row['message_id'], 'failed', 4, error, conn)
+            failed += 1
+
+    return {'success': True, 'delivered': delivered, 'failed': failed, 'stopped': stopped,
+            'remaining': max(total - delivered - failed, 0)}
+
+
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Обрабатывает запросы на отправку сообщений с гарантированной доставкой.
@@ -740,7 +812,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }
         
         body_data = json.loads(event.get('body', '{}'))
-        
+
+        if (event.get('queryStringParameters') or {}).get('action') == 'retry_failed':
+            result = retry_failed(conn, body_data)
+            conn.close()
+            return {
+                'statusCode': 200 if result.get('success') else 400,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps(result),
+                'isBase64Encoded': False
+            }
+
         provider = body_data.get('provider')
         recipient = body_data.get('recipient')
         message_text = body_data.get('message')

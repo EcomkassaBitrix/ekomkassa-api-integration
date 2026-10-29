@@ -50,6 +50,19 @@
         "error": "Unknown provider"
       },
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Retry failed without API key",
+      "method": "POST",
+      "path": "/?action=retry_failed",
+      "body": {
+        "provider": "ek_email"
+      },
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Missing API key"
+      },
+      "bodyMatcher": "partial"
     }
   ]
 }
