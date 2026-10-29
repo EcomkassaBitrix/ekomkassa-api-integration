@@ -13,14 +13,14 @@ from payti import Bitrix, db, digits, hook_key_valid, parse_deal_id, resp
 ACTIONS = {
     'slots-hook', 'slots-meta', 'slots-stages', 'slots-users', 'slots-settings', 'slots-service-save',
     'slots-service-delete', 'slots-bookings', 'slots-deals', 'slots-invite', 'slots-busy-check',
-    'slots-cancel', 'slots-logo', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
+    'slots-cancel', 'slots-logo', 'slots-webhook-test', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
 }
 PUBLIC = {'slots-public-get', 'slots-public-slots', 'slots-public-book'}
 SETTINGS_COLS = [
     'title', 'logo_url', 'base_url', 'timezone', 'step_min', 'horizon_days', 'min_notice_hours',
     'reschedule_deadline_hours', 'max_per_day', 'link_days', 'source_category_id', 'source_stage_id',
     'classifier_field', 'link_field', 'start_field', 'target_stage_id', 'create_task', 'task_title',
-    'create_calendar_event', 'check_bitrix_busy', 'department_id', 'assigner_mode', 'assigner_user_id',
+    'create_calendar_event', 'check_bitrix_busy', 'department_id', 'assigner_mode', 'assigner_user_id', 'bitrix_webhook_url',
 ]
 INT_COLS = {'step_min', 'horizon_days', 'min_notice_hours', 'reschedule_deadline_hours', 'max_per_day', 'link_days'}
 BOOL_COLS = {'create_task', 'create_calendar_event', 'check_bitrix_busy'}
@@ -61,6 +61,26 @@ def get_settings(conn):
         row['base_url'] = (f or {}).get('sign_base_url') or ''
     cur.close()
     return row
+
+
+def make_bx(conn):
+    bx = Bitrix()
+    cur = conn.cursor()
+    cur.execute('SELECT bitrix_webhook_url FROM slot_settings WHERE id = 1')
+    row = cur.fetchone()
+    cur.close()
+    url = ((row or {}).get('bitrix_webhook_url') or '').strip()
+    if url:
+        bx.url = url.rstrip('/') + '/'
+    return bx
+
+
+def public_settings(settings):
+    out = dict(settings)
+    url = out.pop('bitrix_webhook_url', None) or ''
+    out['webhook_set'] = bool(url)
+    out['webhook_hint'] = (url[:url.find('/rest/')] + '/rest/…' + url.rstrip('/')[-4:]) if '/rest/' in url else ('…' + url[-4:] if url else '')
+    return out
 
 
 def get_services(conn):
@@ -464,7 +484,7 @@ def handle(event, action):
             deal_id = parse_deal_id(params, body_raw, headers)
             if not deal_id:
                 return resp(400, {'ok': False, 'error': 'Не указан номер сделки'})
-            r = invite(conn, Bitrix(), deal_id, 'hook')
+            r = invite(conn, make_bx(conn), deal_id, 'hook')
             return resp(200 if r.get('ok') else 400, {**r, 'dealId': deal_id})
 
         if action in PUBLIC:
@@ -487,9 +507,9 @@ def handle(event, action):
                 except ValueError:
                     return resp(400, {'ok': False, 'error': 'Некорректная дата'})
                 d_to = min(d_to, d_from + timedelta(days=31))
-                slots, warn = compute_slots(conn, Bitrix(), settings, service, d_from, d_to, b)
+                slots, warn = compute_slots(conn, make_bx(conn), settings, service, d_from, d_to, b)
                 return resp(200, {'ok': True, 'timezone': settings['timezone'], 'slots': [iso_z(s) for s, _ in slots], 'warning': bool(warn)})
-            code, data = do_book(conn, Bitrix(), token, body.get('start'))
+            code, data = do_book(conn, make_bx(conn), token, body.get('start'))
             return resp(code, data)
 
         api_key = params.get('api_key') or headers.get('x-api-key') or ''
@@ -510,6 +530,10 @@ def handle(event, action):
                         v = bool(v)
                     elif v == '':
                         v = None
+                    if c == 'bitrix_webhook_url' and v:
+                        v = str(v).strip()
+                        if not v.startswith('https://') or '/rest/' not in v:
+                            return resp(400, {'error': 'Вебхук должен быть вида https://домен.bitrix24.ru/rest/1/токен/'})
                     sets.append(f'{c} = %s')
                     vals.append(v)
             if 'employees' in body:
@@ -518,7 +542,7 @@ def handle(event, action):
             if sets:
                 cur.execute(f"UPDATE slot_settings SET {', '.join(sets)}, updated_at = NOW() WHERE id = 1", vals)
                 conn.commit()
-            return resp(200, {'settings': get_settings(conn)})
+            return resp(200, {'settings': public_settings(get_settings(conn))})
 
         if action == 'slots-service-save':
             wd = sorted({int(x) for x in body.get('work_days', [1, 2, 3, 4, 5]) if 1 <= int(x) <= 7})
@@ -568,7 +592,7 @@ def handle(event, action):
             add_event(conn, b['id'], 'Отменено', True, 'из интерфейса')
             if b.get('event_id'):
                 try:
-                    Bitrix().call('calendar.event.delete', {'id': b['event_id']})
+                    make_bx(conn).call('calendar.event.delete', {'id': b['event_id']})
                 except Exception:
                     pass
             return resp(200, {'ok': True})
@@ -585,12 +609,12 @@ def handle(event, action):
             s3.put_object(Bucket='files', Key=key, Body=raw, ContentType=ct)
             return resp(200, {'url': f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"})
 
-        bx = Bitrix()
+        bx = make_bx(conn)
         if not bx.url.startswith('http'):
-            return resp(400, {'error': 'Не задан BITRIX_WEBHOOK_URL'})
+            return resp(400, {'error': 'Не задан вебхук Битрикс24'})
 
         if action == 'slots-meta':
-            out = {'settings': get_settings(conn), 'services': get_services(conn), 'categories': [], 'departments': [], 'fields': [], 'errors': []}
+            out = {'settings': public_settings(get_settings(conn)), 'services': get_services(conn), 'categories': [], 'departments': [], 'fields': [], 'errors': []}
             try:
                 cats = bx.call('crm.category.list', {'entityTypeId': 2}) or {}
                 cl = cats.get('categories') if isinstance(cats, dict) else cats
@@ -647,6 +671,14 @@ def handle(event, action):
                 return resp(400, {'ok': False, 'error': 'Не указан номер сделки'})
             r = invite(conn, bx, deal_id, 'console')
             return resp(200 if r.get('ok') else 400, r)
+
+        if action == 'slots-webhook-test':
+            need = {'crm': 'CRM', 'calendar': 'Календарь', 'task': 'Задачи', 'user': 'Пользователи', 'department': 'Структура компании'}
+            try:
+                have = bx.call('scope') or []
+            except Exception as e:
+                return resp(200, {'ok': False, 'error': str(e)})
+            return resp(200, {'ok': True, 'missing': [v for k, v in need.items() if k not in have and not (k == 'user' and 'user_basic' in have)]})
 
         if action == 'slots-busy-check':
             s = get_settings(conn)

@@ -7,7 +7,7 @@ import HookCollapsible from './HookCollapsible';
 import HookLog from './HookLog';
 import ServicesCard from './slots/ServicesCard';
 import BookingsCard from './slots/BookingsCard';
-import { BrandingCard, FunnelCard, RulesCard, TeamCard } from './slots/SettingsCards';
+import { BrandingCard, FunnelCard, RulesCard, TeamCard, WebhookCard } from './slots/SettingsCards';
 import { Meta, SlotService, SlotSettings } from './slots/types';
 
 const SlotsConsole = () => {
@@ -38,6 +38,10 @@ const SlotsConsole = () => {
     setSaving(true);
     const d = await paytiFetch('slots-settings', { method: 'POST', body: s });
     setSaving(false);
+    if (d.error) {
+      setBusyInfo(d.error);
+      return;
+    }
     if (d.settings) {
       setS(d.settings);
       setSaved(true);
@@ -92,6 +96,7 @@ const SlotsConsole = () => {
 
       {view === 'settings' && (
         <>
+          <WebhookCard s={s} set={set} onSave={save} />
           <BrandingCard s={s} set={set} />
           <FunnelCard meta={meta} s={s} set={set} />
           <ServicesCard services={services} classifier={classifier} onChange={setServices} />

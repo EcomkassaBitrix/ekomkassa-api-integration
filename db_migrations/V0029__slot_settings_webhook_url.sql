@@ -1,0 +1,1 @@
+ALTER TABLE t_p25765938_ekomkassa_api_integr.slot_settings ADD COLUMN IF NOT EXISTS bitrix_webhook_url TEXT;

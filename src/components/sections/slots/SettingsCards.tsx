@@ -255,3 +255,48 @@ export const RulesCard = ({ s, set }: Pick<Props, 's' | 'set'>) => (
     </div>
   </Card>
 );
+
+export const WebhookCard = ({ s, set, onSave }: Pick<Props, 's' | 'set'> & { onSave: () => Promise<void> }) => {
+  const [result, setResult] = useState('');
+  const [checking, setChecking] = useState(false);
+
+  const test = async () => {
+    setChecking(true);
+    setResult('');
+    await onSave();
+    const d = await paytiFetch('slots-webhook-test');
+    setChecking(false);
+    if (!d.ok) return setResult(`Вебхук не работает: ${d.error}`);
+    setResult(d.missing.length ? `Вебхук работает, но не хватает прав: ${d.missing.join(', ')}` : 'Вебхук работает, все нужные права есть');
+  };
+
+  return (
+    <Card className="p-6 space-y-4">
+      <div>
+        <p className="font-medium">Вебхук Битрикс24 для слотов</p>
+        <p className="text-sm text-muted-foreground">Отдельный входящий вебхук только для этого раздела. Если поле пустое, используется общий вебхук проекта</p>
+      </div>
+      <Field
+        label="Адрес входящего вебхука"
+        hint={s.webhook_set ? `Сейчас сохранён: ${s.webhook_hint}. Оставьте поле пустым, чтобы не менять` : 'Права: CRM, календарь, задачи, пользователи, структура компании'}
+      >
+        <Input
+          type="password"
+          autoComplete="off"
+          value={s.bitrix_webhook_url || ''}
+          onChange={(e) => set({ bitrix_webhook_url: e.target.value })}
+          placeholder="https://домен.bitrix24.ru/rest/1/токен/"
+        />
+      </Field>
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button variant="outline" size="sm" onClick={test} disabled={checking}>{checking ? 'Проверяю...' : 'Сохранить и проверить права'}</Button>
+        {s.webhook_set && (
+          <Button variant="ghost" size="sm" onClick={async () => { await paytiFetch('slots-settings', { method: 'POST', body: { bitrix_webhook_url: '' } }); set({ webhook_set: false, webhook_hint: '', bitrix_webhook_url: '' }); }}>
+            Вернуть общий вебхук
+          </Button>
+        )}
+        {result && <span className="text-sm text-muted-foreground">{result}</span>}
+      </div>
+    </Card>
+  );
+};

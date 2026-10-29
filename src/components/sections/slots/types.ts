@@ -28,6 +28,9 @@ export interface SlotSettings {
   employees: Employee[];
   assigner_mode: 'deal' | 'user';
   assigner_user_id: string | null;
+  bitrix_webhook_url?: string;
+  webhook_set?: boolean;
+  webhook_hint?: string;
 }
 
 export interface SlotService {
