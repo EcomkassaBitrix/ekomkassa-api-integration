@@ -18,6 +18,7 @@ interface Provider {
   usesSmsAero: boolean;
   usesTelegramOtp: boolean;
   lastAttemptAt: string | null;
+  lastAttemptFailed?: boolean;
 }
 
 interface SandboxSectionProps {

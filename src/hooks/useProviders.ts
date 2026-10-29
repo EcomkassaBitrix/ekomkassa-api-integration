@@ -27,6 +27,7 @@ interface Provider {
   usesSmsAero: boolean;
   usesTelegramOtp: boolean;
   lastAttemptAt: string | null;
+  lastAttemptFailed?: boolean;
 }
 
 export const useProviders = () => {
@@ -124,7 +125,8 @@ export const useProviders = () => {
             usesApns,
             usesSmsAero,
             usesTelegramOtp,
-            lastAttemptAt: p.last_attempt_at
+            lastAttemptAt: p.last_attempt_at,
+            lastAttemptFailed: !!p.last_attempt_at && p.last_attempt_status !== 'success' && (!p.updated_at || new Date(p.last_attempt_at as string) > new Date(p.updated_at as string))
           };
         });
         setProviders(providersData);

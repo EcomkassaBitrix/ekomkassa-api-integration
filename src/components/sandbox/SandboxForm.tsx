@@ -21,6 +21,7 @@ interface Provider {
   usesSmsAero?: boolean;
   usesTelegramOtp?: boolean;
   lastAttemptAt: string | null;
+  lastAttemptFailed?: boolean;
 }
 
 interface SandboxFormProps {
@@ -92,6 +93,11 @@ const SandboxForm = ({
                   )}
                   {provider.usesApns && (
                     <Badge variant="outline" className="ml-2 text-xs bg-purple-500/10 text-purple-500 border-purple-500/20">APNs</Badge>
+                  )}
+                  {provider.lastAttemptFailed && (
+                    <Badge variant="outline" className="ml-2 text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                      Последняя отправка с ошибкой
+                    </Badge>
                   )}
                 </div>
               </SelectItem>
