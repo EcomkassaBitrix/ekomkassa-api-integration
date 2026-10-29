@@ -13,7 +13,6 @@ import payti
 from payti import hook_key_valid, cfg_entity, cfg_mode, Bitrix, CORS, collect, digits, entity_value, fix_case, links, multi_first, norm_phone, parse_deal_id, resp, db
 
 OFD_URL = 'https://ofd.ru/api/integration/partner/v2/PartnerCreateClientCabinet'
-OFD_LOOKUP_URL = 'https://ofd.ru/api/customer/reports'
 FIELDS = [
     ('Inn', 'ИНН'),
     ('Kpp', 'КПП'),
@@ -224,7 +223,9 @@ def send_series(payload, token, deadline):
                 body = {'raw': r.text[:1000]}
             if r.status_code == 200 and isinstance(body, dict) and body.get('Success'):
                 status = 'success'
-                agreement = (body.get('Data') or {}).get('OfdAgreementId')
+                data = body.get('Data')
+                agreement = (data.get('OfdAgreementId') or data.get('AgreementId') or data.get('Id')) if isinstance(data, dict) else (data if isinstance(data, (str, int)) else None)
+                agreement = str(agreement) if agreement else None
             else:
                 t['code'], t['err'] = error_text(body, r.status_code)
                 if 'AlreadyExists' in str(t['code']) or 'AlreadyExists' in str(t['err']):
@@ -238,43 +239,6 @@ def send_series(payload, token, deadline):
         if status != 'temporary_error':
             break
     return status, tries, body, agreement
-
-
-def find_key(obj, key):
-    if isinstance(obj, dict):
-        if obj.get(key):
-            return obj[key]
-        for v in obj.values():
-            r = find_key(v, key)
-            if r:
-                return r
-    elif isinstance(obj, list):
-        for v in obj:
-            r = find_key(v, key)
-            if r:
-                return r
-    return None
-
-
-def lookup_agreement(payload, token, timeout):
-    params = {'Inn': payload.get('Inn'), 'SkipPageFilter': 'true', 'AuthToken': token}
-    if payload.get('Kpp'):
-        params['Kpp'] = payload['Kpp']
-    try:
-        r = requests.get(OFD_LOOKUP_URL, params=params, timeout=max(0.5, timeout))
-    except Exception as e:
-        return None, f'Сеть или таймаут: {e}'
-    try:
-        data = r.json()
-    except Exception:
-        return None, f'ОФД вернул {r.status_code}, ответ не разобран'
-    found = find_key(data, 'OfdAgreementId')
-    if found:
-        return str(found), ''
-    if r.status_code != 200:
-        code, text = error_text(data, r.status_code)
-        return None, f'ОФД вернул {r.status_code}: {text}'[:300]
-    return None, 'ОФД ответил, но ID кабинета в ответе нет'
 
 
 def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_payload=None):
@@ -322,17 +286,14 @@ def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_pay
 
     status, tries, body, agreement = send_series(payload, token, t0 + limit - RESERVE)
     lookup_note = ''
-    if status == 'already_exists' and not agreement:
-        left = t0 + limit - 0.6 - time.time()
-        if left >= 0.8:
-            agreement, lookup_err = lookup_agreement(payload, token, min(REQUEST_TIMEOUT, left))
-            steps.append({'step': 'Поиск ID кабинета', 'ok': bool(agreement), 'info': agreement or lookup_err})
-            if agreement:
-                lookup_note = 'ID кабинета получен из ОФД и записан в сделку.'
-            else:
-                lookup_note = f'ID кабинета получить не удалось ({lookup_err}). Внесите его в сделку вручную из кабинета ОФД.'
-        else:
-            lookup_note = 'Не хватило времени найти ID кабинета. Повторите запрос или внесите ID вручную.'
+    if status == 'already_exists':
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM ofd_registrations WHERE deal_id = %s AND status = 'temporary_error' AND http_status IS NULL LIMIT 1", (str(deal_id),))
+        lost = cur.fetchone()
+        cur.close()
+        lookup_note = 'ID кабинета ОФД не присылает при повторном запросе, внесите его в сделку вручную из кабинета ОФД.'
+        if lost:
+            lookup_note = 'Ранее ответ ОФД не дошёл (таймаут): кабинет, скорее всего, создан тем запросом, но ID потерян. ' + lookup_note
     last = tries[-1]
     err, code, http_status = last['err'] or None, last['code'] or None, last['http']
     will_retry = status == 'temporary_error' and series < MAX_SERIES
@@ -348,15 +309,6 @@ def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_pay
                 steps.append({'step': 'Запись в сделку', 'ok': False, 'info': str(e)})
         result.update(ok=True, status='success', agreementId=agreement, response=body)
     else:
-        if status == 'already_exists' and agreement:
-            settings = get_settings(conn)
-            if settings.get('result_agreement_field'):
-                try:
-                    bx.call('crm.deal.update', {'id': deal_id, 'fields': {settings['result_agreement_field']: agreement}})
-                except Exception as e:
-                    steps.append({'step': 'Запись в сделку', 'ok': False, 'info': str(e)})
-                    lookup_note = f'ID кабинета найден, но не записан в сделку: {e}'
-            result.update(agreementId=agreement)
         result.update(status=status, error=err, response=body)
     crm_log(bx, deal_id, steps, series, status, source, values, tries, agreement, next_retry=will_retry, extra=lookup_note)
     result['willRetry'] = will_retry
