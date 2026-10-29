@@ -555,6 +555,13 @@ def links(bx, ctx):
     return res
 
 
+def notify_failure(conn, deal_id, env, status, error):
+    import notify
+    label = 'боевой' if env == 'prod' else 'тестовый'
+    notify.queue(conn, 'payti', deal_id, status, f'[{label} контур] {error}')
+    notify.flush(conn, 2.5)
+
+
 def do_register(conn, bx, deal_id, env, mode_param, overrides, force, source, user):
     steps = []
     result = {'ok': False, 'dealId': deal_id, 'environment': env, 'steps': steps}
@@ -583,6 +590,7 @@ def do_register(conn, bx, deal_id, env, mode_param, overrides, force, source, us
     if errors:
         comment(bx, deal_id, 'Екомкасса / Payti\nРегистрация не выполнена, не заполнены данные:\n- ' + '\n- '.join(errors), steps)
         save_attempt(conn, ctx, env, mode, 'validation_failed', values, source, user, code='validation_failed', msg='; '.join(errors), req=masked(payload))
+        notify_failure(conn, deal_id, env, 'validation_failed', '; '.join(errors))
         result.update(status='validation_failed', error='; '.join(errors))
         return result
 
@@ -642,6 +650,11 @@ def do_register(conn, bx, deal_id, env, mode_param, overrides, force, source, us
         warn = '\nВнимание: клиент мог частично создаться в Payti, проверьте перед повтором.' if (http_status or 0) >= 500 else ''
         comment(bx, deal_id, f'Екомкасса / Payti\nКонтур: {env_label}\nРегистрация не выполнена: {status}. {err or ""}{warn}', steps)
         result.update(status=status, error=err, response=body)
+        if status != 'duplicate':
+            detail = err or ''
+            if isinstance(body, dict) and body:
+                detail = (detail + ' ' + json.dumps(body, ensure_ascii=False)).strip()
+            notify_failure(conn, deal_id, env, status, detail)
     return result
 
 

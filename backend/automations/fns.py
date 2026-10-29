@@ -1063,6 +1063,8 @@ def handle(event, action):
             min_age = min(max(int(digits(params.get('minAge')) or 5), 0), 1440)
             import ofd
             ofd_retried = ofd.run_retries(conn, bx, 1)
+            import notify
+            notify.flush(conn, 3, 10)
             return resp(200, {'ok': True, **poll(conn, bx, limit, min_age), 'ofdRetried': ofd_retried})
 
         cur = conn.cursor()

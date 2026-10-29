@@ -10,6 +10,7 @@ import requests
 from psycopg2.extras import Json
 
 import payti
+import notify
 from payti import hook_key_valid, cfg_entity, cfg_mode, Bitrix, CORS, collect, digits, entity_value, fix_case, links, multi_first, norm_phone, parse_deal_id, resp, db
 
 OFD_URL = 'https://ofd.ru/api/integration/partner/v2/PartnerCreateClientCabinet'
@@ -275,12 +276,15 @@ def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_pay
     if errors:
         crm_log(bx, deal_id, steps, series, 'validation_failed', source, values, err='; '.join(errors))
         save_attempt(conn, ctx, 'validation_failed', values, source, payload, code='validation_failed', msg='; '.join(errors), attempt=series)
+        notify.queue(conn, 'ofd', deal_id, 'validation_failed', '; '.join(errors))
+        notify.flush(conn, max(min(t0 + limit - time.time() - 1.0, 2.5), 0))
         result.update(status='validation_failed', error='; '.join(errors))
         return result
 
     token = os.environ.get('OFD_API_KEY', '')
     if not token:
         crm_log(bx, deal_id, steps, series, 'error', source, values, err='Не задан секрет OFD_API_KEY')
+        notify.queue(conn, 'ofd', deal_id, 'error', 'Не задан секрет OFD_API_KEY')
         result.update(status='error', error='Не задан секрет OFD_API_KEY')
         return result
 
@@ -311,6 +315,9 @@ def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_pay
     else:
         result.update(status=status, error=err, response=body)
     crm_log(bx, deal_id, steps, series, status, source, values, tries, agreement, next_retry=will_retry, extra=lookup_note)
+    if status not in ('success', 'already_exists', 'already_registered') and not will_retry:
+        notify.queue(conn, 'ofd', deal_id, status, err or (body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)[:500] if body else ''))
+        notify.flush(conn, max(min(t0 + limit - time.time() - 0.5, 2.5), 0))
     result['willRetry'] = will_retry
     result['requests'] = len(tries)
     return result
