@@ -26,7 +26,9 @@ REQUESTS_PER_SERIES = 3
 MAX_SERIES = 2
 RETRY_MINUTES = 15
 HARD_LIMIT = 4.0
-RESERVE = 1.0
+RESERVE = 1.5
+REQUEST_TIMEOUT = 6.0
+CTX = {'context': None}
 
 
 def get_settings(conn):
@@ -213,7 +215,7 @@ def send_series(payload, token, deadline):
         t = {'n': n, 'http': None, 'code': '', 'err': ''}
         status = 'temporary_error'
         try:
-            r = requests.post(OFD_URL, params={'AuthToken': token}, json=payload, timeout=max(0.5, min(2.0, left)))
+            r = requests.post(OFD_URL, params={'AuthToken': token}, json=payload, timeout=max(0.5, min(REQUEST_TIMEOUT, left)))
             t['http'] = r.status_code
             try:
                 body = r.json()
@@ -239,6 +241,13 @@ def send_series(payload, token, deadline):
 
 def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_payload=None):
     t0 = time.time()
+    limit = HARD_LIMIT
+    getter = getattr(CTX.get('context'), 'get_remaining_time_in_millis', None)
+    if callable(getter):
+        try:
+            limit = min(max(float(getter()) / 1000.0, 2.0), 60.0)
+        except Exception:
+            limit = HARD_LIMIT
     steps = []
     result = {'ok': False, 'dealId': deal_id, 'steps': steps, 'attempt': series}
     cur = conn.cursor()
@@ -273,11 +282,11 @@ def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_pay
         result.update(status='error', error='Не задан секрет OFD_API_KEY')
         return result
 
-    status, tries, body, agreement = send_series(payload, token, t0 + HARD_LIMIT - RESERVE)
+    status, tries, body, agreement = send_series(payload, token, t0 + limit - RESERVE)
     last = tries[-1]
     err, code, http_status = last['err'] or None, last['code'] or None, last['http']
     will_retry = status == 'temporary_error' and series < MAX_SERIES
-    steps.append({'step': 'Запрос в ОФД', 'ok': status == 'success', 'info': f'{status}, запросов в серии: {len(tries)}, серия {series}'})
+    steps.append({'step': 'Запрос в ОФД', 'ok': status == 'success', 'info': f'{status}, запросов в серии: {len(tries)}, серия {series}, лимит функции {limit:.0f} с'})
     save_attempt(conn, ctx, status, values, source, payload, http_status, code, err, body, agreement, attempt=series, retry=will_retry)
 
     if status == 'success':
