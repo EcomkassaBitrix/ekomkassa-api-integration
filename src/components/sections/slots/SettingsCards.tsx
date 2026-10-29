@@ -196,6 +196,12 @@ export const TeamCard = ({ meta, s, set }: Props) => {
       {s.department_id && <Button variant="outline" size="sm" onClick={addAll}>Добавить весь отдел</Button>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-border">
+        <Field label="Кто выполняет настройку" hint="При выборе «из сделки» запись идёт только на ответственного по сделке, а список выше не используется">
+          <select className={selectCls} value={s.employee_mode || 'auto'} onChange={(e) => set({ employee_mode: e.target.value as 'auto' | 'deal' })}>
+            <option value="auto">Свободный из списка</option>
+            <option value="deal">Ответственный из сделки</option>
+          </select>
+        </Field>
         <Field label="Кто ставит задачи">
           <select className={selectCls} value={s.assigner_mode} onChange={(e) => set({ assigner_mode: e.target.value as 'deal' | 'user' })}>
             <option value="deal">Ответственный по сделке</option>

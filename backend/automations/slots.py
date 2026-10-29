@@ -21,7 +21,7 @@ SETTINGS_COLS = [
     'title', 'logo_url', 'base_url', 'timezone', 'step_min', 'horizon_days', 'min_notice_hours',
     'reschedule_deadline_hours', 'max_per_day', 'link_days', 'source_category_id', 'source_stage_id',
     'classifier_field', 'link_field', 'start_field', 'target_stage_id', 'create_task', 'task_title',
-    'create_calendar_event', 'check_bitrix_busy', 'department_id', 'assigner_mode', 'assigner_user_id', 'bitrix_webhook_url',
+    'create_calendar_event', 'check_bitrix_busy', 'department_id', 'assigner_mode', 'assigner_user_id', 'bitrix_webhook_url', 'employee_mode',
 ]
 INT_COLS = {'step_min', 'horizon_days', 'min_notice_hours', 'reschedule_deadline_hours', 'max_per_day', 'link_days'}
 BOOL_COLS = {'create_task', 'create_calendar_event', 'check_bitrix_busy'}
@@ -188,6 +188,14 @@ def local_busy(conn, d_from, d_to, exclude_id=None):
 def compute_slots(conn, bx, settings, service, d_from, d_to, booking=None):
     tz = ZoneInfo(settings['timezone'])
     emps = [str(e['id']) for e in (settings.get('employees') or [])]
+    if settings.get('employee_mode') == 'deal' and booking:
+        try:
+            deal = bx.call('crm.deal.get', {'id': booking['deal_id']}) or {}
+            resp_id = str(deal.get('ASSIGNED_BY_ID') or '')
+            if resp_id:
+                emps = [resp_id]
+        except Exception:
+            pass
     now = utcnow()
     earliest = now + timedelta(hours=settings['min_notice_hours'])
     today = to_local(now, tz).date()
@@ -381,7 +389,8 @@ def do_book(conn, bx, token, start_iso):
         (start - timedelta(days=7), start + timedelta(days=7)),
     )
     load = {r['employee_id']: r['c'] for r in cur.fetchall()}
-    emp = sorted(free, key=lambda e: (load.get(e, 0), e))[0]
+    order = {str(e['id']): i for i, e in enumerate(settings.get('employees') or [])}
+    emp = sorted(free, key=lambda e: (load.get(e, 0), order.get(e, 999)))[0]
     end = start + timedelta(minutes=service['duration_min'])
     try:
         cur.execute(
