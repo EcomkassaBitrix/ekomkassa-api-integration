@@ -25,7 +25,8 @@ ACTIONS = {'ofd-meta', 'ofd-settings', 'ofd-preview', 'ofd-register', 'ofd-histo
 REQUESTS_PER_SERIES = 3
 MAX_SERIES = 2
 RETRY_MINUTES = 15
-SERIES_BUDGET = 3.8
+HARD_LIMIT = 4.0
+RESERVE = 1.0
 
 
 def get_settings(conn):
@@ -200,18 +201,19 @@ def crm_log(bx, deal_id, steps, series, status, source, values=None, tries=None,
     payti.comment(bx, deal_id, '\n'.join(lines), steps)
 
 
-def send_series(payload, token):
+def send_series(payload, token, deadline):
     tries, body, agreement = [], None, None
     status = 'temporary_error'
-    deadline = time.time() + SERIES_BUDGET
     for n in range(1, REQUESTS_PER_SERIES + 1):
         left = deadline - time.time()
-        if n > 1 and left < 0.8:
+        if left < 0.5:
+            if n == 1:
+                tries.append({'n': 1, 'http': None, 'code': '', 'err': 'не хватило времени на запрос', 'status': 'temporary_error'})
             break
         t = {'n': n, 'http': None, 'code': '', 'err': ''}
         status = 'temporary_error'
         try:
-            r = requests.post(OFD_URL, params={'AuthToken': token}, json=payload, timeout=max(0.8, min(3.0, left)))
+            r = requests.post(OFD_URL, params={'AuthToken': token}, json=payload, timeout=max(0.5, min(2.0, left)))
             t['http'] = r.status_code
             try:
                 body = r.json()
@@ -236,6 +238,7 @@ def send_series(payload, token):
 
 
 def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_payload=None):
+    t0 = time.time()
     steps = []
     result = {'ok': False, 'dealId': deal_id, 'steps': steps, 'attempt': series}
     cur = conn.cursor()
@@ -270,7 +273,7 @@ def do_register(conn, bx, deal_id, overrides, force, source, series=1, saved_pay
         result.update(status='error', error='Не задан секрет OFD_API_KEY')
         return result
 
-    status, tries, body, agreement = send_series(payload, token)
+    status, tries, body, agreement = send_series(payload, token, t0 + HARD_LIMIT - RESERVE)
     last = tries[-1]
     err, code, http_status = last['err'] or None, last['code'] or None, last['http']
     will_retry = status == 'temporary_error' and series < MAX_SERIES
