@@ -52,6 +52,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     limit = int(query_params.get('limit', 50))
     limit = min(max(limit, 1), 100)
     offset = max(int(query_params.get('offset', 0)), 0)
+    search = (query_params.get('q') or '').strip()
+    status_filter = (query_params.get('status') or '').strip()
+    provider_filter = (query_params.get('provider') or '').strip()
+    try:
+        days = int(query_params.get('days') or 0)
+    except ValueError:
+        days = 0
     message_id = query_params.get('message_id')
     
     conn = psycopg2.connect(
@@ -157,13 +164,43 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'isBase64Encoded': False
         }
     
+    where = []
+    params = []
+    if status_filter:
+        where.append('status = %s')
+        params.append(status_filter)
+    if provider_filter:
+        where.append('provider = %s')
+        params.append(provider_filter)
+    if days > 0:
+        where.append("created_at >= NOW() - (%s * INTERVAL '1 day')")
+        params.append(days)
+    if search:
+        like = '%' + search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+        where.append('(message_id ILIKE %s OR recipient ILIKE %s OR provider ILIKE %s OR status ILIKE %s OR message_text ILIKE %s)')
+        params.extend([like] * 5)
+    where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+
+    total = None
+    statuses = None
+    providers_list = None
+    if offset == 0:
+        cursor.execute(f'SELECT COUNT(*) AS c FROM messages {where_sql}', params)
+        total = cursor.fetchone()['c']
+        cursor.execute('SELECT DISTINCT status FROM messages WHERE status IS NOT NULL ORDER BY status')
+        statuses = [r['status'] for r in cursor.fetchall()]
+        cursor.execute('SELECT DISTINCT provider FROM messages WHERE provider IS NOT NULL ORDER BY provider')
+        providers_list = [r['provider'] for r in cursor.fetchall()]
+
     cursor.execute(
         f"""
         SELECT message_id, recipient, provider, status, attempts, max_attempts, created_at 
         FROM messages 
+        {where_sql}
         ORDER BY created_at DESC 
         LIMIT {limit + 1} OFFSET {offset}
-        """
+        """,
+        params
     )
     
     rows = cursor.fetchall()
@@ -195,7 +232,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'success': True,
             'messages': messages,
             'count': len(messages),
-            'has_more': has_more
+            'has_more': has_more,
+            'total': total,
+            'statuses': statuses,
+            'providers': providers_list
         }),
         'isBase64Encoded': False
     }

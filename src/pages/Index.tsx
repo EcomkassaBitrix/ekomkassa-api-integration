@@ -314,6 +314,11 @@ const Index = () => {
                   loadMoreLogs={logs.loadMoreLogs}
                   isLoadingMore={logs.isLoadingMore}
                   hasMore={logs.hasMore}
+                  total={logs.total}
+                  statuses={logs.statuses}
+                  providerList={logs.providerList}
+                  filters={logs.filters}
+                  setFilters={logs.setFilters}
                   retryMessage={logs.retryMessage}
                   openLogDetails={logs.openLogDetails}
                   setLogDetailsDialogOpen={logs.setLogDetailsDialogOpen}

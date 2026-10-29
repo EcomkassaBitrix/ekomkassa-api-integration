@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { LogFilters, EMPTY_FILTERS } from '@/hooks/useLogs';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -152,6 +153,11 @@ interface LogsSectionProps {
   loadMoreLogs: () => void;
   isLoadingMore: boolean;
   hasMore: boolean;
+  total: number | null;
+  statuses: string[];
+  providerList: string[];
+  filters: LogFilters;
+  setFilters: (f: LogFilters) => void;
   retryMessage: (messageId: string) => void;
   openLogDetails: (log: LogMessage) => void;
   setLogDetailsDialogOpen: (open: boolean) => void;
@@ -168,6 +174,11 @@ const LogsSection = ({
   loadMoreLogs,
   isLoadingMore,
   hasMore,
+  total,
+  statuses,
+  providerList,
+  filters,
+  setFilters,
   retryMessage,
   openLogDetails,
   setLogDetailsDialogOpen
@@ -175,35 +186,8 @@ const LogsSection = ({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef(loadMoreLogs);
   loadMoreRef.current = loadMoreLogs;
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [providerFilter, setProviderFilter] = useState('all');
-  const [period, setPeriod] = useState('all');
-
-  const statuses = useMemo(() => Array.from(new Set(logs.map((l) => l.status).filter(Boolean))), [logs]);
-  const providers = useMemo(() => Array.from(new Set(logs.map((l) => l.provider).filter(Boolean))), [logs]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const now = Date.now();
-    const periodMs: Record<string, number> = { day: 86400000, week: 7 * 86400000, month: 30 * 86400000 };
-    return logs.filter((l) => {
-      if (statusFilter !== 'all' && l.status !== statusFilter) return false;
-      if (providerFilter !== 'all' && l.provider !== providerFilter) return false;
-      if (period !== 'all' && now - new Date(l.created_at).getTime() > periodMs[period]) return false;
-      if (!q) return true;
-      return [l.message_id, l.recipient, l.provider, l.status, l.message_text, l.message, l.last_error]
-        .some((v) => String(v ?? '').toLowerCase().includes(q));
-    });
-  }, [logs, search, statusFilter, providerFilter, period]);
-
-  const hasFilters = search !== '' || statusFilter !== 'all' || providerFilter !== 'all' || period !== 'all';
-  const resetFilters = () => {
-    setSearch('');
-    setStatusFilter('all');
-    setProviderFilter('all');
-    setPeriod('all');
-  };
+  const hasFilters = filters.search !== '' || filters.status !== 'all' || filters.provider !== 'all' || filters.period !== 'all';
+  const update = (patch: Partial<LogFilters>) => setFilters({ ...filters, ...patch });
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -236,32 +220,32 @@ const LogsSection = ({
           </Button>
         </div>
       </div>
-      {logs.length > 0 && (
+      {(logs.length > 0 || hasFilters) && (
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="relative flex-1 min-w-[220px]">
             <Icon name="Search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={filters.search}
+              onChange={(e) => update({ search: e.target.value })}
               placeholder="Поиск по ID, получателю, тексту, ошибке"
               className="pl-9"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={filters.status} onValueChange={(v) => update({ status: v })}>
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Статус" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все статусы</SelectItem>
               {statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={providerFilter} onValueChange={setProviderFilter}>
+          <Select value={filters.provider} onValueChange={(v) => update({ provider: v })}>
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Провайдер" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все провайдеры</SelectItem>
-              {providers.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              {providerList.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={period} onValueChange={setPeriod}>
+          <Select value={filters.period} onValueChange={(v) => update({ period: v })}>
             <SelectTrigger className="w-[160px]"><SelectValue placeholder="Период" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">За всё время</SelectItem>
@@ -271,27 +255,27 @@ const LogsSection = ({
             </SelectContent>
           </Select>
           {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={resetFilters}>
+            <Button variant="ghost" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
               <Icon name="X" size={14} className="mr-1" />
               Сбросить
             </Button>
           )}
-          <span className="text-sm text-muted-foreground ml-auto">Найдено: {filtered.length} из {logs.length}{hasMore ? '+' : ''}</span>
+          <span className="text-sm text-muted-foreground ml-auto">{total !== null ? `Найдено: ${total}` : `Показано: ${logs.length}`}</span>
         </div>
       )}
       {isLoadingLogs ? (
         <div className="flex items-center justify-center py-12">
           <Icon name="Loader2" size={32} className="animate-spin text-primary" />
         </div>
+      ) : logs.length === 0 && hasFilters ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Icon name="SearchX" size={48} className="mx-auto mb-3 opacity-50" />
+          <p>Ничего не найдено</p>
+        </div>
       ) : logs.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Icon name="Inbox" size={48} className="mx-auto mb-3 opacity-50" />
           <p>Логов пока нет</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <Icon name="SearchX" size={48} className="mx-auto mb-3 opacity-50" />
-          <p>Ничего не найдено</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -308,7 +292,7 @@ const LogsSection = ({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((log) => (
+              {logs.map((log) => (
                 <tr 
                   key={log.message_id} 
                   className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
