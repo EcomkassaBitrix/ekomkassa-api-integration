@@ -17,38 +17,39 @@ def get_db_connection():
     )
 
 def verify_api_key(api_key: str, conn) -> bool:
-    """Проверяет валидность API ключа"""
+    """Проверяет валидность API ключа. Время использования обновляется не чаще раза в минуту"""
     cur = conn.cursor()
     cur.execute(
-        "SELECT id FROM api_keys WHERE api_key = %s AND is_active = true",
+        """SELECT id, (last_used_at IS NULL OR last_used_at < NOW() - INTERVAL '1 minute') AS stale
+        FROM api_keys WHERE api_key = %s AND is_active = true""",
         (api_key,)
     )
     result = cur.fetchone()
-    
-    if result:
+
+    if result and result['stale']:
         cur.execute(
-            "UPDATE api_keys SET last_used_at = NOW() WHERE api_key = %s",
-            (api_key,)
+            "UPDATE api_keys SET last_used_at = NOW() WHERE id = %s",
+            (result['id'],)
         )
         conn.commit()
-    
+
     cur.close()
     return result is not None
 
-def check_provider_active(provider: str, conn) -> Tuple[bool, Optional[str]]:
-    """Проверяет активность провайдера"""
+def check_provider_active(provider: str, conn) -> Tuple[bool, Optional[str], Optional[str]]:
+    """Проверяет активность провайдера и возвращает его имя и тип"""
     cur = conn.cursor()
     cur.execute(
-        "SELECT is_active, provider_name FROM providers WHERE provider_code = %s",
+        "SELECT is_active, provider_name, provider_type FROM providers WHERE provider_code = %s",
         (provider,)
     )
     result = cur.fetchone()
     cur.close()
-    
+
     if not result:
-        return False, None
-    
-    return result['is_active'], result['provider_name']
+        return False, None, None
+
+    return result['is_active'], result['provider_name'], result['provider_type']
 
 def save_message(message_id: str, provider: str, recipient: str, 
                 message_text: str, metadata: Dict, conn) -> None:
@@ -617,18 +618,19 @@ def attempt_delivery(message_id: str, provider: str, recipient: str,
                     message_text: str, attempt_number: int, conn,
                     template_name: Optional[str] = None, template_data: Optional[Dict] = None,
                     subject: Optional[str] = None, title: Optional[str] = None,
-                    data: Optional[Dict] = None) -> Tuple[bool, Optional[str], bool]:
+                    data: Optional[Dict] = None,
+                    provider_type: Optional[str] = None) -> Tuple[bool, Optional[str], bool]:
     """Пытается доставить сообщение. Третье значение — ошибка окончательная, повторять не нужно"""
     start_time = time.time()
     
     try:
-        cur = conn.cursor()
-        cur.execute("SELECT provider_type FROM providers WHERE provider_code = %s", (provider,))
-        result = cur.fetchone()
-        cur.close()
-        
-        provider_type = result['provider_type'] if result else None
-        
+        if provider_type is None:
+            cur = conn.cursor()
+            cur.execute("SELECT provider_type FROM providers WHERE provider_code = %s", (provider,))
+            result = cur.fetchone()
+            cur.close()
+            provider_type = result['provider_type'] if result else None
+
         if provider_type in ['whatsapp_business', 'telegram_bot', 'wappi', 'max']:
             status_code, response_body = send_via_wappi(recipient, message_text, provider, conn)
         elif provider_type == 'yandex_postbox':
@@ -761,7 +763,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'isBase64Encoded': False
             }
         
-        is_active, provider_name = check_provider_active(provider, conn)
+        is_active, provider_name, provider_type = check_provider_active(provider, conn)
         
         if not provider_name:
             conn.close()
@@ -790,12 +792,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'isBase64Encoded': False
             }
         
-        cur = conn.cursor()
-        cur.execute("SELECT provider_type FROM providers WHERE provider_code = %s", (provider,))
-        type_row = cur.fetchone()
-        cur.close()
-        provider_type = type_row['provider_type'] if type_row else None
-
         if provider_type == 'yandex_postbox':
             problem = email_problem(recipient)
             if problem:
@@ -837,7 +833,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             success, error, permanent = attempt_delivery(
                 message_id, provider, recipient, message_text, attempt, conn,
                 template_name=template_name, template_data=template_data, subject=subject,
-                title=title, data=data
+                title=title, data=data, provider_type=provider_type
             )
             
             if success:
