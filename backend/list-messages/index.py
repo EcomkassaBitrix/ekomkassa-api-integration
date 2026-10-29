@@ -91,6 +91,62 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     )
     conn.commit()
     
+    if query_params.get('stats'):
+        cursor.execute("""
+            SELECT count(*) AS total,
+                count(*) FILTER (WHERE status = 'delivered') AS delivered,
+                count(*) FILTER (WHERE status = 'failed') AS failed,
+                count(*) FILTER (WHERE status NOT IN ('delivered', 'failed')) AS pending,
+                count(*) FILTER (WHERE created_at >= date_trunc('day', NOW())) AS today,
+                count(*) FILTER (WHERE created_at >= date_trunc('day', NOW()) AND status = 'delivered') AS today_delivered,
+                count(*) FILTER (WHERE created_at >= date_trunc('day', NOW()) AND status = 'failed') AS today_failed
+            FROM messages
+        """)
+        totals = cursor.fetchone()
+        cursor.execute("""
+            SELECT provider,
+                count(*) AS total,
+                count(*) FILTER (WHERE status = 'delivered') AS delivered,
+                count(*) FILTER (WHERE status = 'failed') AS failed,
+                count(*) FILTER (WHERE created_at >= date_trunc('day', NOW())) AS today,
+                max(created_at) AS last_at
+            FROM messages GROUP BY provider ORDER BY count(*) DESC
+        """)
+        by_provider = cursor.fetchall()
+        cursor.execute("""
+            SELECT round(avg(duration_ms)) AS avg_ms, count(*) AS n
+            FROM delivery_attempts
+            WHERE duration_ms IS NOT NULL AND attempted_at >= NOW() - INTERVAL '24 hours'
+        """)
+        speed = cursor.fetchone()
+        cursor.execute("""
+            SELECT to_char(d.day, 'DD.MM') AS label,
+                count(m.*) AS total,
+                count(m.*) FILTER (WHERE m.status = 'delivered') AS delivered,
+                count(m.*) FILTER (WHERE m.status = 'failed') AS failed
+            FROM generate_series(date_trunc('day', NOW()) - INTERVAL '6 days', date_trunc('day', NOW()), INTERVAL '1 day') AS d(day)
+            LEFT JOIN messages m ON m.created_at >= d.day AND m.created_at < d.day + INTERVAL '1 day'
+            GROUP BY d.day ORDER BY d.day
+        """)
+        daily = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        for r in by_provider:
+            r['last_at'] = r['last_at'].isoformat() if r['last_at'] else None
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({
+                'success': True,
+                'totals': totals,
+                'providers': by_provider,
+                'avg_ms': int(speed['avg_ms']) if speed['avg_ms'] is not None else None,
+                'speed_samples': speed['n'],
+                'daily': daily
+            }, default=str),
+            'isBase64Encoded': False
+        }
+
     if message_id:
         message_id_escaped = message_id.replace("'", "''")
         cursor.execute(

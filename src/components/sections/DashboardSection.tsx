@@ -1,5 +1,6 @@
 import DashboardStats from '@/components/dashboard/DashboardStats';
 import DashboardActivity from '@/components/dashboard/DashboardActivity';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
 import ApiDocsSection from '@/components/dashboard/ApiDocsSection';
 
 interface Provider {
@@ -37,25 +38,20 @@ interface DashboardSectionProps {
 }
 
 const DashboardSection = ({ activeSection, providers, logs }: DashboardSectionProps) => {
-  const totalRequests = logs.length;
+  const { data } = useDashboardStats(activeSection === 'dashboard');
+  const t = data?.totals;
   const activeProviders = providers.filter(p => p.status === 'working' || p.status === 'configured').length;
   const totalProviders = providers.length;
-
-  const deliveredCount = logs.filter(l => l.status === 'delivered').length;
-  const deliveryRate = totalRequests > 0 ? ((deliveredCount / totalRequests) * 100).toFixed(1) : '0.0';
-
-  const responseTimes = logs
-    .filter(l => l.response_time && typeof l.response_time === 'number')
-    .map(l => l.response_time as number);
-  const avgResponseTime = responseTimes.length > 0
-    ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
-    : 0;
+  const total = t?.total || 0;
+  const decided = (t?.delivered || 0) + (t?.failed || 0);
+  const deliveryRate = decided > 0 ? (((t?.delivered || 0) / decided) * 100).toFixed(1) : '0.0';
+  const dash = (v: string) => (data ? v : '…');
 
   const stats = [
     {
       label: 'Всего запросов',
-      value: totalRequests.toLocaleString('ru-RU'),
-      change: totalRequests > 0 ? `${totalRequests} сообщений` : 'Нет данных',
+      value: dash(total.toLocaleString('ru-RU')),
+      change: data ? `сегодня ${(t?.today || 0).toLocaleString('ru-RU')}` : 'Загружаю',
       icon: 'TrendingUp',
       color: 'text-primary'
     },
@@ -68,15 +64,15 @@ const DashboardSection = ({ activeSection, providers, logs }: DashboardSectionPr
     },
     {
       label: 'Успешных доставок',
-      value: `${deliveryRate}%`,
-      change: `${deliveredCount} из ${totalRequests}`,
+      value: dash(`${deliveryRate}%`),
+      change: data ? `${(t?.delivered || 0).toLocaleString('ru-RU')} доставлено, ${(t?.failed || 0).toLocaleString('ru-RU')} с ошибкой` : 'Загружаю',
       icon: 'CheckCircle',
       color: 'text-green-400'
     },
     {
       label: 'Средняя скорость',
-      value: avgResponseTime > 0 ? `${avgResponseTime}ms` : 'N/A',
-      change: responseTimes.length > 0 ? `${responseTimes.length} измерений` : 'Нет данных',
+      value: data ? (data.avg_ms ? `${data.avg_ms} мс` : 'Нет данных') : '…',
+      change: data ? (data.speed_samples ? `за 24 часа, ${data.speed_samples.toLocaleString('ru-RU')} попыток` : 'За 24 часа попыток нет') : 'Загружаю',
       icon: 'Zap',
       color: 'text-yellow-400'
     },
@@ -86,7 +82,7 @@ const DashboardSection = ({ activeSection, providers, logs }: DashboardSectionPr
     return (
       <div className="space-y-6">
         <DashboardStats stats={stats} />
-        <DashboardActivity providers={providers} logs={logs} />
+        <DashboardActivity providers={providers} providerStats={data?.providers || []} daily={data?.daily || []} logs={logs} />
       </div>
     );
   }
