@@ -311,6 +311,9 @@ const Index = () => {
                   logDetailsDialogOpen={logs.logDetailsDialogOpen}
                   loadingDetails={logs.loadingDetails}
                   loadLogs={logs.loadLogs}
+                  loadMoreLogs={logs.loadMoreLogs}
+                  isLoadingMore={logs.isLoadingMore}
+                  hasMore={logs.hasMore}
                   retryMessage={logs.retryMessage}
                   openLogDetails={logs.openLogDetails}
                   setLogDetailsDialogOpen={logs.setLogDetailsDialogOpen}

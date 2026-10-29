@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -149,6 +149,9 @@ interface LogsSectionProps {
   logDetailsDialogOpen: boolean;
   loadingDetails: boolean;
   loadLogs: () => void;
+  loadMoreLogs: () => void;
+  isLoadingMore: boolean;
+  hasMore: boolean;
   retryMessage: (messageId: string) => void;
   openLogDetails: (log: LogMessage) => void;
   setLogDetailsDialogOpen: (open: boolean) => void;
@@ -162,10 +165,16 @@ const LogsSection = ({
   logDetailsDialogOpen,
   loadingDetails,
   loadLogs,
+  loadMoreLogs,
+  isLoadingMore,
+  hasMore,
   retryMessage,
   openLogDetails,
   setLogDetailsDialogOpen
 }: LogsSectionProps) => {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef(loadMoreLogs);
+  loadMoreRef.current = loadMoreLogs;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [providerFilter, setProviderFilter] = useState('all');
@@ -195,6 +204,19 @@ const LogsSection = ({
     setProviderFilter('all');
     setPeriod('all');
   };
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMoreRef.current();
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, logs.length, isLoadingLogs]);
 
   return (
     <>
@@ -254,7 +276,7 @@ const LogsSection = ({
               Сбросить
             </Button>
           )}
-          <span className="text-sm text-muted-foreground ml-auto">Найдено: {filtered.length} из {logs.length}</span>
+          <span className="text-sm text-muted-foreground ml-auto">Найдено: {filtered.length} из {logs.length}{hasMore ? '+' : ''}</span>
         </div>
       )}
       {isLoadingLogs ? (
@@ -343,6 +365,15 @@ const LogsSection = ({
               ))}
             </tbody>
           </table>
+          {hasMore && (
+            <div ref={sentinelRef} className="flex items-center justify-center py-4">
+              {isLoadingMore ? (
+                <Icon name="Loader2" size={20} className="animate-spin text-primary" />
+              ) : (
+                <Button variant="ghost" size="sm" onClick={loadMoreLogs}>Показать ещё</Button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </Card>

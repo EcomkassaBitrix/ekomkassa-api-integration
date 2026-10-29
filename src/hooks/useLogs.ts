@@ -13,6 +13,9 @@ interface LogMessage {
   details?: LogMessage;
 }
 
+const PAGE_SIZE = 50;
+const LOGS_URL = 'https://functions.poehali.dev/3f1bb824-7d73-4f4b-aa7a-dcbb53e38309';
+
 export const useLogs = () => {
   const [logs, setLogs] = useState<LogMessage[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
@@ -20,11 +23,13 @@ export const useLogs = () => {
   const [selectedLog, setSelectedLog] = useState<LogMessage | null>(null);
   const [logDetailsDialogOpen, setLogDetailsDialogOpen] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
   const loadLogs = async () => {
     setIsLoadingLogs(true);
     try {
-      const response = await fetch('https://functions.poehali.dev/3f1bb824-7d73-4f4b-aa7a-dcbb53e38309?limit=50', {
+      const response = await fetch(`${LOGS_URL}?limit=${PAGE_SIZE}`, {
         headers: {
           'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8'
         }
@@ -32,11 +37,35 @@ export const useLogs = () => {
       const data = await response.json();
       if (data.success) {
         setLogs(data.messages || []);
+        setHasMore(!!data.has_more);
       }
     } catch (error) {
       console.error('Failed to load logs:', error);
     } finally {
       setIsLoadingLogs(false);
+    }
+  };
+
+  const loadMoreLogs = async () => {
+    if (isLoadingMore || isLoadingLogs || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(`${LOGS_URL}?limit=${PAGE_SIZE}&offset=${logs.length}`, {
+        headers: { 'X-Api-Key': 'ek_live_j8h3k2n4m5p6q7r8' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const incoming: LogMessage[] = data.messages || [];
+        setLogs((prev) => {
+          const seen = new Set(prev.map((l) => l.message_id));
+          return [...prev, ...incoming.filter((l) => !seen.has(l.message_id))];
+        });
+        setHasMore(!!data.has_more);
+      }
+    } catch (error) {
+      console.error('Failed to load more logs:', error);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -101,6 +130,9 @@ export const useLogs = () => {
     logDetailsDialogOpen,
     loadingDetails,
     loadLogs,
+    loadMoreLogs,
+    isLoadingMore,
+    hasMore,
     retryMessage,
     openLogDetails,
     setLogDetailsDialogOpen,

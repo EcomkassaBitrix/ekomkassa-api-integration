@@ -51,6 +51,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     query_params = event.get('queryStringParameters') or {}
     limit = int(query_params.get('limit', 50))
     limit = min(max(limit, 1), 100)
+    offset = max(int(query_params.get('offset', 0)), 0)
     message_id = query_params.get('message_id')
     
     conn = psycopg2.connect(
@@ -161,11 +162,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         SELECT message_id, recipient, provider, status, attempts, max_attempts, created_at 
         FROM messages 
         ORDER BY created_at DESC 
-        LIMIT {limit}
+        LIMIT {limit + 1} OFFSET {offset}
         """
     )
     
     rows = cursor.fetchall()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
     messages = []
     
     for row in rows:
@@ -191,7 +194,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         'body': json.dumps({
             'success': True,
             'messages': messages,
-            'count': len(messages)
+            'count': len(messages),
+            'has_more': has_more
         }),
         'isBase64Encoded': False
     }
