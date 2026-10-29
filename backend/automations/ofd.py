@@ -21,7 +21,7 @@ FIELDS = [
     ('Name', 'Имя пользователя (необязательно)'),
     ('Phone', 'Телефон (необязательно)'),
 ]
-ACTIONS = {'ofd-meta', 'ofd-settings', 'ofd-preview', 'ofd-register', 'ofd-history', 'ofd-hook', 'ofd-retry'}
+ACTIONS = {'ofd-meta', 'ofd-settings', 'ofd-preview', 'ofd-register', 'ofd-history', 'ofd-hook'}
 REQUESTS_PER_SERIES = 3
 MAX_SERIES = 2
 RETRY_MINUTES = 15
@@ -318,16 +318,6 @@ def handle(event, action):
 
     conn = db()
     try:
-        if action == 'ofd-retry':
-            given = params.get('key') or headers.get('x-hook-key') or headers.get('x-api-key') or ''
-            if not hook_key_valid(conn, given):
-                return resp(401, {'ok': False, 'error': 'Неверный ключ'})
-            bx = Bitrix()
-            if not bx.url.startswith('http'):
-                return resp(400, {'ok': False, 'error': 'Не задан BITRIX_WEBHOOK_URL'})
-            done = run_retries(conn, bx)
-            return resp(200, {'ok': True, 'retried': done})
-
         if action == 'ofd-hook':
             given = params.get('key') or headers.get('x-hook-key') or headers.get('x-api-key') or ''
             if not hook_key_valid(conn, given):

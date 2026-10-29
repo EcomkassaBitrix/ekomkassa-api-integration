@@ -59,16 +59,6 @@
       "method": "GET",
       "path": "/?action=fns-poll",
       "expectedStatus": 401
-    },
-    {
-      "name": "Ofd retry without key",
-      "method": "GET",
-      "path": "/?action=ofd-retry",
-      "expectedStatus": 401,
-      "expectedBody": {
-        "ok": false
-      },
-      "bodyMatcher": "partial"
     }
   ]
 }
