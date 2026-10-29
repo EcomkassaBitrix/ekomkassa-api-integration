@@ -386,9 +386,9 @@ def handle(event, action):
             return resp(200, {'settings': get_settings(conn)})
 
         if action == 'ofd-history':
-            cur = conn.cursor()
-            cur.execute("SELECT id, deal_id, status, inn, email, agreement_id, error_message, source, created_at FROM ofd_registrations ORDER BY created_at DESC LIMIT 20")
-            return resp(200, {'history': cur.fetchall()})
+            return resp(200, payti.history_page(conn, params, 'ofd_registrations',
+                'id, deal_id, status, inn, email, agreement_id, error_message, source, created_at',
+                ['deal_id', 'email', 'inn', 'agreement_id', 'error_message']))
 
         bx = Bitrix()
         if not bx.url.startswith('http'):

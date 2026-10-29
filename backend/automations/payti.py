@@ -673,6 +673,45 @@ def parse_deal_id(params, body_raw, headers):
     return ''
 
 
+def history_page(conn, params, table, columns, search_cols):
+    try:
+        limit = min(max(int(params.get('limit') or 50), 1), 100)
+        offset = max(int(params.get('offset') or 0), 0)
+        days = int(params.get('days') or 0)
+    except ValueError:
+        limit, offset, days = 50, 0, 0
+    where, vals = [], []
+    for key in ('status', 'source', 'environment'):
+        v = (params.get(key) or '').strip()
+        if v and key in columns.split(', '):
+            where.append(f'{key} = %s')
+            vals.append(v)
+    if days > 0:
+        where.append("created_at >= NOW() - (%s * INTERVAL '1 day')")
+        vals.append(days)
+    q = (params.get('q') or '').strip()
+    if q:
+        like = '%' + q.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+        where.append('(' + ' OR '.join(f'COALESCE({c}::text, \'\') ILIKE %s' for c in search_cols) + ')')
+        vals.extend([like] * len(search_cols))
+    where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+    cur = conn.cursor()
+    out = {}
+    if offset == 0:
+        cur.execute(f'SELECT COUNT(*) AS c FROM {table} {where_sql}', vals)
+        out['total'] = cur.fetchone()['c']
+        cur.execute(f'SELECT DISTINCT status FROM {table} WHERE status IS NOT NULL ORDER BY status')
+        out['statuses'] = [r['status'] for r in cur.fetchall()]
+        cur.execute(f'SELECT DISTINCT source FROM {table} WHERE source IS NOT NULL ORDER BY source')
+        out['sources'] = [r['source'] for r in cur.fetchall()]
+    cur.execute(f'SELECT {columns} FROM {table} {where_sql} ORDER BY created_at DESC, id DESC LIMIT {limit + 1} OFFSET {offset}', vals)
+    rows = cur.fetchall()
+    cur.close()
+    out['has_more'] = len(rows) > limit
+    out['history'] = rows[:limit]
+    return out
+
+
 def handle(event, action):
     method = event.get('httpMethod', 'GET')
     params = event.get('queryStringParameters') or {}
@@ -750,9 +789,9 @@ def handle(event, action):
             return resp(200, {'settings': get_settings(conn)})
 
         if action == 'history':
-            cur = conn.cursor()
-            cur.execute("SELECT id, deal_id, environment, registration_mode, status, login, firm_id, store_id, error_message, source, created_at FROM payti_registrations ORDER BY created_at DESC LIMIT 20")
-            return resp(200, {'history': cur.fetchall()})
+            return resp(200, history_page(conn, params, 'payti_registrations',
+                'id, deal_id, environment, registration_mode, status, login, firm_id, store_id, error_message, source, created_at',
+                ['deal_id', 'login', 'firm_id', 'store_id', 'error_message', 'tax_id']))
 
         bx = Bitrix()
         if not bx.url.startswith('http'):

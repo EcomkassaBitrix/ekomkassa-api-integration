@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,22 +49,95 @@ const SOURCE: Record<string, string> = {
   import: 'Старая база',
 };
 
+const PAGE_SIZE = 50;
+
 const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
   const [items, setItems] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState<number | null>(null);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [source, setSource] = useState('all');
+  const [period, setPeriod] = useState('all');
   const [detailId, setDetailId] = useState<number | null>(null);
   const isPayti = action === 'history';
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const reqId = useRef(0);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const hasFilters = search !== '' || status !== 'all' || source !== 'all' || period !== 'all';
+
+  const buildQuery = (offset: number) => {
+    const q = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
+    if (search.trim()) q.set('q', search.trim());
+    if (status !== 'all') q.set('status', status);
+    if (source !== 'all') q.set('source', source);
+    const days = { day: 1, week: 7, month: 30 }[period];
+    if (days) q.set('days', String(days));
+    return q.toString();
+  };
 
   const load = async () => {
+    const id = ++reqId.current;
     setLoading(true);
-    const d = await paytiFetch(action);
+    const d = await paytiFetch(action, { query: buildQuery(0) });
+    if (id !== reqId.current) return;
     setItems(d.history || []);
+    setHasMore(!!d.has_more);
+    setTotal(typeof d.total === 'number' ? d.total : null);
+    if (Array.isArray(d.statuses)) setStatuses(d.statuses);
+    if (Array.isArray(d.sources)) setSources(d.sources);
     setLoading(false);
   };
 
+  const loadMore = async () => {
+    if (loading || loadingMore || !hasMore) return;
+    const id = reqId.current;
+    setLoadingMore(true);
+    const d = await paytiFetch(action, { query: buildQuery(itemsRef.current.length) });
+    if (id === reqId.current) {
+      const incoming: Attempt[] = d.history || [];
+      setItems((prev) => {
+        const seen = new Set(prev.map((x) => x.id));
+        return [...prev, ...incoming.filter((x) => !seen.has(x.id))];
+      });
+      setHasMore(!!d.has_more);
+    }
+    setLoadingMore(false);
+  };
+
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+
   useEffect(() => {
-    load();
-  }, [action, refreshKey]);
+    const t = setTimeout(load, 350);
+    return () => clearTimeout(t);
+  }, [action, refreshKey, search, status, source, period]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (e) => {
+        if (e[0].isIntersecting) loadMoreRef.current();
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, items.length]);
+
+  const reset = () => {
+    setSearch('');
+    setStatus('all');
+    setSource('all');
+    setPeriod('all');
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -72,6 +147,47 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
           <Icon name="RefreshCw" size={14} className={loading ? 'animate-spin' : ''} />
           Обновить
         </Button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border">
+        <div className="relative flex-1 min-w-[220px]">
+          <Icon name="Search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={isPayti ? 'Поиск по сделке, логину, ошибке' : 'Поиск по сделке, email, ИНН, ошибке'}
+            className="pl-9"
+          />
+        </div>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-[190px]"><SelectValue placeholder="Статус" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все статусы</SelectItem>
+            {statuses.map((x) => <SelectItem key={x} value={x}>{STATUS[x] || x}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={source} onValueChange={setSource}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Источник" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все источники</SelectItem>
+            {sources.map((x) => <SelectItem key={x} value={x}>{SOURCE[x] || x}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Период" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">За всё время</SelectItem>
+            <SelectItem value="day">За 24 часа</SelectItem>
+            <SelectItem value="week">За 7 дней</SelectItem>
+            <SelectItem value="month">За 30 дней</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={reset}>
+            <Icon name="X" size={14} className="mr-1" />
+            Сбросить
+          </Button>
+        )}
+        <span className="text-sm text-muted-foreground ml-auto">{total !== null ? `Найдено: ${total}` : `Показано: ${items.length}`}</span>
       </div>
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-muted-foreground">
@@ -90,7 +206,7 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
           {items.length === 0 && (
             <tr>
               <td colSpan={isPayti ? 8 : 6} className="text-center py-10 text-muted-foreground">
-                {loading ? 'Загружаю...' : 'Попыток пока не было'}
+                {loading ? 'Загружаю...' : hasFilters ? 'Ничего не найдено' : 'Попыток пока не было'}
               </td>
             </tr>
           )}
@@ -113,6 +229,15 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
           ))}
         </tbody>
       </table>
+      {hasMore && (
+        <div ref={sentinelRef} className="flex items-center justify-center py-4">
+          {loadingMore ? (
+            <Icon name="Loader2" size={20} className="animate-spin text-primary" />
+          ) : (
+            <Button variant="ghost" size="sm" onClick={loadMore}>Показать ещё</Button>
+          )}
+        </div>
+      )}
       <AttemptDetailDialog kind={isPayti ? 'payti' : 'ofd'} id={detailId} onClose={() => setDetailId(null)} />
     </Card>
   );
