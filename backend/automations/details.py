@@ -1,6 +1,8 @@
 from payti import db, digits, resp
 
-ACTIONS = {'attempt-detail'}
+ACTIONS = {'attempt-detail', 'hook-log'}
+
+HOOK_KINDS = {'payti': 'hook', 'ofd': 'ofd-hook', 'fns': 'fns-hook'}
 
 QUERIES = {
     'payti': """SELECT id, deal_id, status, environment, registration_mode, login, tax_id, firm_id, store_id, http_status,
@@ -25,6 +27,19 @@ def handle(event, action):
         if not cur.fetchone():
             return resp(401, {'error': 'Invalid API key'})
         kind = params.get('kind', '')
+        if action == 'hook-log':
+            if kind not in HOOK_KINDS:
+                return resp(400, {'error': 'Unknown kind'})
+            try:
+                limit = min(max(int(params.get('limit') or 30), 1), 100)
+            except ValueError:
+                limit = 30
+            cur.execute(
+                "SELECT id, deal_id, key_given, result_status, result_text, params_masked, source_ip, user_agent, created_at "
+                "FROM hook_log WHERE action = %s AND http_method <> 'OPTIONS' ORDER BY id DESC LIMIT %s",
+                (HOOK_KINDS[kind], limit),
+            )
+            return resp(200, {'items': cur.fetchall()})
         if kind not in QUERIES:
             return resp(400, {'error': 'Unknown kind'})
         cur.execute(QUERIES[kind], (digits(params.get('id')) or '0',))

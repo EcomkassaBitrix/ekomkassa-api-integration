@@ -8,6 +8,7 @@ import { paytiFetch, PAYTI_URL } from './PaytiSettingsDialog';
 import AttemptsHistory from './AttemptsHistory';
 import HookCollapsible from './HookCollapsible';
 import OfdSettingsDialog from './OfdSettingsDialog';
+import HookLog from './HookLog';
 
 interface FieldRow {
   path: string;
@@ -226,6 +227,7 @@ const OfdConsole = () => {
       </Card>
 
       <AttemptsHistory action="ofd-history" refreshKey={historyKey} />
+      <HookLog kind="ofd" refreshKey={historyKey} />
 
       <OfdSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} meta={meta} onSaved={loadMeta} />
     </div>

@@ -8,6 +8,7 @@ import { paytiFetch, PAYTI_URL } from './PaytiSettingsDialog';
 import HookCollapsible from './HookCollapsible';
 import FnsSettingsDialog from './FnsSettingsDialog';
 import FnsJournal from './FnsJournal';
+import HookLog from './HookLog';
 
 interface FieldRow {
   path: string;
@@ -297,6 +298,7 @@ const FnsConsole = () => {
       )}
 
       <FnsJournal refreshKey={journalKey} baseUrl={window.location.origin} />
+      <HookLog kind="fns" refreshKey={journalKey} />
 
       <FnsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} meta={meta} onSaved={loadMeta} />
     </div>

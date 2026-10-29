@@ -59,6 +59,16 @@
       "method": "GET",
       "path": "/?action=fns-poll",
       "expectedStatus": 401
+    },
+    {
+      "name": "Hook log without API key",
+      "method": "GET",
+      "path": "/?action=hook-log&kind=payti",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Invalid API key"
+      },
+      "bodyMatcher": "partial"
     }
   ]
 }

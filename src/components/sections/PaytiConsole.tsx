@@ -7,6 +7,7 @@ import Icon from '@/components/ui/icon';
 import PaytiSettingsDialog, { paytiFetch, PAYTI_URL } from './PaytiSettingsDialog';
 import AttemptsHistory from './AttemptsHistory';
 import HookCollapsible from './HookCollapsible';
+import HookLog from './HookLog';
 
 interface FieldRow {
   path: string;
@@ -311,6 +312,7 @@ const PaytiConsole = () => {
       </Card>
 
       <AttemptsHistory action="history" refreshKey={historyKey} />
+      <HookLog kind="payti" refreshKey={historyKey} />
 
       <PaytiSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} meta={meta} onSaved={loadMeta} />
     </div>
