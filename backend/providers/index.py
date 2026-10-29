@@ -246,27 +246,32 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                             if last_status == 'success' and last_code == 200:
                                 connection_status = 'working'
                             else:
-                                # Check if error is about recipient, not provider configuration
                                 combined_text = f"{last_error or ''} {last_response or ''}".lower()
-                                is_recipient_error = any(phrase in combined_text for phrase in [
-                                    'contact not found',
-                                    'not found by phone',
-                                    'phone_not_occupied',
-                                    'peer_id_invalid',
-                                    'user_not_mutual_contact',
-                                    'user_is_blocked',
-                                    'chat_write_forbidden',
-                                    'invalid phone',
-                                    'invalid recipient',
-                                    'not registered'
+                                try:
+                                    code_num = int(last_code) if last_code is not None else 0
+                                except (TypeError, ValueError):
+                                    code_num = 0
+                                is_service_error = code_num >= 500 or code_num in (401, 403) or any(phrase in combined_text for phrase in [
+                                    'timeout',
+                                    'timed out',
+                                    'connection error',
+                                    'connection refused',
+                                    'max retries exceeded',
+                                    'name resolution',
+                                    'bad gateway',
+                                    'service unavailable',
+                                    'gateway time-out',
+                                    'invalid api key',
+                                    'unauthorized',
+                                    'authentication failed',
+                                    'insufficient balance',
+                                    'profile not paid'
                                 ])
-                                
-                                # If it's a recipient error, provider is still configured correctly
-                                # Errors like "profile not paid" or "insufficient balance" are integration issues
-                                if is_recipient_error:
-                                    connection_status = 'configured'
-                                else:
+
+                                if is_service_error:
                                     connection_status = 'error'
+                                else:
+                                    connection_status = 'configured'
                         # Otherwise keep stored connection_status (configured after recent update)
                     # Otherwise keep stored connection_status (configured/not_configured)
                     
