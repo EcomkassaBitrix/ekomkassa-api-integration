@@ -2,6 +2,7 @@ import json
 import os
 import time
 import uuid
+import re
 import requests
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
@@ -577,12 +578,47 @@ def simulate_provider_send(provider: str, recipient: str, message: str) -> Tuple
     else:
         return 500, json.dumps({"success": False, "error": "Provider temporary unavailable"})
 
+EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-']+@[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$")
+BAD_DOMAINS = {
+    'gmail.con', 'gmail.ru', 'gmial.com', 'gmai.com', 'gmail.comm', 'gamil.com',
+    'mail.ry', 'mail.ri', 'mail.con', 'yandex.ry', 'yandex.con', 'yande.ru', 'yadex.ru',
+    'yahho.com', 'hotmial.com', 'outlok.com', 'icloud.con', 'bk.ry', 'list.ry', 'inbox.ry',
+}
+
+
+def email_problem(value: str) -> Optional[str]:
+    value = (value or '').strip()
+    if not EMAIL_RE.match(value) or '..' in value or len(value) > 254:
+        return 'Некорректный адрес электронной почты'
+    domain = value.rsplit('@', 1)[1].lower()
+    if domain in BAD_DOMAINS:
+        return f'Похоже на опечатку в домене: {domain}'
+    return None
+
+
+def is_permanent_failure(status_code: int) -> bool:
+    return 400 <= status_code < 500 and status_code not in (408, 429)
+
+
+def quota_blocked(provider: str, conn) -> bool:
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT 1 FROM delivery_attempts
+        WHERE provider = %s AND attempted_at > NOW() - INTERVAL '30 minutes'
+        AND response_body ILIKE '%%quota exceeded%%' LIMIT 1""",
+        (provider,)
+    )
+    row = cur.fetchone()
+    cur.close()
+    return row is not None
+
+
 def attempt_delivery(message_id: str, provider: str, recipient: str, 
                     message_text: str, attempt_number: int, conn,
                     template_name: Optional[str] = None, template_data: Optional[Dict] = None,
                     subject: Optional[str] = None, title: Optional[str] = None,
-                    data: Optional[Dict] = None) -> Tuple[bool, Optional[str]]:
-    """Пытается доставить сообщение"""
+                    data: Optional[Dict] = None) -> Tuple[bool, Optional[str], bool]:
+    """Пытается доставить сообщение. Третье значение — ошибка окончательная, повторять не нужно"""
     start_time = time.time()
     
     try:
@@ -617,19 +653,19 @@ def attempt_delivery(message_id: str, provider: str, recipient: str,
         if status_code == 200:
             log_attempt(message_id, attempt_number, provider, 'success', 
                        status_code, response_body, None, duration_ms, conn)
-            return True, None
+            return True, None, False
         else:
             error_msg = f"Provider returned status {status_code}"
             log_attempt(message_id, attempt_number, provider, 'failed', 
                        status_code, response_body, error_msg, duration_ms, conn)
-            return False, error_msg
+            return False, error_msg, is_permanent_failure(status_code)
             
     except Exception as e:
         duration_ms = int((time.time() - start_time) * 1000)
         error_msg = str(e)
         log_attempt(message_id, attempt_number, provider, 'error', 
                    None, '', error_msg, duration_ms, conn)
-        return False, error_msg
+        return False, error_msg, False
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -754,19 +790,51 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'isBase64Encoded': False
             }
         
+        cur = conn.cursor()
+        cur.execute("SELECT provider_type FROM providers WHERE provider_code = %s", (provider,))
+        type_row = cur.fetchone()
+        cur.close()
+        provider_type = type_row['provider_type'] if type_row else None
+
+        if provider_type == 'yandex_postbox':
+            problem = email_problem(recipient)
+            if problem:
+                conn.close()
+                return {
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'success': False, 'status': 'invalid_recipient', 'error': problem, 'recipient': recipient}),
+                    'isBase64Encoded': False
+                }
+            recipient = recipient.strip()
+
         message_id = f"msg_{uuid.uuid4().hex[:16]}"
-        
+
+        if provider_type == 'yandex_postbox' and quota_blocked(provider, conn):
+            save_message(message_id, provider, recipient, message_text, metadata, conn)
+            update_message_status(message_id, 'failed', 0, 'Дневной лимит отправки почты исчерпан', conn)
+            conn.close()
+            return {
+                'statusCode': 429,
+                'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                'body': json.dumps({'success': False, 'message_id': message_id, 'status': 'quota_exceeded',
+                                    'error': 'Дневной лимит отправки почты исчерпан, попробуйте позже'}),
+                'isBase64Encoded': False
+            }
+
         save_message(message_id, provider, recipient, message_text, metadata, conn)
         
         max_attempts = 3
         retry_delays = [0, 1, 3]
         
         last_error = None
+        made_attempts = 0
         for attempt in range(1, max_attempts + 1):
             if attempt > 1:
                 time.sleep(retry_delays[attempt - 1])
             
-            success, error = attempt_delivery(
+            made_attempts = attempt
+            success, error, permanent = attempt_delivery(
                 message_id, provider, recipient, message_text, attempt, conn,
                 template_name=template_name, template_data=template_data, subject=subject,
                 title=title, data=data
@@ -790,8 +858,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             
             last_error = error
+            if permanent:
+                break
         
-        update_message_status(message_id, 'failed', max_attempts, last_error, conn)
+        update_message_status(message_id, 'failed', made_attempts, last_error, conn)
         conn.close()
         
         return {
@@ -802,9 +872,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'message_id': message_id,
                 'provider': provider,
                 'status': 'failed',
-                'attempts': max_attempts,
+                'attempts': made_attempts,
                 'error': last_error,
-                'message': f'Failed to deliver after {max_attempts} attempts. Message saved for manual retry.'
+                'message': f'Failed to deliver after {made_attempts} attempts. Message saved for manual retry.'
             }),
             'isBase64Encoded': False
         }
