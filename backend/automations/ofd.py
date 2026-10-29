@@ -3,6 +3,7 @@ import hmac
 import json
 import os
 import re
+from datetime import datetime, timedelta
 
 import requests
 from psycopg2.extras import Json
@@ -19,7 +20,9 @@ FIELDS = [
     ('Name', 'Имя пользователя (необязательно)'),
     ('Phone', 'Телефон (необязательно)'),
 ]
-ACTIONS = {'ofd-meta', 'ofd-settings', 'ofd-preview', 'ofd-register', 'ofd-history', 'ofd-hook'}
+ACTIONS = {'ofd-meta', 'ofd-settings', 'ofd-preview', 'ofd-register', 'ofd-history', 'ofd-hook', 'ofd-retry'}
+MAX_ATTEMPTS = 3
+RETRY_MINUTES = 1
 
 
 def get_settings(conn):
@@ -110,16 +113,17 @@ def build_payload(values):
     return body
 
 
-def save_attempt(conn, ctx, status, values, source, payload, http_status=None, code=None, msg=None, body=None, agreement=None):
+def save_attempt(conn, ctx, status, values, source, payload, http_status=None, code=None, msg=None, body=None, agreement=None, attempt=1, retry=False):
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO ofd_registrations
         (deal_id, company_id, contact_id, requisite_id, status, inn, email, agreement_id, http_status,
-         error_code, error_message, request_payload, response_payload, source)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+         error_code, error_message, request_payload, response_payload, source, attempt, next_retry_at, retry_done)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
         (ctx['deal_id'], str(ctx.get('company_id') or ''), str(ctx.get('contact_id') or ''), str(ctx.get('requisite_id') or ''),
          status, values.get('Inn'), values.get('Email'), agreement, http_status, code, msg,
-         Json(payload), Json(body) if body is not None else None, source),
+         Json(payload), Json(body) if body is not None else None, source, attempt,
+         datetime.utcnow() + timedelta(minutes=RETRY_MINUTES) if retry else None, not retry),
     )
     conn.commit()
     cur.close()
@@ -148,36 +152,86 @@ def error_text(body, http_status):
     return '', f'ОФД вернул {http_status}'
 
 
-def do_register(conn, bx, deal_id, overrides, force, source):
+def msk_now():
+    return (datetime.utcnow() + timedelta(hours=3)).strftime('%d.%m.%Y %H:%M:%S')
+
+
+STATUS_TEXT = {
+    'success': 'кабинет создан',
+    'already_exists': 'кабинет уже существует в ОФД',
+    'ofd_validation_error': 'ОФД отклонил данные',
+    'temporary_error': 'временная ошибка ОФД',
+    'validation_failed': 'не заполнены данные',
+    'already_registered': 'кабинет по сделке уже создан ранее',
+    'error': 'ошибка',
+}
+
+
+def crm_log(bx, deal_id, steps, attempt, status, source, values=None, http_status=None, code=None, err=None, agreement=None, next_retry=False, extra=''):
+    lines = ['ОФД.ру', f'Попытка {attempt} из {MAX_ATTEMPTS}' if status == 'temporary_error' or attempt > 1 else 'Запрос на создание кабинета',
+             f'Результат: {STATUS_TEXT.get(status, status)}', f'Время (МСК): {msk_now()}', f'Источник: {source}']
+    if values:
+        if values.get('Inn'):
+            lines.append(f"ИНН: {values['Inn']}")
+        if values.get('Email'):
+            lines.append(f"Email: {values['Email']}")
+    if http_status:
+        lines.append(f'HTTP: {http_status}')
+    if code:
+        lines.append(f'Код ОФД: {code}')
+    if err:
+        lines.append(f'Сообщение: {err}')
+    if agreement:
+        lines.append(f'OfdAgreementId: {agreement}')
+    if status == 'success':
+        lines.append('Клиенту отправлено письмо со ссылкой для создания логина и пароля.')
+    if next_retry:
+        lines.append(f'Следующая попытка примерно через {RETRY_MINUTES} мин.')
+    elif status == 'temporary_error':
+        lines.append(f'Все {MAX_ATTEMPTS} попытки исчерпаны. Кабинет мог частично создаться: проверьте в ОФД перед ручным повтором.')
+    if extra:
+        lines.append(extra)
+    payti.comment(bx, deal_id, '\n'.join(lines), steps)
+
+
+def do_register(conn, bx, deal_id, overrides, force, source, attempt=1, saved_payload=None):
     steps = []
-    result = {'ok': False, 'dealId': deal_id, 'steps': steps}
+    result = {'ok': False, 'dealId': deal_id, 'steps': steps, 'attempt': attempt}
     cur = conn.cursor()
     cur.execute("SELECT agreement_id, email FROM ofd_registrations WHERE deal_id = %s AND status = 'success' ORDER BY id DESC LIMIT 1", (str(deal_id),))
     prev = cur.fetchone()
     cur.close()
     if prev and not force:
+        crm_log(bx, deal_id, steps, attempt, 'already_registered', source, {'Email': prev['email']}, agreement=prev['agreement_id'])
         result.update(status='already_registered', agreementId=prev['agreement_id'], email=prev['email'],
                       error='По этой сделке кабинет в ОФД уже создан')
         return result
 
-    settings, ctx, rows, values, errors = prepare(conn, bx, deal_id, overrides, steps)
-    payload = build_payload(values)
+    if saved_payload:
+        payload = saved_payload
+        ctx = {'deal_id': str(deal_id)}
+        values = {'Inn': payload.get('Inn'), 'Email': payload.get('Email')}
+        errors = []
+    else:
+        settings, ctx, rows, values, errors = prepare(conn, bx, deal_id, overrides, steps)
+        payload = build_payload(values)
     result['email'] = values.get('Email')
 
     if errors:
-        payti.comment(bx, deal_id, 'ОФД.ру\nКабинет не создан, не заполнены данные:\n- ' + '\n- '.join(errors), steps)
-        save_attempt(conn, ctx, 'validation_failed', values, source, payload, code='validation_failed', msg='; '.join(errors))
+        crm_log(bx, deal_id, steps, attempt, 'validation_failed', source, values, err='; '.join(errors))
+        save_attempt(conn, ctx, 'validation_failed', values, source, payload, code='validation_failed', msg='; '.join(errors), attempt=attempt)
         result.update(status='validation_failed', error='; '.join(errors))
         return result
 
     token = os.environ.get('OFD_API_KEY', '')
     if not token:
+        crm_log(bx, deal_id, steps, attempt, 'error', source, values, err='Не задан секрет OFD_API_KEY')
         result.update(status='error', error='Не задан секрет OFD_API_KEY')
         return result
 
     http_status, body, status, err, code, agreement = None, None, 'temporary_error', None, None, None
     try:
-        r = requests.post(OFD_URL, params={'AuthToken': token}, json=payload, timeout=10)
+        r = requests.post(OFD_URL, params={'AuthToken': token}, json=payload, timeout=4)
         http_status = r.status_code
         try:
             body = r.json()
@@ -194,22 +248,39 @@ def do_register(conn, bx, deal_id, overrides, force, source):
                 status = 'ofd_validation_error'
     except Exception as e:
         err = f'Сеть или таймаут: {e}'
-    steps.append({'step': 'Запрос в ОФД', 'ok': status == 'success', 'info': f'{status} ({http_status})'})
-    save_attempt(conn, ctx, status, values, source, payload, http_status, code, err, body, agreement)
+    will_retry = status == 'temporary_error' and attempt < MAX_ATTEMPTS
+    steps.append({'step': 'Запрос в ОФД', 'ok': status == 'success', 'info': f'{status} ({http_status}), попытка {attempt}'})
+    save_attempt(conn, ctx, status, values, source, payload, http_status, code, err, body, agreement, attempt=attempt, retry=will_retry)
 
     if status == 'success':
+        settings = get_settings(conn)
         if settings.get('result_agreement_field') and agreement:
             try:
                 bx.call('crm.deal.update', {'id': deal_id, 'fields': {settings['result_agreement_field']: agreement}})
             except Exception as e:
                 steps.append({'step': 'Запись в сделку', 'ok': False, 'info': str(e)})
-        payti.comment(bx, deal_id, f"ОФД.ру\nЛичный кабинет создан\nEmail: {values['Email']}\nИНН: {values['Inn']}\nOfdAgreementId: {agreement}\nКлиенту отправлено письмо со ссылкой для создания логина и пароля.", steps)
         result.update(ok=True, status='success', agreementId=agreement, response=body)
     else:
-        warn = '\nВнимание: кабинет мог частично создаться, проверьте перед повтором.' if (http_status or 0) >= 500 else ''
-        payti.comment(bx, deal_id, f'ОФД.ру\nКабинет не создан: {status}. {err or ""}{warn}', steps)
         result.update(status=status, error=err, response=body)
+    crm_log(bx, deal_id, steps, attempt, status, source, values, http_status, code, err, agreement, next_retry=will_retry)
+    result['willRetry'] = will_retry
     return result
+
+
+def run_retries(conn, bx, limit=3):
+    cur = conn.cursor()
+    cur.execute(
+        """UPDATE ofd_registrations SET retry_done = TRUE WHERE id IN (
+        SELECT id FROM ofd_registrations WHERE retry_done = FALSE AND next_retry_at IS NOT NULL AND next_retry_at <= NOW()
+        ORDER BY next_retry_at LIMIT %s FOR UPDATE SKIP LOCKED) RETURNING id, deal_id, attempt, request_payload""", (limit,))
+    rows = cur.fetchall()
+    conn.commit()
+    cur.close()
+    out = []
+    for row in rows:
+        res = do_register(conn, bx, row['deal_id'], {}, False, 'retry', attempt=int(row['attempt'] or 1) + 1, saved_payload=row['request_payload'])
+        out.append({'dealId': row['deal_id'], 'attempt': res.get('attempt'), 'status': res.get('status'), 'willRetry': res.get('willRetry', False)})
+    return out
 
 
 def handle(event, action):
@@ -221,6 +292,16 @@ def handle(event, action):
 
     conn = db()
     try:
+        if action == 'ofd-retry':
+            given = params.get('key') or headers.get('x-hook-key') or headers.get('x-api-key') or ''
+            if not hook_key_valid(conn, given):
+                return resp(401, {'ok': False, 'error': 'Неверный ключ'})
+            bx = Bitrix()
+            if not bx.url.startswith('http'):
+                return resp(400, {'ok': False, 'error': 'Не задан BITRIX_WEBHOOK_URL'})
+            done = run_retries(conn, bx)
+            return resp(200, {'ok': True, 'retried': done})
+
         if action == 'ofd-hook':
             given = params.get('key') or headers.get('x-hook-key') or headers.get('x-api-key') or ''
             if not hook_key_valid(conn, given):
@@ -230,7 +311,8 @@ def handle(event, action):
                 return resp(400, {'ok': False, 'error': 'Не указан номер сделки'})
             result = do_register(conn, Bitrix(), deal_id, {}, False, 'hook')
             return resp(200, {'ok': result.get('ok', False), 'status': result.get('status'), 'dealId': deal_id,
-                              'email': result.get('email'), 'agreementId': result.get('agreementId'), 'error': result.get('error')})
+                              'email': result.get('email'), 'agreementId': result.get('agreementId'), 'error': result.get('error'),
+                              'attempt': result.get('attempt'), 'willRetry': result.get('willRetry', False)})
 
         cur = conn.cursor()
         cur.execute("SELECT id FROM api_keys WHERE api_key = %s AND is_active = true", (headers.get('x-api-key') or '',))
