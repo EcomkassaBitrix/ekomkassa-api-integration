@@ -6,6 +6,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import boto3
+import psycopg2
 from psycopg2.extras import Json
 
 from payti import Bitrix, db, digits, hook_key_valid, parse_deal_id, resp
@@ -370,7 +371,6 @@ def do_book(conn, bx, token, start_iso):
     tz = ZoneInfo(settings['timezone'])
     day = to_local(start, tz).date()
     cur = conn.cursor()
-    cur.execute('SELECT pg_advisory_xact_lock(4711)')
     slots, _ = compute_slots(conn, bx, settings, service, day, day, b)
     free = next((f for s, f in slots if s == start), None)
     if not free:
@@ -383,12 +383,23 @@ def do_book(conn, bx, token, start_iso):
     load = {r['employee_id']: r['c'] for r in cur.fetchall()}
     emp = sorted(free, key=lambda e: (load.get(e, 0), e))[0]
     end = start + timedelta(minutes=service['duration_min'])
-    cur.execute(
-        "UPDATE slot_bookings SET status = 'booked', employee_id = %s, employee_name = %s, start_at = %s, end_at = %s, "
-        "reschedule_count = reschedule_count + %s, updated_at = NOW() WHERE id = %s",
-        (emp, emp_name(settings, emp), start, end, 1 if was_booked else 0, b['id']),
-    )
-    conn.commit()
+    try:
+        cur.execute(
+            "UPDATE slot_bookings SET status = 'booked', employee_id = %s, employee_name = %s, start_at = %s, end_at = %s, "
+            "reschedule_count = reschedule_count + %s, updated_at = NOW() WHERE id = %s",
+            (emp, emp_name(settings, emp), start, end, 1 if was_booked else 0, b['id']),
+        )
+        cur.execute(
+            "SELECT 1 FROM slot_bookings WHERE status = 'booked' AND employee_id = %s AND id <> %s AND start_at < %s AND end_at > %s LIMIT 1",
+            (emp, b['id'], end, start),
+        )
+        if cur.fetchone():
+            conn.rollback()
+            return 409, {'ok': False, 'error': 'Это время уже занято. Выберите другое', 'taken': True}
+        conn.commit()
+    except psycopg2.errors.UniqueViolation:
+        conn.rollback()
+        return 409, {'ok': False, 'error': 'Это время уже занято. Выберите другое', 'taken': True}
     cur.close()
     add_event(conn, b['id'], 'Перенос времени' if was_booked else 'Запись клиента', True, f"{fmt_local(start, tz)} · {emp_name(settings, emp)}")
     crm_after_booking(conn, bx, settings, service, b, emp, start, end, was_booked)

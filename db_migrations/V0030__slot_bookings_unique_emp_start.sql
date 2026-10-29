@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS uq_slot_bookings_emp_start ON t_p25765938_ekomkassa_api_integr.slot_bookings (employee_id, start_at) WHERE status = 'booked';

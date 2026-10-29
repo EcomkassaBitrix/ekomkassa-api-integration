@@ -92,7 +92,15 @@ const BookPage = () => {
   const book = async () => {
     setBusy(true);
     setError('');
-    const { code, data } = await call('slots-public-book', token, { body: { start: picked } });
+    let code = 0;
+    let data: any = {};
+    try {
+      const r = await call('slots-public-book', token, { body: { start: picked } });
+      code = r.code;
+      data = r.data;
+    } catch {
+      data = { error: 'Не удалось записаться. Попробуйте ещё раз' };
+    }
     setBusy(false);
     if (code === 200) {
       setInfo(data);
