@@ -63,6 +63,7 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
   const [status, setStatus] = useState('all');
   const [source, setSource] = useState('all');
   const [period, setPeriod] = useState('all');
+  const [dealFilter, setDealFilter] = useState('');
   const [detailId, setDetailId] = useState<number | null>(null);
   const isPayti = action === 'history';
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -70,11 +71,12 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
-  const hasFilters = search !== '' || status !== 'all' || source !== 'all' || period !== 'all';
+  const hasFilters = search !== '' || status !== 'all' || source !== 'all' || period !== 'all' || dealFilter !== '';
 
   const buildQuery = (offset: number) => {
     const q = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
     if (search.trim()) q.set('q', search.trim());
+    if (dealFilter) q.set('deal_id', dealFilter);
     if (status !== 'all') q.set('status', status);
     if (source !== 'all') q.set('source', source);
     const days = { day: 1, week: 7, month: 30 }[period];
@@ -117,7 +119,7 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
   useEffect(() => {
     const t = setTimeout(load, 350);
     return () => clearTimeout(t);
-  }, [action, refreshKey, search, status, source, period]);
+  }, [action, refreshKey, search, status, source, period, dealFilter]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -137,6 +139,7 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
     setStatus('all');
     setSource('all');
     setPeriod('all');
+    setDealFilter('');
   };
 
   return (
@@ -181,6 +184,12 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
             <SelectItem value="month">За 30 дней</SelectItem>
           </SelectContent>
         </Select>
+        {dealFilter && (
+          <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setDealFilter('')}>
+            Сделка {dealFilter}
+            <Icon name="X" size={12} />
+          </Badge>
+        )}
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={reset}>
             <Icon name="X" size={14} className="mr-1" />
@@ -213,7 +222,19 @@ const AttemptsHistory = ({ action, refreshKey = 0 }: Props) => {
           {items.map((a) => (
             <tr key={a.id} className="border-t border-border align-top cursor-pointer hover:bg-muted/30" onClick={() => setDetailId(a.id)}>
               <td className="px-4 py-2 whitespace-nowrap">{new Date(a.created_at).toLocaleString('ru-RU')}</td>
-              <td className="px-4 py-2 font-mono">{a.deal_id}</td>
+              <td className="px-4 py-2 font-mono">
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  title="Показать все попытки по сделке"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDealFilter(a.deal_id);
+                  }}
+                >
+                  {a.deal_id}
+                </button>
+              </td>
               {isPayti && <td className="px-4 py-2 uppercase">{a.environment}</td>}
               {isPayti && <td className="px-4 py-2">{a.registration_mode}</td>}
               <td className="px-4 py-2">{(isPayti ? a.login : a.email) || '—'}</td>

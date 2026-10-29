@@ -686,6 +686,10 @@ def history_page(conn, params, table, columns, search_cols):
         if v and key in columns.split(', '):
             where.append(f'{key} = %s')
             vals.append(v)
+    deal = (params.get('deal_id') or '').strip()
+    if deal:
+        where.append('deal_id = %s')
+        vals.append(deal)
     if days > 0:
         where.append("created_at >= NOW() - (%s * INTERVAL '1 day')")
         vals.append(days)
