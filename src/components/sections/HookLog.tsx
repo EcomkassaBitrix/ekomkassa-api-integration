@@ -17,7 +17,7 @@ interface HookItem {
 }
 
 interface Props {
-  kind: 'payti' | 'ofd' | 'fns';
+  kind: 'payti' | 'ofd' | 'fns' | 'slots';
   refreshKey?: number;
 }
 

@@ -69,6 +69,36 @@
         "error": "Invalid API key"
       },
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Slots hook without key",
+      "method": "GET",
+      "path": "/?action=slots-hook&dealId=1",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "ok": false
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Slots meta without API key",
+      "method": "GET",
+      "path": "/?action=slots-meta",
+      "expectedStatus": 401,
+      "expectedBody": {
+        "error": "Invalid API key"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Slots public bad token",
+      "method": "GET",
+      "path": "/?action=slots-public-get&token=nope",
+      "expectedStatus": 404,
+      "expectedBody": {
+        "ok": false
+      },
+      "bodyMatcher": "partial"
     }
   ]
 }

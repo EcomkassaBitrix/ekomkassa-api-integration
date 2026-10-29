@@ -2,7 +2,7 @@ from payti import db, digits, resp
 
 ACTIONS = {'attempt-detail', 'hook-log'}
 
-HOOK_KINDS = {'payti': 'hook', 'ofd': 'ofd-hook', 'fns': 'fns-hook'}
+HOOK_KINDS = {'payti': 'hook', 'ofd': 'ofd-hook', 'fns': 'fns-hook', 'slots': 'slots-hook'}
 
 QUERIES = {
     'payti': """SELECT id, deal_id, status, environment, registration_mode, login, tax_id, firm_id, store_id, http_status,

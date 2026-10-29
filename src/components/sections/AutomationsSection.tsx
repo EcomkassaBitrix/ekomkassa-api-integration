@@ -3,11 +3,13 @@ import Icon from '@/components/ui/icon';
 import PaytiConsole from './PaytiConsole';
 import OfdConsole from './OfdConsole';
 import FnsConsole from './FnsConsole';
+import SlotsConsole from './SlotsConsole';
 
 const tabs = [
   { id: 'lk', label: 'ЛК Екомкасса (Payti)', icon: 'UserCog' },
   { id: 'ofd', label: 'ОФД', icon: 'Receipt' },
   { id: 'fns', label: 'Регистрация кассы в ФНС', icon: 'FileSignature' },
+  { id: 'slots', label: 'Свободные слоты', icon: 'CalendarClock' },
 ];
 
 const AutomationsSection = () => {
@@ -35,6 +37,7 @@ const AutomationsSection = () => {
       {tab === 'lk' && <PaytiConsole />}
       {tab === 'ofd' && <OfdConsole />}
       {tab === 'fns' && <FnsConsole />}
+      {tab === 'slots' && <SlotsConsole />}
     </div>
   );
 };

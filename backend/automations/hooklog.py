@@ -4,7 +4,7 @@ import re
 
 import psycopg2
 
-HOOK_ACTIONS = {'hook', 'ofd-hook', 'fns-hook'}
+HOOK_ACTIONS = {'hook', 'ofd-hook', 'fns-hook', 'slots-hook'}
 SECRET_PARAMS = {'key', 'api_key', 'token'}
 
 

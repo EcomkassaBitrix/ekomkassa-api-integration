@@ -3,6 +3,7 @@ import ofd
 import fns
 import details
 import hooklog
+import slots
 
 
 def handler(event, context):
@@ -11,6 +12,11 @@ def handler(event, context):
         return {'statusCode': 200, 'headers': {**payti.CORS, 'Access-Control-Max-Age': '86400'}, 'body': '', 'isBase64Encoded': False}
     ofd.CTX['context'] = context
     action = (event.get('queryStringParameters') or {}).get('action', '')
+    if action in slots.ACTIONS:
+        result = slots.handle(event, action)
+        if action in hooklog.HOOK_ACTIONS:
+            hooklog.record(event, action, result)
+        return result
     if action in hooklog.HOOK_ACTIONS:
         if action in payti.ACTIONS:
             result = payti.handle(event, action)

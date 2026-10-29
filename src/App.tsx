@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AuthGate from "./components/AuthGate";
 import SignPage from "./pages/SignPage";
+import BookPage from "./pages/BookPage";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/sign/:token" element={<SignPage />} />
+          <Route path="/book/:token" element={<BookPage />} />
           <Route path="/" element={<AuthGate><Index /></AuthGate>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
