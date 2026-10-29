@@ -6,6 +6,7 @@ import AccessSection from '@/components/sections/AccessSection';
 import IntegrationsSection from '@/components/sections/IntegrationsSection';
 import ApiKeysSection from '@/components/sections/ApiKeysSection';
 import LogsSection from '@/components/sections/LogsSection';
+import SlotsConsole from '@/components/sections/SlotsConsole';
 import DashboardSection from '@/components/sections/DashboardSection';
 import SandboxSection from '@/components/sections/SandboxSection';
 import AutomationsSection from '@/components/sections/AutomationsSection';
@@ -72,6 +73,7 @@ const Index = () => {
               { id: 'integrations', label: 'Интеграции', icon: 'Plug' },
               { id: 'keys', label: 'API Ключи', icon: 'Key' },
               { id: 'automations', label: 'Автоматизации', icon: 'Workflow' },
+              { id: 'slots', label: 'Свободные слоты', icon: 'CalendarClock' },
               { id: 'sandbox', label: 'Песочница', icon: 'Send' },
               { id: 'logs', label: 'Логи', icon: 'FileText' },
               { id: 'docs', label: 'Документация', icon: 'BookOpen' },
@@ -122,6 +124,7 @@ const Index = () => {
                   {activeSection === 'integrations' && 'Интеграции'}
                   {activeSection === 'keys' && 'API Ключи'}
                   {activeSection === 'automations' && 'Автоматизации'}
+                  {activeSection === 'slots' && 'Свободные слоты'}
                   {activeSection === 'sandbox' && 'Песочница'}
                   {activeSection === 'logs' && 'Логи запросов'}
                   {activeSection === 'docs' && 'Документация API'}
@@ -132,6 +135,7 @@ const Index = () => {
                   {activeSection === 'integrations' && 'Подключения к каналам коммуникации'}
                   {activeSection === 'keys' && 'Управление доступом к API'}
                   {activeSection === 'automations' && 'Создание кабинетов по хукам из CRM'}
+                  {activeSection === 'slots' && 'Запись клиентов на настройку по свободному времени'}
                   {activeSection === 'sandbox' && 'Тестирование отправки сообщений'}
                   {activeSection === 'logs' && 'История запросов и событий'}
                   {activeSection === 'docs' && 'API справка и примеры интеграции'}
@@ -171,6 +175,8 @@ const Index = () => {
               )}
 
               {activeSection === 'automations' && <AutomationsSection />}
+
+              {activeSection === 'slots' && <SlotsConsole />}
 
               {activeSection === 'access' && isOwner && <AccessSection inviteOpen={inviteOpen} setInviteOpen={setInviteOpen} />}
 
