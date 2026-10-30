@@ -919,7 +919,10 @@ def handle_inner(event, action):
             settings = get_settings(conn)
             rows = cur.fetchall()
             origin = make_bx(conn).origin
+            cur.execute("SELECT deal_id, COUNT(*) AS n FROM slot_bookings WHERE status = 'booked' AND start_at > (NOW() AT TIME ZONE 'UTC') GROUP BY deal_id")
+            upcoming = {r['deal_id']: r['n'] for r in cur.fetchall()}
             for r in rows:
+                r['upcoming_count'] = upcoming.get(r['deal_id'], 0) - (1 if r['status'] == 'booked' and r['start_at'] and r['start_at'] > utcnow() else 0)
                 r['link'] = link_for(settings, r.pop('token'))
                 emp = r.pop('employee_id', None)
                 r['task_url'] = f"{origin}/company/personal/user/{emp}/tasks/task/view/{r['task_id']}/" if r.get('task_id') and emp else ''

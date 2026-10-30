@@ -10,6 +10,7 @@ interface Booking {
   id: number;
   deal_id: string;
   deal_title: string;
+  upcoming_count?: number;
   status: string;
   employee_name: string | null;
   start_at: string | null;
@@ -126,7 +127,7 @@ const BookingsCard = ({ refreshKey }: { refreshKey: number }) => {
             return (
               <Fragment key={b.id}>
                 <tr className="border-t border-border align-top cursor-pointer hover:bg-muted/30" onClick={() => setOpen(open === b.id ? null : b.id)}>
-                  <td className="px-4 py-2"><span className="font-mono">{b.deal_id}</span><p className="text-xs text-muted-foreground">{b.deal_title}</p></td>
+                  <td className="px-4 py-2"><span className="font-mono">{b.deal_id}</span><p className="text-xs text-muted-foreground">{b.deal_title}</p>{!!b.upcoming_count && <p className="text-xs text-primary">Есть ещё записей по сделке: {b.upcoming_count}</p>}</td>
                   <td className="px-4 py-2">{b.service_name || '—'}</td>
                   <td className="px-4 py-2">
                     {when(b.start_at, tz)}
