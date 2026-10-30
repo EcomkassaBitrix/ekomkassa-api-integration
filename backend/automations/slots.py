@@ -428,11 +428,24 @@ def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_bo
         creator = deal.get('ASSIGNED_BY_ID') if settings['assigner_mode'] == 'deal' else settings.get('assigner_user_id')
         try:
             if task_id and was_booked:
-                bx.call('tasks.task.update', {'taskId': task_id, 'fields': {
-                    'RESPONSIBLE_ID': int(emp_id), 'START_DATE_PLAN': ls.isoformat(), 'END_DATE_PLAN': le.isoformat(), 'DEADLINE': le.isoformat(),
-                    'DESCRIPTION': render_template(bx, settings.get('task_description'), deal, tz, settings.get('start_field'), ls, service, b['deal_id'])}})
-                add_event(conn, bid, 'Задача перенесена', True, f'№{task_id}')
-            else:
+                note = f"Клиент перенёс запись по своей инициативе. Новое время: {fmt_local(start, tz)}, специалист {name}. Эта задача отменена, создана новая."
+                try:
+                    bx.call('task.commentitem.add', {'TASKID': int(task_id), 'FIELDS': {'POST_MESSAGE': note}})
+                    add_event(conn, bid, 'Комментарий в старой задаче', True, f'№{task_id}')
+                except Exception as e:
+                    add_event(conn, bid, 'Комментарий в старой задаче', False, e)
+                try:
+                    old = (bx.call('tasks.task.get', {'taskId': task_id, 'select': ['TITLE']}) or {}).get('task') or {}
+                    bx.call('tasks.task.update', {'taskId': task_id, 'fields': {'TITLE': '[Отменено: перенос клиентом] ' + str(old.get('title') or '')}})
+                except Exception:
+                    pass
+                try:
+                    bx.call('tasks.task.complete', {'taskId': task_id})
+                    add_event(conn, bid, 'Старая задача закрыта', True, f'№{task_id}')
+                except Exception as e:
+                    add_event(conn, bid, 'Старая задача закрыта', False, e)
+                task_id = None
+            if True:
                 title = render_template(bx, settings['task_title'], deal, tz, settings.get('start_field'), ls, service, b['deal_id'])
                 fields = {
                     'TITLE': title, 'RESPONSIBLE_ID': int(emp_id), 'UF_CRM_TASK': ['D_' + str(b['deal_id'])],
@@ -452,9 +465,16 @@ def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_bo
         try:
             if event_id:
                 try:
-                    bx.call('calendar.event.delete', {'id': event_id})
+                    bx.call('calendar.event.update', {'id': event_id, 'type': 'user', 'ownerId': int(b['employee_id']),
+                                                      'description': f"Клиент перенёс запись по своей инициативе на {fmt_local(start, tz)}. Событие отменено."})
                 except Exception:
                     pass
+                try:
+                    bx.call('calendar.event.delete', {'id': event_id})
+                    add_event(conn, bid, 'Старое событие удалено', True, f'№{event_id}')
+                    event_id = None
+                except Exception as e:
+                    add_event(conn, bid, 'Старое событие удалено', False, e)
             r = bx.call('calendar.event.add', {
                 'type': 'user', 'ownerId': int(emp_id), 'from': ls.strftime('%Y-%m-%d %H:%M:%S'), 'to': le.strftime('%Y-%m-%d %H:%M:%S'),
                 'timezone_from': settings['timezone'], 'timezone_to': settings['timezone'], 'name': f"{service['name']} · сделка {b['deal_id']}",
