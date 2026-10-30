@@ -37,7 +37,7 @@ const ValueSelect = ({ items, value, onChange }: { items: string[]; value: strin
   );
 };
 
-const str = (v: string | boolean | undefined) => (typeof v === 'string' ? v : '');
+const str = (v: string | boolean | number | undefined | null) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
 
 const EdoSettings = ({ s, set, fields, onSave }: Props) => {
   const [msg, setMsg] = useState<Record<string, string>>({});
@@ -159,9 +159,6 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
               </select>
             </Field>
           )}
-          <Field label="Адрес API" hint="Обычно менять не нужно">
-            <Input value={str(s.potok_base_url)} onChange={(e) => set({ potok_base_url: e.target.value })} placeholder="https://lk.edo.ru/api/edo/v1" />
-          </Field>
           <Field label="Тип документа по умолчанию" hint="Берётся из справочника Потока. Для отдельных правил можно выбрать другой">
             <select className={selectCls} value={str(s.potok_doc_type)} onChange={(e) => set({ potok_doc_type: e.target.value })}>
               <option value="">Не выбрано</option>
