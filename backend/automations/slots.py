@@ -9,12 +9,15 @@ import boto3
 import psycopg2
 from psycopg2.extras import Json
 
+import time as _time
+
+import exchange
 from payti import Bitrix, db, digits, hook_key_valid, parse_deal_id, resp
 
 ACTIONS = {
     'slots-hook', 'slots-preview', 'slots-meta', 'slots-stages', 'slots-users', 'slots-settings', 'slots-service-save',
     'slots-service-delete', 'slots-bookings', 'slots-deals', 'slots-invite', 'slots-busy-check',
-    'slots-cancel', 'slots-resend', 'slots-logo', 'slots-webhook-test', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
+    'slots-cancel', 'slots-resend', 'slots-exchange', 'slots-logo', 'slots-webhook-test', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
 }
 PUBLIC = {'slots-public-get', 'slots-public-slots', 'slots-public-book'}
 SETTINGS_COLS = [
@@ -65,7 +68,7 @@ def get_settings(conn):
 
 
 def make_bx(conn):
-    bx = Bitrix()
+    bx = exchange.SlotBitrix()
     cur = conn.cursor()
     cur.execute('SELECT bitrix_webhook_url FROM slot_settings WHERE id = 1')
     row = cur.fetchone()
@@ -699,14 +702,28 @@ def list_users(bx, department='', q=''):
 
 def requests_post(bx, method, params):
     import requests
+    t = _time.time()
     r = requests.post(bx.url + method + '.json', json=params, timeout=8)
     d = r.json()
+    ms = int((_time.time() - t) * 1000)
     if 'error' in d:
+        exchange.add_call(method, params, d.get('error_description') or d['error'], False, ms)
         raise RuntimeError(f"{method}: {d.get('error_description') or d['error']}")
+    exchange.add_call(method, params, d.get('result'), True, ms)
     return d
 
 
 def handle(event, action):
+    if action not in exchange.KINDS:
+        return handle_inner(event, action)
+    started = _time.time()
+    exchange.reset()
+    result = handle_inner(event, action)
+    exchange.finish(event, action, result, started)
+    return result
+
+
+def handle_inner(event, action):
     params = event.get('queryStringParameters') or {}
     headers = {str(k).lower(): v for k, v in (event.get('headers') or {}).items()}
     body_raw = event.get('body') or ''
@@ -821,6 +838,23 @@ def handle(event, action):
                 for e in cur.fetchall():
                     events.setdefault(e['booking_id'], []).append(e)
             return resp(200, {'bookings': rows, 'events': events, 'timezone': settings['timezone']})
+
+        if action == 'slots-exchange':
+            try:
+                limit = min(max(int(params.get('limit') or 50), 1), 100)
+            except ValueError:
+                limit = 50
+            cur.execute("SELECT * FROM slot_exchange WHERE parent_id IS NULL ORDER BY id DESC LIMIT %s", (limit,))
+            items = cur.fetchall()
+            ids = [i['id'] for i in items]
+            calls = {}
+            if ids:
+                cur.execute("SELECT * FROM slot_exchange WHERE parent_id = ANY(%s) ORDER BY id", (ids,))
+                for c in cur.fetchall():
+                    calls.setdefault(c['parent_id'], []).append(c)
+            for i in items:
+                i['calls'] = calls.get(i['id'], [])
+            return resp(200, {'items': items})
 
         if action == 'slots-resend':
             cur.execute("SELECT * FROM slot_bookings WHERE id = %s", (int(body.get('id') or 0),))

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
 import { PAYTI_URL, paytiFetch } from './PaytiSettingsDialog';
 import HookCollapsible from './HookCollapsible';
-import HookLog from './HookLog';
+import ExchangeLog from './slots/ExchangeLog';
 import ServicesCard from './slots/ServicesCard';
 import BookingsCard from './slots/BookingsCard';
 import { BrandingCard, FunnelCard, RulesCard, TeamCard, WebhookCard } from './slots/SettingsCards';
@@ -16,7 +16,7 @@ const SlotsConsole = () => {
   const [services, setServices] = useState<SlotService[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [view, setView] = useState<'bookings' | 'settings'>('bookings');
+  const [view, setView] = useState<'bookings' | 'journal' | 'settings'>('bookings');
   const [tick, setTick] = useState(0);
   const [busyInfo, setBusyInfo] = useState('');
 
@@ -84,15 +84,17 @@ const SlotsConsole = () => {
 
       <div className="flex gap-2">
         <Button variant={view === 'bookings' ? 'default' : 'outline'} size="sm" onClick={() => setView('bookings')}>Записи</Button>
+        <Button variant={view === 'journal' ? 'default' : 'outline'} size="sm" onClick={() => setView('journal')}>Журнал обмена</Button>
         <Button variant={view === 'settings' ? 'default' : 'outline'} size="sm" onClick={() => setView('settings')}>Настройки</Button>
       </div>
 
       {view === 'bookings' && (
         <>
           <BookingsCard refreshKey={tick} />
-          <HookLog kind="slots" />
         </>
       )}
+
+      {view === 'journal' && <ExchangeLog />}
 
       {view === 'settings' && (
         <>
