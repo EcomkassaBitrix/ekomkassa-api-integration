@@ -58,6 +58,15 @@ const BookingsCard = ({ refreshKey }: { refreshKey: number }) => {
     load();
   }, [refreshKey]);
 
+  useEffect(() => {
+    const t = setInterval(async () => {
+      if (document.hidden) return;
+      await paytiFetch('slots-retry');
+      load();
+    }, 60000);
+    return () => clearInterval(t);
+  }, []);
+
   const invite = async () => {
     setMsg('');
     const d = await paytiFetch('slots-invite', { method: 'POST', body: { dealId: deal } });

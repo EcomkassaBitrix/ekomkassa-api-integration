@@ -17,9 +17,11 @@ from payti import Bitrix, db, digits, hook_key_valid, parse_deal_id, resp
 ACTIONS = {
     'slots-hook', 'slots-preview', 'slots-meta', 'slots-stages', 'slots-users', 'slots-settings', 'slots-service-save',
     'slots-service-delete', 'slots-bookings', 'slots-deals', 'slots-invite', 'slots-busy-check',
-    'slots-cancel', 'slots-resend', 'slots-exchange', 'slots-logo', 'slots-webhook-test', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
+    'slots-cancel', 'slots-resend', 'slots-exchange', 'slots-retry', 'slots-logo', 'slots-webhook-test', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
 }
 PUBLIC = {'slots-public-get', 'slots-public-slots', 'slots-public-book'}
+RETRY_MAX = 5
+RETRY_AFTER_MIN = 1
 SETTINGS_COLS = [
     'title', 'logo_url', 'base_url', 'timezone', 'step_min', 'horizon_days', 'min_notice_hours',
     'reschedule_deadline_hours', 'max_per_day', 'link_days', 'source_category_id', 'source_stage_id',
@@ -637,6 +639,40 @@ def do_book(conn, bx, token, start_iso, answers_in=None):
     return 200, booking_view(settings, get_booking(conn, token), service)
 
 
+def retry_pending(conn):
+    settings = get_settings(conn)
+    need = []
+    if settings['create_task']:
+        need.append('task_id IS NULL')
+    if settings['create_calendar_event']:
+        need.append('event_id IS NULL')
+    if not need:
+        return 0
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM slot_bookings WHERE status = 'booked' AND (" + ' OR '.join(need) + ") AND retry_count < %s "
+        "AND end_at > NOW() - INTERVAL '1 day' AND updated_at < NOW() - (%s * INTERVAL '1 minute') "
+        "AND (last_retry_at IS NULL OR last_retry_at < NOW() - (%s * INTERVAL '1 minute')) ORDER BY id LIMIT 1",
+        (RETRY_MAX, RETRY_AFTER_MIN, RETRY_AFTER_MIN),
+    )
+    b = cur.fetchone()
+    if not b:
+        cur.close()
+        return 0
+    cur.execute("UPDATE slot_bookings SET retry_count = retry_count + 1, last_retry_at = NOW() WHERE id = %s", (b['id'],))
+    conn.commit()
+    cur.close()
+    only = set()
+    if settings['create_task'] and not b.get('task_id'):
+        only.add('task')
+    if settings['create_calendar_event'] and not b.get('event_id'):
+        only.add('event')
+    add_event(conn, b['id'], f"Автоповтор {b['retry_count'] + 1} из {RETRY_MAX}", True, ', '.join(sorted(only)))
+    b['answers'] = b.get('answers') or {}
+    crm_after_booking(conn, make_bx(conn), settings, get_service(conn, b['service_id']), b, b['employee_id'], b['start_at'], b['end_at'], False, only)
+    return 1
+
+
 def invite(conn, bx, deal_id, source):
     settings = get_settings(conn)
     services = get_services(conn)
@@ -714,12 +750,14 @@ def requests_post(bx, method, params):
 
 
 def handle(event, action):
-    if action not in exchange.KINDS:
+    if action not in exchange.KINDS and action != 'slots-retry':
         return handle_inner(event, action)
     started = _time.time()
     exchange.reset()
     result = handle_inner(event, action)
-    exchange.finish(event, action, result, started)
+    if action != 'slots-retry' or '"processed": 1' in (result.get('body') or ''):
+        exchange.finish(event, action, result, started)
+    exchange.reset()
     return result
 
 
@@ -742,6 +780,9 @@ def handle_inner(event, action):
                 return resp(400, {'ok': False, 'error': 'Не указан номер сделки'})
             r = invite(conn, make_bx(conn), deal_id, 'hook')
             return resp(200 if r.get('ok') else 400, {**r, 'dealId': deal_id})
+
+        if action == 'slots-retry':
+            return resp(200, {'ok': True, 'processed': retry_pending(conn)})
 
         if action in PUBLIC:
             token = params.get('token', '')

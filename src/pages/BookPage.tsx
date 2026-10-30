@@ -125,6 +125,14 @@ const BookPage = () => {
     return () => clearInterval(timer);
   }, [choosing, loadSlots]);
 
+  useEffect(() => {
+    if (!justBooked) return;
+    const t = setTimeout(() => {
+      fetch(`${PAYTI_URL}?action=slots-retry`).catch(() => undefined);
+    }, 70000);
+    return () => clearTimeout(t);
+  }, [justBooked]);
+
   const days = useMemo(() => {
     const map = new Map<string, string[]>();
     slots.forEach((s) => {

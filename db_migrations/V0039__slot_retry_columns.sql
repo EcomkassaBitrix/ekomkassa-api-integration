@@ -1,0 +1,2 @@
+ALTER TABLE t_p25765938_ekomkassa_api_integr.slot_bookings ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE t_p25765938_ekomkassa_api_integr.slot_bookings ADD COLUMN IF NOT EXISTS last_retry_at TIMESTAMP;

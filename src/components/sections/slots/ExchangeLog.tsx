@@ -29,6 +29,7 @@ const KINDS: Record<string, string> = {
   'slots-invite': 'Админ: создание ссылки',
   'slots-resend': 'Админ: дослать задачу или событие',
   'slots-cancel': 'Админ: отмена записи',
+  'slots-retry': 'Автоповтор: задача и событие',
 };
 
 const FILTERS: [string, string][] = [
