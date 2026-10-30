@@ -27,6 +27,17 @@ interface Props {
   onSave: () => Promise<void>;
 }
 
+const ValueSelect = ({ items, value, onChange }: { items: string[]; value: string; onChange: (v: string) => void }) => {
+  if (!items.length) return <Input value={value} onChange={(e) => onChange(e.target.value)} />;
+  const options = value && !items.includes(value) ? [value, ...items] : items;
+  return (
+    <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">Не выбрано</option>
+      {options.map((i) => <option key={i} value={i}>{i}</option>)}
+    </select>
+  );
+};
+
 const str = (v: string | boolean | undefined) => (typeof v === 'string' ? v : '');
 
 const EdoSettings = ({ s, set, fields, templates, onTemplates, onSave }: Props) => {
@@ -80,11 +91,11 @@ const EdoSettings = ({ s, set, fields, templates, onTemplates, onSave }: Props) 
           </select>
         </Field>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Значение для Диадока" hint={field?.items.length ? `Варианты в поле: ${field.items.join(', ')}` : undefined}>
-            <Input value={str(s.diadoc_value)} onChange={(e) => set({ diadoc_value: e.target.value })} />
+          <Field label="Значение для Диадока" hint={field ? undefined : 'Сначала выберите поле выше'}>
+            <ValueSelect items={field?.items || []} value={str(s.diadoc_value)} onChange={(v) => set({ diadoc_value: v })} />
           </Field>
           <Field label="Значение для ЭДО Потока">
-            <Input value={str(s.potok_value)} onChange={(e) => set({ potok_value: e.target.value })} />
+            <ValueSelect items={field?.items || []} value={str(s.potok_value)} onChange={(v) => set({ potok_value: v })} />
           </Field>
         </div>
       </Card>
