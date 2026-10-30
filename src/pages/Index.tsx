@@ -9,6 +9,7 @@ import LogsSection from '@/components/sections/LogsSection';
 import SlotsConsole from '@/components/sections/SlotsConsole';
 import DashboardSection from '@/components/sections/DashboardSection';
 import SandboxSection from '@/components/sections/SandboxSection';
+import EdoConsole from '@/components/sections/EdoConsole';
 import AutomationsSection from '@/components/sections/AutomationsSection';
 import { useProviders } from '@/hooks/useProviders';
 import { useApiKeys } from '@/hooks/useApiKeys';
@@ -74,6 +75,7 @@ const Index = () => {
               { id: 'keys', label: 'API Ключи', icon: 'Key' },
               { id: 'automations', label: 'Автоматизации', icon: 'Workflow' },
               { id: 'slots', label: 'Свободные слоты', icon: 'CalendarClock' },
+              { id: 'edo', label: 'ЭДО', icon: 'FileCheck' },
               { id: 'sandbox', label: 'Песочница', icon: 'Send' },
               { id: 'logs', label: 'Логи', icon: 'FileText' },
               { id: 'docs', label: 'Документация', icon: 'BookOpen' },
@@ -125,6 +127,7 @@ const Index = () => {
                   {activeSection === 'keys' && 'API Ключи'}
                   {activeSection === 'automations' && 'Автоматизации'}
                   {activeSection === 'slots' && 'Свободные слоты'}
+                  {activeSection === 'edo' && 'ЭДО'}
                   {activeSection === 'sandbox' && 'Песочница'}
                   {activeSection === 'logs' && 'Логи запросов'}
                   {activeSection === 'docs' && 'Документация API'}
@@ -136,6 +139,7 @@ const Index = () => {
                   {activeSection === 'keys' && 'Управление доступом к API'}
                   {activeSection === 'automations' && 'Создание кабинетов по хукам из CRM'}
                   {activeSection === 'slots' && 'Запись клиентов на настройку по свободному времени'}
+                  {activeSection === 'edo' && 'Выгрузка документов из сделок в Диадок и ЭДО Поток'}
                   {activeSection === 'sandbox' && 'Тестирование отправки сообщений'}
                   {activeSection === 'logs' && 'История запросов и событий'}
                   {activeSection === 'docs' && 'API справка и примеры интеграции'}
@@ -177,6 +181,7 @@ const Index = () => {
               {activeSection === 'automations' && <AutomationsSection />}
 
               {activeSection === 'slots' && <SlotsConsole />}
+              {activeSection === 'edo' && <EdoConsole />}
 
               {activeSection === 'access' && isOwner && <AccessSection inviteOpen={inviteOpen} setInviteOpen={setInviteOpen} />}
 
