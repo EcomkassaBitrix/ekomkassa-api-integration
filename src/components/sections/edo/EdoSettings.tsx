@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Icon from '@/components/ui/icon';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { paytiFetch } from '../PaytiSettingsDialog';
 
 export interface EdoField { code: string; label: string; items: string[] }
@@ -25,6 +27,39 @@ interface Props {
   fields: EdoField[];
   onSave: () => Promise<void>;
 }
+
+const ProviderCard = ({ title, hint, connected, children }: { title: string; hint: string; connected: boolean; children: React.ReactNode }) => {
+  const [open, setOpen] = useState(!connected);
+  useEffect(() => {
+    setOpen(!connected);
+  }, [connected]);
+  return (
+    <Card className="overflow-hidden">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left hover:bg-muted/40 transition-colors">
+          <span className="flex items-center gap-3 flex-wrap">
+            <span className="font-medium">{title}</span>
+            {connected ? (
+              <span className="inline-flex items-center gap-1 text-xs font-medium rounded-full bg-primary/10 text-primary px-2 py-0.5">
+                <Icon name="CircleCheck" size={12} />
+                Подключено
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">Не подключено</span>
+            )}
+          </span>
+          <Icon name="ChevronDown" size={18} className={`text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-6 pb-6 pt-4 space-y-4 border-t border-border">
+            <p className="text-sm text-muted-foreground">{hint}</p>
+            {children}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+};
 
 const ValueSelect = ({ items, value, onChange }: { items: string[]; value: string; onChange: (v: string) => void }) => {
   if (!items.length) return <Input value={value} onChange={(e) => onChange(e.target.value)} />;
@@ -59,7 +94,11 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
     await onSave();
     const d = await paytiFetch('edo-test', { query: `provider=${provider}` });
     setBusy('');
-    if (!d.ok) return say(provider, d.error);
+    if (!d.ok) {
+      set({ [`${provider}_connected`]: false });
+      return say(provider, d.error);
+    }
+    set({ [`${provider}_connected`]: true });
     const boxes = (d.boxes || []).map((b: { name: string; inn: string }) => `${b.name} (${b.inn})`).join(', ');
     if (provider === 'potok') {
       setTypes(d.types || []);
@@ -106,11 +145,7 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
         </Field>
       </Card>
 
-      <Card className="p-6 space-y-4">
-        <div>
-          <p className="font-medium">Диадок</p>
-          <p className="text-sm text-muted-foreground">Доступ по протоколу Диадок API. Ключ интеграции выдаёт Контур</p>
-        </div>
+      <ProviderCard title="Диадок" connected={s.diadoc_connected === true} hint="Доступ по протоколу Диадок API. Ключ интеграции выдаёт Контур">
         <div className="grid sm:grid-cols-2 gap-3">
           <Field label="Среда">
             <select className={selectCls} value={str(s.diadoc_env) || 'test'} onChange={(e) => set({ diadoc_env: e.target.value })}>
@@ -135,15 +170,9 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
           <Button variant="outline" size="sm" onClick={() => test('diadoc')} disabled={busy === 'diadoc'}>{busy === 'diadoc' ? 'Проверяю...' : 'Проверить вход'}</Button>
           {msg.diadoc && <span className="text-sm text-muted-foreground">{msg.diadoc}</span>}
         </div>
-      </Card>
+      </ProviderCard>
 
-      <Card className="p-6 space-y-4">
-        <div>
-          <p className="font-medium">ЭДО Поток</p>
-          <p className="text-sm text-muted-foreground">
-            Вход по ID ЭДО и паролю организации (пароль выдаёт поддержка edo@edo.ru) либо по e-mail и паролю сотрудника из личного кабинета. Ключ доступа система получает сама и обновляет раз в сутки
-          </p>
-        </div>
+      <ProviderCard title="ЭДО Поток" connected={s.potok_connected === true} hint="Вход по ID ЭДО и паролю организации (пароль выдаёт поддержка edo@edo.ru) либо по e-mail и паролю сотрудника из личного кабинета. Ключ доступа система получает сама и обновляет раз в сутки">
         <div className="grid sm:grid-cols-2 gap-3">
           <Field label="ID ЭДО организации или e-mail сотрудника" hint="Например 2PS-0078414651 или user@company.ru">
             <Input autoComplete="off" value={str(s.potok_login)} onChange={(e) => set({ potok_login: e.target.value })} />
@@ -175,7 +204,7 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
           <Button variant="outline" size="sm" onClick={() => test('potok')} disabled={busy === 'potok'}>{busy === 'potok' ? 'Проверяю...' : 'Проверить вход и загрузить типы документов'}</Button>
           {msg.potok && <span className="text-sm text-muted-foreground">{msg.potok}</span>}
         </div>
-      </Card>
+      </ProviderCard>
     </div>
   );
 };

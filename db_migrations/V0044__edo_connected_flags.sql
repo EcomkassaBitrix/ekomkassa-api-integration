@@ -1,0 +1,2 @@
+ALTER TABLE t_p25765938_ekomkassa_api_integr.edo_settings ADD COLUMN IF NOT EXISTS potok_connected BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE t_p25765938_ekomkassa_api_integr.edo_settings ADD COLUMN IF NOT EXISTS diadoc_connected BOOLEAN NOT NULL DEFAULT FALSE;

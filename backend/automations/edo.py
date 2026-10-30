@@ -293,6 +293,11 @@ def handle(event, action):
 
         if action == 'edo-settings':
             sets, vals = [], []
+            old = get_settings(conn)
+            for prov, keys in (('potok', ('potok_login', 'potok_password', 'potok_org_id')), ('diadoc', ('diadoc_env', 'diadoc_client_id', 'diadoc_login', 'diadoc_password'))):
+                changed = any(k in body and (body[k] or None) != (old.get(k) or None) and not (k.endswith('password') and not body[k]) for k in keys)
+                if changed:
+                    sets.append(f'{prov}_connected = false')
             for c in COLS:
                 if c in body:
                     v = body[c]
@@ -377,7 +382,11 @@ def handle(event, action):
 
         if action == 'edo-test':
             s = get_settings(conn)
-            return resp(200, test_diadoc(s) if params.get('provider') == 'diadoc' else test_potok(conn, s))
+            prov = 'diadoc' if params.get('provider') == 'diadoc' else 'potok'
+            result = test_diadoc(s) if prov == 'diadoc' else test_potok(conn, s)
+            cur.execute(f'UPDATE edo_settings SET {prov}_connected = %s WHERE id = 1', (bool(result.get('ok')),))
+            conn.commit()
+            return resp(200, result)
 
         if action == 'edo-requests':
             cur.execute('SELECT * FROM edo_requests ORDER BY id DESC LIMIT 100')
