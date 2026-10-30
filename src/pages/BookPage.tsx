@@ -373,7 +373,7 @@ const BookPage = () => {
 
       {info.start && (
         <div className="rounded-lg bg-muted/40 p-4 space-y-1">
-          <p className="text-lg font-medium capitalize">{fmtFull(info.start, tz)}</p>
+          <p className="text-lg font-medium">{fmtFull(info.start, tz)}</p>
           <p className="text-sm text-muted-foreground">
             до {info.end && fmtTime(info.end, tz)} · {info.durationMin} мин · {info.timezone}
           </p>
