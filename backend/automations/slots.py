@@ -722,8 +722,8 @@ def invite(conn, bx, deal_id, source):
     )
     ex = cur.fetchone()
     cur.execute(
-        "SELECT start_at, employee_name FROM slot_bookings WHERE deal_id = %s AND status = 'booked' AND start_at > (NOW() AT TIME ZONE 'UTC') ORDER BY start_at",
-        (deal_id,),
+        "SELECT start_at, employee_name FROM slot_bookings WHERE deal_id = %s AND status = 'booked' AND start_at > %s ORDER BY start_at",
+        (deal_id, utcnow()),
     )
     tz = ZoneInfo(settings['timezone'])
     upcoming = [fmt_local(r['start_at'], tz) + (f" ({r['employee_name']})" if r.get('employee_name') else '') for r in cur.fetchall()]
@@ -835,8 +835,8 @@ def handle_inner(event, action):
                 view = booking_view(settings, b, service)
                 cur = conn.cursor()
                 cur.execute(
-                    "SELECT start_at, employee_name FROM slot_bookings WHERE deal_id = %s AND id <> %s AND status = 'booked' AND start_at > (NOW() AT TIME ZONE 'UTC') ORDER BY start_at",
-                    (b['deal_id'], b['id']),
+                    "SELECT start_at, employee_name FROM slot_bookings WHERE deal_id = %s AND id <> %s AND status = 'booked' AND start_at > %s ORDER BY start_at",
+                    (b['deal_id'], b['id'], utcnow()),
                 )
                 view['otherBookings'] = [{'start': iso_z(r['start_at']), 'employee': r.get('employee_name') or ''} for r in cur.fetchall()]
                 cur.close()
@@ -919,7 +919,7 @@ def handle_inner(event, action):
             settings = get_settings(conn)
             rows = cur.fetchall()
             origin = make_bx(conn).origin
-            cur.execute("SELECT deal_id, COUNT(*) AS n FROM slot_bookings WHERE status = 'booked' AND start_at > (NOW() AT TIME ZONE 'UTC') GROUP BY deal_id")
+            cur.execute("SELECT deal_id, COUNT(*) AS n FROM slot_bookings WHERE status = 'booked' AND start_at > %s GROUP BY deal_id", (utcnow(),))
             upcoming = {r['deal_id']: r['n'] for r in cur.fetchall()}
             for r in rows:
                 r['upcoming_count'] = upcoming.get(r['deal_id'], 0) - (1 if r['status'] == 'booked' and r['start_at'] and r['start_at'] > utcnow() else 0)
