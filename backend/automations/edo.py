@@ -203,7 +203,16 @@ def process(conn, deal_id, source, rule_id=None):
                     if provider == 'potok':
                         if to_err:
                             raise RuntimeError(to_err)
-                        draft_id, st = potok.upload_draft(conn, s, to, doc_type, f"{d.get('title') or name}.{ext}", r.content, s.get('potok_sign_requested'))
+                        fname = f"{d.get('title') or name}.{ext}"
+                        try:
+                            ok_pair, why = potok.check_receiver(conn, s, fname, r.content)
+                            log(conn, req, 'Проверка получателя', ok_pair is not False, f"Получатель доступен: {'да' if ok_pair else 'нет' if ok_pair is False else 'нет данных'}. {why}"[:300], row['id'])
+                        except Exception as ce:
+                            ok_pair, why = None, ''
+                            log(conn, req, 'Проверка получателя', False, f'Не выполнена: {ce}', row['id'])
+                        if ok_pair is False:
+                            raise RuntimeError(f"Получатель не принял приглашение в ЭДО Поток. {why}".strip())
+                        draft_id, st = potok.upload_draft(conn, s, to, doc_type, fname, r.content, s.get('potok_sign_requested'))
                         cur.execute("UPDATE edo_documents SET status = 'sent', external_id = %s, updated_at = NOW() WHERE id = %s", (draft_id, row['id']))
                         conn.commit()
                         sent += 1

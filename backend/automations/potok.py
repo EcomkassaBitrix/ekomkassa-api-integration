@@ -125,6 +125,14 @@ def find_contractor(conn, s, inn, trace=None):
     return fallback or (None, '')
 
 
+def check_receiver(conn, s, file_name, content):
+    data = call(conn, s, 'POST', '/documents/check-for-send', json={
+        'contentBase64': base64.b64encode(content).decode('ascii'), 'passedFileName': file_name,
+    })
+    checks = (data.get('result') or {}).get('checks') or {}
+    return checks.get('receiverHasActiveContractPair'), checks.get('description') or ''
+
+
 def upload_draft(conn, s, to, doc_type, file_name, content, sign_requested):
     data = call(conn, s, 'POST', '/drafts/add', json={
         'content': base64.b64encode(content).decode('ascii'),
@@ -134,4 +142,6 @@ def upload_draft(conn, s, to, doc_type, file_name, content, sign_requested):
     if res.get('errorCode'):
         raise RuntimeError(f"ЭДО Поток: {res['errorCode']}")
     d = res.get('data') or {}
-    return str(d.get('draftId') or ''), d.get('statusName') or ''
+    if not d.get('draftId'):
+        raise RuntimeError('ЭДО Поток не вернул номер черновика')
+    return str(d['draftId']), d.get('statusName') or ''
