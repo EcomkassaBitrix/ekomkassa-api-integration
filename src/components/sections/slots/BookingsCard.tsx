@@ -15,6 +15,8 @@ interface Booking {
   start_at: string | null;
   task_id: string | null;
   event_id: string | null;
+  task_url: string;
+  event_url: string;
   reschedule_count: number;
   service_name: string | null;
   link: string;
@@ -140,13 +142,17 @@ const BookingsCard = ({ refreshKey }: { refreshKey: number }) => {
                   <tr className="bg-muted/20">
                     <td colSpan={5} className="px-6 py-3">
                       {b.status === 'booked' && [
-                        { step: 'Задача создана', id: b.task_id, kind: 'task' as const },
-                        { step: 'Запись в календаре', id: b.event_id, kind: 'event' as const },
+                        { step: 'Задача создана', id: b.task_id, url: b.task_url, kind: 'task' as const },
+                        { step: 'Запись в календаре', id: b.event_id, url: b.event_url, kind: 'event' as const },
                       ].map((c) => (
                         <div key={c.step} className="flex gap-3 text-xs py-0.5">
                           <Icon name={c.id ? 'Check' : 'X'} size={14} className={c.id ? 'text-primary' : 'text-destructive'} />
                           <span className="w-52 shrink-0">{c.step}</span>
-                          <span className="text-muted-foreground">{c.id ? `№${c.id}` : 'не создана'}</span>
+                          {c.id && c.url ? (
+                            <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">№{c.id}</a>
+                          ) : (
+                            <span className="text-muted-foreground">{c.id ? `№${c.id}` : 'не создана'}</span>
+                          )}
                           {!c.id && (
                             <Button size="sm" variant="outline" className="h-6 px-2 text-xs" disabled={sending === `${b.id}-${c.kind}`} onClick={() => resend(b.id, c.kind)}>
                               {sending === `${b.id}-${c.kind}` ? 'Отправляю...' : 'Дослать'}

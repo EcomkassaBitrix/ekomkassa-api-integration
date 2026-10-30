@@ -898,13 +898,17 @@ def handle_inner(event, action):
             return resp(200, {'services': get_services(conn)})
 
         if action == 'slots-bookings':
-            cur.execute("""SELECT b.id, b.deal_id, b.deal_title, b.status, b.employee_name, b.start_at, b.end_at, b.task_id, b.event_id, b.reschedule_count,
+            cur.execute("""SELECT b.id, b.deal_id, b.deal_title, b.status, b.employee_name, b.start_at, b.end_at, b.task_id, b.event_id, b.employee_id, b.reschedule_count,
                 b.expires_at, b.created_at, b.token, s.name AS service_name FROM slot_bookings b LEFT JOIN slot_services s ON s.id = b.service_id
                 ORDER BY b.id DESC LIMIT 100""")
             settings = get_settings(conn)
             rows = cur.fetchall()
+            origin = make_bx(conn).origin
             for r in rows:
                 r['link'] = link_for(settings, r.pop('token'))
+                emp = r.pop('employee_id', None)
+                r['task_url'] = f"{origin}/company/personal/user/{emp}/tasks/task/view/{r['task_id']}/" if r.get('task_id') and emp else ''
+                r['event_url'] = f"{origin}/company/personal/user/{emp}/calendar/?EVENT_ID={r['event_id']}" if r.get('event_id') and emp else ''
             ids = [r['id'] for r in rows[:20]]
             events = {}
             if ids:
