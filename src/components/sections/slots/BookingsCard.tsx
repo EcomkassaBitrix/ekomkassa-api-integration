@@ -14,6 +14,7 @@ interface Booking {
   employee_name: string | null;
   start_at: string | null;
   task_id: string | null;
+  event_id: string | null;
   reschedule_count: number;
   service_name: string | null;
   link: string;
@@ -119,6 +120,16 @@ const BookingsCard = ({ refreshKey }: { refreshKey: number }) => {
                 {open === b.id && (
                   <tr className="bg-muted/20">
                     <td colSpan={5} className="px-6 py-3">
+                      {b.status === 'booked' && [
+                        { step: 'Задача создана', id: b.task_id },
+                        { step: 'Запись в календаре', id: b.event_id },
+                      ].map((c) => (
+                        <div key={c.step} className="flex gap-3 text-xs py-0.5">
+                          <Icon name={c.id ? 'Check' : 'X'} size={14} className={c.id ? 'text-primary' : 'text-destructive'} />
+                          <span className="w-52 shrink-0">{c.step}</span>
+                          <span className="text-muted-foreground">{c.id ? `№${c.id}` : 'не создана'}</span>
+                        </div>
+                      ))}
                       {(events[b.id] || []).length === 0 && <p className="text-xs text-muted-foreground">Событий нет</p>}
                       {(events[b.id] || []).map((e, i) => (
                         <div key={i} className="flex gap-3 text-xs py-0.5">

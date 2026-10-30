@@ -771,7 +771,7 @@ def handle(event, action):
             return resp(200, {'services': get_services(conn)})
 
         if action == 'slots-bookings':
-            cur.execute("""SELECT b.id, b.deal_id, b.deal_title, b.status, b.employee_name, b.start_at, b.end_at, b.task_id, b.reschedule_count,
+            cur.execute("""SELECT b.id, b.deal_id, b.deal_title, b.status, b.employee_name, b.start_at, b.end_at, b.task_id, b.event_id, b.reschedule_count,
                 b.expires_at, b.created_at, b.token, s.name AS service_name FROM slot_bookings b LEFT JOIN slot_services s ON s.id = b.service_id
                 ORDER BY b.id DESC LIMIT 100""")
             settings = get_settings(conn)
