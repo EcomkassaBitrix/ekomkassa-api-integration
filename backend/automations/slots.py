@@ -717,16 +717,23 @@ def invite(conn, bx, deal_id, source):
         return {'ok': False, 'error': 'Не удалось подобрать услугу: нет совпадения с классификатором и не задана услуга по умолчанию'}
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM slot_bookings WHERE deal_id = %s AND (status = 'booked' OR (status = 'invited' AND expires_at > NOW())) ORDER BY id DESC LIMIT 1",
+        "SELECT * FROM slot_bookings WHERE deal_id = %s AND status = 'invited' AND expires_at > NOW() ORDER BY id DESC LIMIT 1",
         (deal_id,),
     )
     ex = cur.fetchone()
+    cur.execute(
+        "SELECT start_at, employee_name FROM slot_bookings WHERE deal_id = %s AND status = 'booked' AND start_at > (NOW() AT TIME ZONE 'UTC') ORDER BY start_at",
+        (deal_id,),
+    )
+    tz = ZoneInfo(settings['timezone'])
+    upcoming = [fmt_local(r['start_at'], tz) + (f" ({r['employee_name']})" if r.get('employee_name') else '') for r in cur.fetchall()]
+    up_text = ('Уже есть запись на: ' + ', '.join(upcoming) + '. ') if upcoming else ''
     if ex:
         if ex['status'] == 'invited' and ex['service_id'] != service['id']:
             cur.execute('UPDATE slot_bookings SET service_id = %s, updated_at = NOW() WHERE id = %s', (service['id'], ex['id']))
             conn.commit()
         cur.close()
-        return {'ok': True, 'status': ex['status'], 'bookingId': ex['id'], 'link': link_for(settings, ex['token']), 'service': service['name'], 'reused': True}
+        return {'ok': True, 'status': ex['status'], 'bookingId': ex['id'], 'link': link_for(settings, ex['token']), 'service': service['name'], 'reused': True, 'upcoming': upcoming}
     token = secrets.token_urlsafe(24)
     cur.execute(
         "INSERT INTO slot_bookings (token, deal_id, deal_title, service_id, status, expires_at) VALUES (%s,%s,%s,%s,'invited', NOW() + (%s * INTERVAL '1 day')) RETURNING id",
@@ -746,10 +753,10 @@ def invite(conn, bx, deal_id, source):
     try:
         bx.call('crm.timeline.comment.add', {'fields': {
             'ENTITY_ID': int(deal_id), 'ENTITY_TYPE': 'deal',
-            'COMMENT': f"Ссылка для выбора времени настройки ({service['name']}, {service['duration_min']} мин): {link}"}})
+            'COMMENT': f"{up_text}Ссылка для выбора времени настройки ({service['name']}, {service['duration_min']} мин): {link}"}})
     except Exception as e:
         add_event(conn, bid, 'Комментарий в сделке', False, e)
-    return {'ok': True, 'status': 'invited', 'bookingId': bid, 'link': link, 'service': service['name'], 'reused': False}
+    return {'ok': True, 'status': 'invited', 'bookingId': bid, 'link': link, 'service': service['name'], 'reused': False, 'upcoming': upcoming}
 
 
 def list_users(bx, department='', q=''):
