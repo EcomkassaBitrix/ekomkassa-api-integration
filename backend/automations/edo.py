@@ -11,7 +11,7 @@ import payti
 import potok
 from payti import resp, db, Bitrix
 
-ACTIONS = {'edo-potok-types', 'edo-rules', 'edo-rule-save', 'edo-rule-delete', 'edo-funnels', 'edo-hook', 'edo-meta', 'edo-settings', 'edo-templates-sync', 'edo-template-save', 'edo-requests', 'edo-run', 'edo-test'}
+ACTIONS = {'edo-potok-find', 'edo-potok-types', 'edo-rules', 'edo-rule-save', 'edo-rule-delete', 'edo-funnels', 'edo-hook', 'edo-meta', 'edo-settings', 'edo-templates-sync', 'edo-template-save', 'edo-requests', 'edo-run', 'edo-test'}
 SECRETS = ('bitrix_webhook_url', 'diadoc_password', 'potok_password', 'potok_token')
 COLS = ['bitrix_webhook_url', 'edo_field', 'diadoc_value', 'potok_value', 'file_format', 'diadoc_env', 'diadoc_client_id',
         'diadoc_login', 'diadoc_password', 'diadoc_box_id', 'potok_env', 'potok_base_url', 'potok_login', 'potok_password', 'potok_org_id', 'potok_doc_type', 'potok_sign_requested']
@@ -162,7 +162,9 @@ def process(conn, deal_id, source, rule_id=None):
                 inn = deal_inn(bx, deal)
                 if not inn:
                     raise RuntimeError('В сделке не найден ИНН клиента (реквизиты компании)')
-                to, name = potok.find_contractor(conn, s, inn)
+                trace = []
+                to, name = potok.find_contractor(conn, s, inn, trace)
+                log(conn, req, 'Поиск получателя', bool(to), f'ИНН {inn}. ' + '; '.join(trace))
                 if not to:
                     raise RuntimeError(f'Клиент с ИНН {inn} не найден в ЭДО Поток')
                 log(conn, req, 'Получатель в ЭДО Поток', True, f'{name} (ИНН {inn})')
@@ -313,6 +315,16 @@ def handle(event, action):
                 cur.execute(f"UPDATE edo_settings SET {', '.join(sets)}, updated_at = NOW() WHERE id = 1", vals)
                 conn.commit()
             return resp(200, {'ok': True, 'settings': public_settings(get_settings(conn))})
+
+        if action == 'edo-potok-find':
+            st = get_settings(conn)
+            inn = re.sub(r'\D', '', params.get('inn') or '')
+            trace = []
+            try:
+                to, name = potok.find_contractor(conn, st, inn, trace)
+            except Exception as e:
+                return resp(200, {'ok': False, 'error': str(e), 'trace': trace})
+            return resp(200, {'ok': bool(to), 'clientId': to, 'name': name, 'trace': trace})
 
         if action == 'edo-potok-types':
             try:

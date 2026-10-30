@@ -79,18 +79,50 @@ def doc_types(conn, s):
     return call(conn, s, 'GET', '/dictionary/get-document-type').get('result') or []
 
 
-def find_contractor(conn, s, inn):
-    data = call(conn, s, 'GET', '/contractors/search-contractors', params={'query': inn})
-    rows = ((data.get('result') or {}).get('data')) or []
-    for row in rows:
-        c = row.get('contractor') if isinstance(row.get('contractor'), dict) else row
-        if str(c.get('inn') or '') == str(inn) and c.get('clientId'):
-            return c['clientId'], c.get('fullName') or ''
-    for row in rows:
-        c = row.get('contractor') if isinstance(row.get('contractor'), dict) else row
-        if c.get('clientId'):
-            return c['clientId'], c.get('fullName') or ''
-    return None, ''
+def _collect(node, out):
+    if isinstance(node, dict):
+        if node.get('clientId') or node.get('edoId'):
+            out.append(node)
+        for v in node.values():
+            _collect(v, out)
+    elif isinstance(node, list):
+        for v in node:
+            _collect(v, out)
+    return out
+
+
+def _is_potok(c):
+    op = str(c.get('operatorName') or c.get('operatorMnemo') or '').lower()
+    return (not op) or 'поток' in op or 'офд' in op or 'ofd' in op or 'edo' in op
+
+
+def find_contractor(conn, s, inn, trace=None):
+    trace = trace if trace is not None else []
+    steps = (
+        ('Поиск среди контрагентов', 'GET', '/contractors/search-contractors', {'params': {'query': inn}}),
+        ('Поиск по ИНН в реестре', 'GET', f'/contractors/find/{inn}/', {}),
+        ('Приоритетный получатель', 'GET', '/clients/favorite-receiver', {'params': {'inn': inn}}),
+    )
+    fallback = None
+    for title, method, path, kw in steps:
+        try:
+            data = call(conn, s, method, path, **kw)
+        except Exception as e:
+            trace.append(f'{title}: {e}')
+            continue
+        rows = _collect(data.get('result'), [])
+        trace.append(f'{title}: найдено записей {len(rows)}')
+        for c in rows:
+            cid = c.get('clientId') or c.get('edoId')
+            same = not c.get('inn') or str(c.get('inn')) == str(inn)
+            if not (cid and same and _is_potok(c)):
+                continue
+            name = c.get('fullName') or c.get('orgName') or ''
+            if str(c.get('contractorType') or '') == 'NO_CONNECTION':
+                fallback = fallback or (cid, name)
+                continue
+            return cid, name
+    return fallback or (None, '')
 
 
 def upload_draft(conn, s, to, doc_type, file_name, content, sign_requested):
