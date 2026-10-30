@@ -251,6 +251,17 @@ const BookPage = () => {
     );
   }
 
+  if (info.status === 'booked' && !justBooked && info.end && new Date(info.end).getTime() < Date.now()) {
+    return shell(
+      <Card className="p-6 text-center space-y-2">
+        <Icon name="CircleCheck" size={32} className="mx-auto text-muted-foreground" />
+        <p className="font-medium">Запись завершена</p>
+        <p className="text-sm text-muted-foreground">{info.service}{info.start ? ` · ${fmtFull(info.start, tz)}` : ''}</p>
+        <p className="text-sm text-muted-foreground">Время записи уже прошло. Чтобы записаться снова, свяжитесь с менеджером</p>
+      </Card>,
+    );
+  }
+
   const hasFields = !!info.fields?.length;
 
   if (choosing && step === 2 && hasFields) {
