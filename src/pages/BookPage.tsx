@@ -68,6 +68,12 @@ const BookPage = () => {
   }, [token]);
 
   useEffect(() => {
+    if (!info?.title) return;
+    document.title = info.title;
+    document.querySelector('meta[property="og:title"]')?.setAttribute('content', info.title);
+  }, [info?.title]);
+
+  useEffect(() => {
     loadInfo().then((d) => {
       if (d.ok && d.status === 'invited' && !d.expired) {
         setChoosing(true);
