@@ -108,6 +108,23 @@ const BookPage = () => {
     });
   }, [loadInfo, loadSlots]);
 
+  useEffect(() => {
+    if (!choosing) return;
+    const timer = setInterval(async () => {
+      if (document.hidden) return;
+      const fresh = await loadSlots();
+      setPicked((p) => {
+        if (p && !fresh.includes(p)) {
+          setError('Выбранное время только что заняли. Выберите другое из обновлённого списка');
+          setStep(1);
+          return '';
+        }
+        return p;
+      });
+    }, 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [choosing, loadSlots]);
+
   const days = useMemo(() => {
     const map = new Map<string, string[]>();
     slots.forEach((s) => {
