@@ -133,6 +133,15 @@ const BookPage = () => {
     return () => clearTimeout(t);
   }, [justBooked]);
 
+  const [nowTs, setNowTs] = useState(Date.now());
+  useEffect(() => {
+    if (!info?.end) return;
+    const left = new Date(info.end).getTime() - Date.now();
+    if (left <= 0) return;
+    const t = setTimeout(() => setNowTs(Date.now()), Math.min(left, 2147483647) + 500);
+    return () => clearTimeout(t);
+  }, [info?.end]);
+
   const days = useMemo(() => {
     const map = new Map<string, string[]>();
     slots.forEach((s) => {
@@ -251,7 +260,7 @@ const BookPage = () => {
     );
   }
 
-  if (info.status === 'booked' && !justBooked && info.end && new Date(info.end).getTime() < Date.now()) {
+  if (info.status === 'booked' && !justBooked && info.end && new Date(info.end).getTime() < nowTs) {
     return shell(
       <Card className="p-6 text-center space-y-2">
         <Icon name="CircleCheck" size={32} className="mx-auto text-muted-foreground" />
@@ -373,9 +382,9 @@ const BookPage = () => {
 
       {info.start && (
         <div className="rounded-lg bg-muted/40 p-4 space-y-1">
-          <p className="text-lg font-medium">{fmtFull(info.start, tz)}</p>
+          <p className="text-lg font-medium">{fmtFull(info.start, tz)}{info.end ? ` – ${fmtTime(info.end, tz)}` : ''}</p>
           <p className="text-sm text-muted-foreground">
-            до {info.end && fmtTime(info.end, tz)} · {info.durationMin} мин · {info.timezone}
+            {info.durationMin} мин · {info.timezone}
           </p>
           {info.employee && <p className="text-sm">Специалист: {info.employee}</p>}
         </div>
