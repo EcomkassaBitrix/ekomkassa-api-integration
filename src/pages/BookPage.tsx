@@ -80,6 +80,7 @@ const BookPage = () => {
     const { data } = await call('slots-public-slots', token);
     setLoadingSlots(false);
     setSlots(data.slots || []);
+    return (data.slots || []) as string[];
   }, [token]);
 
   const loadInfo = useCallback(async () => {
@@ -141,12 +142,25 @@ const BookPage = () => {
       setStep(1);
       return;
     }
-    setError(data.error || 'Не удалось записаться');
+    setError(data.taken ? 'Это время только что заняли. Выберите другое из обновлённого списка' : data.error || 'Не удалось записаться');
     if (data.taken) {
       setPicked('');
       setStep(1);
       loadSlots();
     }
+  };
+
+  const next = async () => {
+    setError('');
+    setBusy(true);
+    const fresh = await loadSlots();
+    setBusy(false);
+    if (!fresh.includes(picked)) {
+      setPicked('');
+      setError('Это время только что заняли. Выберите другое из обновлённого списка');
+      return;
+    }
+    setStep(2);
   };
 
   const startReschedule = () => {
@@ -295,8 +309,8 @@ const BookPage = () => {
 
         <div className="flex gap-2">
           {hasFields ? (
-            <Button className="flex-1" disabled={!picked || busy} onClick={() => { setError(''); setStep(2); }}>
-              {picked ? 'Далее' : 'Выберите время'}
+            <Button className="flex-1" disabled={!picked || busy} onClick={next}>
+              {busy ? 'Проверяю время...' : picked ? 'Далее' : 'Выберите время'}
             </Button>
           ) : (
             <Button className="flex-1" disabled={!picked || busy} onClick={book}>
