@@ -14,7 +14,7 @@ from payti import Bitrix, db, digits, hook_key_valid, parse_deal_id, resp
 ACTIONS = {
     'slots-hook', 'slots-preview', 'slots-meta', 'slots-stages', 'slots-users', 'slots-settings', 'slots-service-save',
     'slots-service-delete', 'slots-bookings', 'slots-deals', 'slots-invite', 'slots-busy-check',
-    'slots-cancel', 'slots-logo', 'slots-webhook-test', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
+    'slots-cancel', 'slots-resend', 'slots-logo', 'slots-webhook-test', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
 }
 PUBLIC = {'slots-public-get', 'slots-public-slots', 'slots-public-book'}
 SETTINGS_COLS = [
@@ -419,12 +419,12 @@ def answers_block(service, b):
     return ('\n\nДополнительная информация от клиента\n' + '\n'.join(lines)) if lines else ''
 
 
-def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_booked):
+def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_booked, only=None):
     import time
     t0 = time.time()
     add_event(conn, b['id'], 'Начало создания задачи и события', True, '')
     try:
-        crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, was_booked)
+        crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, was_booked, only)
     except Exception as e:
         try:
             conn.rollback()
@@ -435,7 +435,7 @@ def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_bo
     add_event(conn, b['id'], 'Задача и событие обработаны', True, f'{time.time() - t0:.1f} с')
 
 
-def crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, was_booked):
+def crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, was_booked, only=None):
     bid = b['id']
     tz = ZoneInfo(settings['timezone'])
     ls, le = to_local(start, tz), to_local(end, tz)
@@ -454,14 +454,14 @@ def crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, wa
         deal = bx.call('crm.deal.get', {'id': b['deal_id']}) or {}
     except Exception as e:
         add_event(conn, bid, 'Чтение сделки', False, e)
-    if updates:
+    if updates and not only:
         try:
             bx.call('crm.deal.update', {'id': b['deal_id'], 'fields': updates})
             add_event(conn, bid, 'Обновление сделки', True, ', '.join(updates.keys()))
         except Exception as e:
             add_event(conn, bid, 'Обновление сделки', False, e)
     task_id = b.get('task_id')
-    if settings['create_task']:
+    if settings['create_task'] and (not only or 'task' in only):
         creator = deal.get('ASSIGNED_BY_ID') if settings['assigner_mode'] == 'deal' else settings.get('assigner_user_id')
         try:
             if task_id and was_booked:
@@ -498,7 +498,7 @@ def crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, wa
         except Exception as e:
             add_event(conn, bid, 'Задача', False, e)
     event_id = b.get('event_id')
-    if settings['create_calendar_event']:
+    if settings['create_calendar_event'] and (not only or 'event' in only):
         try:
             if event_id:
                 try:
@@ -525,6 +525,8 @@ def crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, wa
     cur.execute('UPDATE slot_bookings SET task_id = %s, event_id = %s WHERE id = %s', (task_id or None, event_id or None, bid))
     conn.commit()
     cur.close()
+    if only:
+        return
     try:
         text = ('Клиент перенёс запись на настройку' if was_booked else 'Клиент записался на настройку') + \
             f": {fmt_local(start, tz)}, специалист {name}" + answers_block(service, b)
@@ -785,6 +787,25 @@ def handle(event, action):
                 for e in cur.fetchall():
                     events.setdefault(e['booking_id'], []).append(e)
             return resp(200, {'bookings': rows, 'events': events, 'timezone': settings['timezone']})
+
+        if action == 'slots-resend':
+            cur.execute("SELECT * FROM slot_bookings WHERE id = %s", (int(body.get('id') or 0),))
+            b = cur.fetchone()
+            if not b or b['status'] != 'booked':
+                return resp(404, {'error': 'Запись не найдена или не активна'})
+            kind = body.get('kind')
+            if kind not in ('task', 'event'):
+                return resp(400, {'error': 'Неизвестный тип'})
+            if (b.get('task_id') if kind == 'task' else b.get('event_id')):
+                return resp(200, {'ok': True, 'already': True})
+            settings = get_settings(conn)
+            b['answers'] = b.get('answers') or {}
+            crm_after_booking(conn, make_bx(conn), settings, get_service(conn, b['service_id']), b, b['employee_id'],
+                              b['start_at'], b['end_at'], False, {kind})
+            cur.execute("SELECT task_id, event_id FROM slot_bookings WHERE id = %s", (b['id'],))
+            r = cur.fetchone()
+            ok = bool(r['task_id'] if kind == 'task' else r['event_id'])
+            return resp(200, {'ok': ok, 'error': '' if ok else 'Не удалось создать, причина в журнале записи'})
 
         if action == 'slots-cancel':
             cur.execute("SELECT * FROM slot_bookings WHERE id = %s", (int(body.get('id') or 0),))

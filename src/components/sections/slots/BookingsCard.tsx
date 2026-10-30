@@ -43,6 +43,7 @@ const BookingsCard = ({ refreshKey }: { refreshKey: number }) => {
   const [loading, setLoading] = useState(false);
   const [deal, setDeal] = useState('');
   const [msg, setMsg] = useState('');
+  const [sending, setSending] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -65,6 +66,15 @@ const BookingsCard = ({ refreshKey }: { refreshKey: number }) => {
       navigator.clipboard.writeText(d.link);
       load();
     }
+  };
+
+  const resend = async (id: number, kind: 'task' | 'event') => {
+    const key = `${id}-${kind}`;
+    setSending(key);
+    const d = await paytiFetch('slots-resend', { method: 'POST', body: { id, kind } });
+    setSending('');
+    setMsg(d.ok ? '' : d.error || 'Ошибка');
+    load();
   };
 
   const cancel = async (id: number) => {
@@ -121,13 +131,18 @@ const BookingsCard = ({ refreshKey }: { refreshKey: number }) => {
                   <tr className="bg-muted/20">
                     <td colSpan={5} className="px-6 py-3">
                       {b.status === 'booked' && [
-                        { step: 'Задача создана', id: b.task_id },
-                        { step: 'Запись в календаре', id: b.event_id },
+                        { step: 'Задача создана', id: b.task_id, kind: 'task' as const },
+                        { step: 'Запись в календаре', id: b.event_id, kind: 'event' as const },
                       ].map((c) => (
                         <div key={c.step} className="flex gap-3 text-xs py-0.5">
                           <Icon name={c.id ? 'Check' : 'X'} size={14} className={c.id ? 'text-primary' : 'text-destructive'} />
                           <span className="w-52 shrink-0">{c.step}</span>
                           <span className="text-muted-foreground">{c.id ? `№${c.id}` : 'не создана'}</span>
+                          {!c.id && (
+                            <Button size="sm" variant="outline" className="h-6 px-2 text-xs" disabled={sending === `${b.id}-${c.kind}`} onClick={() => resend(b.id, c.kind)}>
+                              {sending === `${b.id}-${c.kind}` ? 'Отправляю...' : 'Дослать'}
+                            </Button>
+                          )}
                         </div>
                       ))}
                       {(events[b.id] || []).length === 0 && <p className="text-xs text-muted-foreground">Событий нет</p>}
