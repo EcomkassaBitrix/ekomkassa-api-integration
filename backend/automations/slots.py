@@ -420,6 +420,22 @@ def answers_block(service, b):
 
 
 def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_booked):
+    import time
+    t0 = time.time()
+    add_event(conn, b['id'], 'Начало создания задачи и события', True, '')
+    try:
+        crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, was_booked)
+    except Exception as e:
+        try:
+            conn.rollback()
+            add_event(conn, b['id'], 'Сбой после записи', False, f'{type(e).__name__}: {e}')
+        except Exception:
+            pass
+        return
+    add_event(conn, b['id'], 'Задача и событие обработаны', True, f'{time.time() - t0:.1f} с')
+
+
+def crm_after_booking_run(conn, bx, settings, service, b, emp_id, start, end, was_booked):
     bid = b['id']
     tz = ZoneInfo(settings['timezone'])
     ls, le = to_local(start, tz), to_local(end, tz)
