@@ -639,6 +639,30 @@ def do_book(conn, bx, token, start_iso, answers_in=None):
     return 200, booking_view(settings, get_booking(conn, token), service)
 
 
+def slot_conflict(conn, bx, settings, b):
+    tz = ZoneInfo(settings['timezone'])
+    emp = str(b['employee_id'])
+    start, end = b['start_at'], b['end_at']
+    d1 = to_local(start, tz).date() - timedelta(days=1)
+    d2 = to_local(end, tz).date() + timedelta(days=1)
+    if settings['check_bitrix_busy']:
+        bb, _ = bitrix_busy(bx, [emp], d1, d2, tz)
+        for a, e in bb.get(emp, []):
+            if a == start and e == end:
+                continue
+            if a < end and e > start:
+                return 'в календаре специалиста есть другое событие'
+    if settings.get('check_bitrix_tasks'):
+        tb, _ = bitrix_task_busy(bx, [emp], datetime.combine(d1, time(0, 0)), datetime.combine(d2, time(0, 0)), tz, b.get('task_id'))
+        for a, e in tb.get(emp, []):
+            if a < end and e > start:
+                return 'у специалиста есть другая задача на это время'
+    for r in local_busy(conn, start, end, b['id']):
+        if str(r['employee_id']) == emp:
+            return 'у специалиста есть другая запись на это время'
+    return None
+
+
 def retry_pending(conn):
     settings = get_settings(conn)
     need = []
@@ -667,9 +691,18 @@ def retry_pending(conn):
         only.add('task')
     if settings['create_calendar_event'] and not b.get('event_id'):
         only.add('event')
+    bx = make_bx(conn)
+    busy = slot_conflict(conn, bx, settings, b)
+    if busy:
+        cur = conn.cursor()
+        cur.execute("UPDATE slot_bookings SET retry_count = %s WHERE id = %s", (RETRY_MAX, b['id']))
+        conn.commit()
+        cur.close()
+        add_event(conn, b['id'], 'Автоповтор остановлен: время занято', False, busy)
+        return 1
     add_event(conn, b['id'], f"Автоповтор {b['retry_count'] + 1} из {RETRY_MAX}", True, ', '.join(sorted(only)))
     b['answers'] = b.get('answers') or {}
-    crm_after_booking(conn, make_bx(conn), settings, get_service(conn, b['service_id']), b, b['employee_id'], b['start_at'], b['end_at'], False, only)
+    crm_after_booking(conn, bx, settings, get_service(conn, b['service_id']), b, b['employee_id'], b['start_at'], b['end_at'], False, only)
     return 1
 
 
