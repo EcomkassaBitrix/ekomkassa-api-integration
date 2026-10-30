@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { paytiFetch } from '../PaytiSettingsDialog';
 
-interface Req { id: number; deal_id: string; deal_title: string | null; provider: string | null; status: string; error: string | null; created_at: string }
+interface Req { rule_name: string | null; id: number; deal_id: string; deal_title: string | null; provider: string | null; status: string; error: string | null; created_at: string }
 interface Doc { id: number; request_id: number; title: string; number: string; file_name: string; file_url: string; file_size: number; status: string; error: string | null }
 interface Ev { request_id: number; step: string; ok: boolean; info: string; created_at: string }
 
@@ -63,7 +63,8 @@ const EdoRequests = ({ refreshKey }: { refreshKey: number }) => {
                 <Icon name={open === r.id ? 'ChevronDown' : 'ChevronRight'} size={16} />
                 <span className="font-medium">Сделка {r.deal_id}</span>
                 <span className="text-muted-foreground truncate">{r.deal_title}</span>
-                <span className="ml-auto text-muted-foreground">{r.provider ? PROVIDERS[r.provider] : ''}</span>
+                <span className="ml-auto text-xs text-muted-foreground">{r.rule_name}</span>
+                <span className="text-muted-foreground">{r.provider ? PROVIDERS[r.provider] : ''}</span>
                 <span className={r.status === 'error' ? 'text-destructive' : 'text-foreground'}>{STATUSES[r.status] || r.status}</span>
                 <span className="text-xs text-muted-foreground">{fmt(r.created_at)}</span>
               </button>

@@ -10,7 +10,7 @@ import requests
 import payti
 from payti import resp, db, Bitrix
 
-ACTIONS = {'edo-hook', 'edo-meta', 'edo-settings', 'edo-templates-sync', 'edo-template-save', 'edo-requests', 'edo-run', 'edo-test'}
+ACTIONS = {'edo-rules', 'edo-rule-save', 'edo-rule-delete', 'edo-funnels', 'edo-hook', 'edo-meta', 'edo-settings', 'edo-templates-sync', 'edo-template-save', 'edo-requests', 'edo-run', 'edo-test'}
 SECRETS = ('bitrix_webhook_url', 'diadoc_password', 'potok_password')
 COLS = ['bitrix_webhook_url', 'edo_field', 'diadoc_value', 'potok_value', 'file_format', 'diadoc_env', 'diadoc_client_id',
         'diadoc_login', 'diadoc_password', 'diadoc_box_id', 'potok_env', 'potok_base_url', 'potok_login', 'potok_password', 'potok_org_id']
@@ -78,7 +78,21 @@ def pick_provider(bx, s, deal):
     return '', f'Оператор «{val}» не распознан'
 
 
-def process(conn, deal_id, source):
+def find_rule(conn, deal, rule_id):
+    cur = conn.cursor()
+    if rule_id:
+        cur.execute('SELECT * FROM edo_rules WHERE id = %s', (int(rule_id),))
+        return cur.fetchone(), ''
+    cat = str(deal.get('CATEGORY_ID') or '0')
+    stage = str(deal.get('STAGE_ID') or '')
+    cur.execute("SELECT * FROM edo_rules WHERE enabled = true AND category_id = %s AND (stage_id IS NULL OR stage_id = '' OR stage_id = %s) ORDER BY (stage_id = %s) DESC NULLS LAST, id", (cat, stage, stage))
+    rows = cur.fetchall()
+    if not rows:
+        return None, f'Для воронки {cat} и стадии {stage} нет подходящего правила'
+    return rows[0], ''
+
+
+def process(conn, deal_id, source, rule_id=None):
     s = get_settings(conn)
     cur = conn.cursor()
     cur.execute("INSERT INTO edo_requests (deal_id, source, status) VALUES (%s, %s, 'processing') RETURNING id", (str(deal_id), source))
@@ -100,14 +114,29 @@ def process(conn, deal_id, source):
             log(conn, req, 'Оператор ЭДО', False, err)
             return finish('error', err, '', title)
         log(conn, req, 'Оператор ЭДО', True, PROVIDERS[provider])
-        cur.execute('SELECT template_id FROM edo_templates WHERE enabled = true')
-        wanted = {r['template_id'] for r in cur.fetchall()}
+        rule, rerr = find_rule(conn, deal, rule_id)
+        if not rule:
+            log(conn, req, 'Правило', False, rerr or 'Правило не найдено')
+            return finish('error', rerr or 'Правило не найдено', provider, title)
+        cur.execute('UPDATE edo_requests SET rule_id = %s, rule_name = %s WHERE id = %s', (rule['id'], rule['name'], req))
+        conn.commit()
+        log(conn, req, 'Правило', True, rule['name'])
+        wanted = {str(t) for t in (rule['template_ids'] or [])}
         if not wanted:
-            log(conn, req, 'Шаблоны', False, 'Не выбраны шаблоны документов для ЭДО')
-            return finish('error', 'Не выбраны шаблоны документов для ЭДО', provider, title)
+            log(conn, req, 'Шаблоны', False, 'В правиле не выбраны шаблоны документов')
+            return finish('error', 'В правиле не выбраны шаблоны документов', provider, title)
         res = bx.call('crm.documentgenerator.document.list', {'filter': {'entityTypeId': 2, 'entityId': int(deal_id)}, 'select': ['*'], 'order': {'id': 'desc'}})
         docs = res.get('documents') if isinstance(res, dict) else res
         docs = [d for d in docs or [] if str(d.get('templateId')) in wanted]
+        if rule['pick'] == 'latest' and docs:
+            docs = sorted(docs, key=lambda d: int(d['id']), reverse=True)[:1]
+        elif rule['pick'] == 'each_latest':
+            seen, out = set(), []
+            for d in sorted(docs, key=lambda d: int(d['id']), reverse=True):
+                if d.get('templateId') not in seen:
+                    seen.add(d.get('templateId'))
+                    out.append(d)
+            docs = out
         log(conn, req, 'Документы найдены', bool(docs), f'{len(docs)} шт.')
         if not docs:
             return finish('error', 'В сделке нет документов по выбранным шаблонам', provider, title)
@@ -203,7 +232,7 @@ def handle(event, action):
             deal_id = payti.parse_deal_id(params, body_raw, headers)
             if not deal_id:
                 return resp(400, {'ok': False, 'error': 'Не указан номер сделки'})
-            r = process(conn, deal_id, 'hook' if action == 'edo-hook' else 'manual')
+            r = process(conn, deal_id, 'hook' if action == 'edo-hook' else 'manual', params.get('rule'))
             return resp(200, {**r, 'dealId': deal_id})
 
         if action == 'edo-meta':
@@ -215,7 +244,7 @@ def handle(event, action):
                         fields.append({'code': code, 'label': f.get('formLabel') or f.get('listLabel') or code, 'items': [i.get('VALUE') for i in f.get('items') or []]})
             except Exception as e:
                 err = str(e)
-            cur.execute('SELECT template_id, name, enabled FROM edo_templates ORDER BY name')
+            cur.execute('SELECT template_id, name FROM edo_templates ORDER BY name')
             return resp(200, {'settings': public_settings(s), 'fields': fields, 'templates': cur.fetchall(), 'error': err})
 
         if action == 'edo-settings':
@@ -232,6 +261,39 @@ def handle(event, action):
                 conn.commit()
             return resp(200, {'ok': True, 'settings': public_settings(get_settings(conn))})
 
+        if action == 'edo-rules':
+            cur.execute('SELECT * FROM edo_rules ORDER BY category_id, id')
+            return resp(200, {'rules': cur.fetchall()})
+
+        if action == 'edo-rule-save':
+            tpl = [str(t) for t in body.get('template_ids') or []]
+            pick = body.get('pick') if body.get('pick') in ('all', 'latest', 'each_latest') else 'all'
+            vals = (body.get('name') or 'Правило', str(body.get('category_id') or '0'), body.get('stage_id') or None, json.dumps(tpl), pick, bool(body.get('enabled', True)))
+            if body.get('id'):
+                cur.execute('UPDATE edo_rules SET name = %s, category_id = %s, stage_id = %s, template_ids = %s::jsonb, pick = %s, enabled = %s, updated_at = NOW() WHERE id = %s', vals + (int(body['id']),))
+            else:
+                cur.execute('INSERT INTO edo_rules (name, category_id, stage_id, template_ids, pick, enabled) VALUES (%s, %s, %s, %s::jsonb, %s, %s)', vals)
+            conn.commit()
+            cur.execute('SELECT * FROM edo_rules ORDER BY category_id, id')
+            return resp(200, {'ok': True, 'rules': cur.fetchall()})
+
+        if action == 'edo-rule-delete':
+            cur.execute('DELETE FROM edo_rules WHERE id = %s', (int(params.get('id') or 0),))
+            conn.commit()
+            cur.execute('SELECT * FROM edo_rules ORDER BY category_id, id')
+            return resp(200, {'ok': True, 'rules': cur.fetchall()})
+
+        if action == 'edo-funnels':
+            bx = make_bx(get_settings(conn))
+            try:
+                cats = [{'id': '0', 'name': 'Общая'}] + [{'id': str(c['ID']), 'name': c['NAME']} for c in bx.call('crm.dealcategory.list', {'select': ['ID', 'NAME']}) or []]
+                for c in cats:
+                    ent = 'DEAL_STAGE' if c['id'] == '0' else f"DEAL_STAGE_{c['id']}"
+                    c['stages'] = [{'id': i['STATUS_ID'], 'name': i['NAME']} for i in bx.call('crm.status.entity.items', {'entityId': ent}) or []]
+            except Exception as e:
+                return resp(200, {'ok': False, 'error': str(e)})
+            return resp(200, {'ok': True, 'funnels': cats})
+
         if action == 'edo-templates-sync':
             s = get_settings(conn)
             try:
@@ -246,7 +308,7 @@ def handle(event, action):
                     continue
                 cur.execute("INSERT INTO edo_templates (template_id, name) VALUES (%s, %s) ON CONFLICT (template_id) DO UPDATE SET name = EXCLUDED.name, updated_at = NOW()", (str(t['id']), t.get('name') or ''))
             conn.commit()
-            cur.execute('SELECT template_id, name, enabled FROM edo_templates ORDER BY name')
+            cur.execute('SELECT template_id, name FROM edo_templates ORDER BY name')
             return resp(200, {'ok': True, 'templates': cur.fetchall()})
 
         if action == 'edo-template-save':

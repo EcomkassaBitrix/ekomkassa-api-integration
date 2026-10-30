@@ -5,6 +5,7 @@ import Icon from '@/components/ui/icon';
 import { PAYTI_URL, paytiFetch } from './PaytiSettingsDialog';
 import HookCollapsible from './HookCollapsible';
 import EdoSettings, { EdoField, EdoSettingsData, EdoTemplate } from './edo/EdoSettings';
+import EdoRules from './edo/EdoRules';
 import EdoRequests from './edo/EdoRequests';
 
 const EdoConsole = () => {
@@ -12,7 +13,7 @@ const EdoConsole = () => {
   const [fields, setFields] = useState<EdoField[]>([]);
   const [templates, setTemplates] = useState<EdoTemplate[]>([]);
   const [error, setError] = useState('');
-  const [view, setView] = useState<'requests' | 'settings'>('requests');
+  const [view, setView] = useState<'requests' | 'rules' | 'settings'>('requests');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tick, setTick] = useState(0);
@@ -59,7 +60,7 @@ const EdoConsole = () => {
       )}
 
       <HookCollapsible>
-        <p className="text-sm text-muted-foreground">Добавьте робота «Вебхук» на нужную стадию сделки. Система найдёт в сделке документы по выбранным шаблонам и подготовит их для ЭДО.</p>
+        <p className="text-sm text-muted-foreground">Добавьте робота «Вебхук» на нужную стадию сделки. Система определит воронку и стадию, найдёт подходящее правило и подготовит документы для ЭДО. Чтобы запустить конкретное правило, добавьте в ссылку &rule=номер (ссылки есть на вкладке «Правила»).</p>
         <div className="flex gap-2">
           <code className="flex-1 text-xs bg-muted rounded-md p-3 break-all">{hookUrl}</code>
           <Button variant="outline" size="icon" onClick={() => navigator.clipboard.writeText(hookUrl)}><Icon name="Copy" size={16} /></Button>
@@ -68,14 +69,17 @@ const EdoConsole = () => {
 
       <div className="flex gap-2">
         <Button variant={view === 'requests' ? 'default' : 'outline'} size="sm" onClick={() => setView('requests')}>Запросы по сделкам</Button>
+        <Button variant={view === 'rules' ? 'default' : 'outline'} size="sm" onClick={() => setView('rules')}>Правила</Button>
         <Button variant={view === 'settings' ? 'default' : 'outline'} size="sm" onClick={() => setView('settings')}>Настройки</Button>
       </div>
 
       {view === 'requests' && <EdoRequests refreshKey={tick} />}
 
+      {view === 'rules' && <EdoRules templates={templates} onTemplates={setTemplates} />}
+
       {view === 'settings' && (
         <>
-          <EdoSettings s={s} set={set} fields={fields} templates={templates} onTemplates={setTemplates} onSave={save} />
+          <EdoSettings s={s} set={set} fields={fields} onSave={save} />
           <div className="flex items-center gap-3 sticky bottom-0 bg-background/90 backdrop-blur py-3">
             <Button onClick={async () => { await save(); setTick((t) => t + 1); }} disabled={saving}>{saving ? 'Сохраняю...' : 'Сохранить настройки'}</Button>
             {saved && <span className="text-sm text-primary">Сохранено</span>}

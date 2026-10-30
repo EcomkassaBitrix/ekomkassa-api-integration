@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { paytiFetch } from '../PaytiSettingsDialog';
 
 export interface EdoField { code: string; label: string; items: string[] }
-export interface EdoTemplate { template_id: string; name: string; enabled: boolean }
+export interface EdoTemplate { template_id: string; name: string }
 export type EdoSettingsData = Record<string, string | boolean | undefined>;
 
 const selectCls = 'w-full h-10 rounded-md border border-input bg-background px-3 text-sm';
@@ -22,8 +22,6 @@ interface Props {
   s: EdoSettingsData;
   set: (patch: EdoSettingsData) => void;
   fields: EdoField[];
-  templates: EdoTemplate[];
-  onTemplates: (t: EdoTemplate[]) => void;
   onSave: () => Promise<void>;
 }
 
@@ -40,27 +38,11 @@ const ValueSelect = ({ items, value, onChange }: { items: string[]; value: strin
 
 const str = (v: string | boolean | undefined) => (typeof v === 'string' ? v : '');
 
-const EdoSettings = ({ s, set, fields, templates, onTemplates, onSave }: Props) => {
+const EdoSettings = ({ s, set, fields, onSave }: Props) => {
   const [msg, setMsg] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
 
   const say = (k: string, v: string) => setMsg((p) => ({ ...p, [k]: v }));
-
-  const syncTemplates = async () => {
-    setBusy('tpl');
-    await onSave();
-    const d = await paytiFetch('edo-templates-sync');
-    setBusy('');
-    if (!d.ok) return say('tpl', `Не удалось получить шаблоны: ${d.error}`);
-    onTemplates(d.templates);
-    say('tpl', `Найдено шаблонов: ${d.templates.length}`);
-  };
-
-  const toggle = async (t: EdoTemplate) => {
-    const enabled = !t.enabled;
-    onTemplates(templates.map((x) => (x.template_id === t.template_id ? { ...x, enabled } : x)));
-    await paytiFetch('edo-template-save', { method: 'POST', body: { template_id: t.template_id, enabled } });
-  };
 
   const test = async (provider: 'diadoc' | 'potok') => {
     setBusy(provider);
@@ -101,27 +83,6 @@ const EdoSettings = ({ s, set, fields, templates, onTemplates, onSave }: Props) 
       </Card>
 
       <Card className="p-6 space-y-4">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <p className="font-medium">Какие документы искать в сделке</p>
-            <p className="text-sm text-muted-foreground">Отметьте шаблоны генератора документов, документы по которым нужно передавать в ЭДО</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={syncTemplates} disabled={busy === 'tpl'}>{busy === 'tpl' ? 'Загружаю...' : 'Загрузить шаблоны из Битрикс24'}</Button>
-        </div>
-        {msg.tpl && <p className="text-sm text-muted-foreground">{msg.tpl}</p>}
-        {templates.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Шаблоны ещё не загружены</p>
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-2 max-h-72 overflow-auto">
-            {templates.map((t) => (
-              <label key={t.template_id} className="flex items-center gap-2 text-sm rounded-md border border-border p-2 cursor-pointer">
-                <input type="checkbox" checked={t.enabled} onChange={() => toggle(t)} />
-                <span>{t.name}</span>
-                <span className="text-xs text-muted-foreground ml-auto">№{t.template_id}</span>
-              </label>
-            ))}
-          </div>
-        )}
         <Field label="В каком виде забирать файл">
           <select className={selectCls} value={str(s.file_format) || 'pdf'} onChange={(e) => set({ file_format: e.target.value })}>
             <option value="pdf">PDF</option>
