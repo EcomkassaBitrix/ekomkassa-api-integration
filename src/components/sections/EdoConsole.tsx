@@ -60,7 +60,7 @@ const EdoConsole = () => {
       )}
 
       <HookCollapsible>
-        <p className="text-sm text-muted-foreground">Добавьте робота «Вебхук» на нужную стадию сделки. Система определит воронку и стадию, найдёт подходящее правило и подготовит документы для ЭДО. Чтобы запустить конкретное правило, добавьте в ссылку &rule=номер (ссылки есть на вкладке «Правила»).</p>
+        <p className="text-sm text-muted-foreground">Добавьте робота «Вебхук» на нужную стадию сделки. Система определит воронку и стадию, найдёт подходящее правило и отправит документы в личный кабинет ЭДО Потока (для сделок с оператором «Поток»). Чтобы запустить конкретное правило, добавьте в ссылку &rule=номер (ссылки есть на вкладке «Правила»).</p>
         <div className="flex gap-2">
           <code className="flex-1 text-xs bg-muted rounded-md p-3 break-all">{hookUrl}</code>
           <Button variant="outline" size="icon" onClick={() => navigator.clipboard.writeText(hookUrl)}><Icon name="Copy" size={16} /></Button>

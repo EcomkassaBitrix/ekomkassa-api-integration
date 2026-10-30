@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { paytiFetch } from '../PaytiSettingsDialog';
 
 export interface EdoField { code: string; label: string; items: string[] }
+export interface DocType { id: number; name: string }
 export interface EdoTemplate { template_id: string; name: string }
 export type EdoSettingsData = Record<string, string | boolean | undefined>;
 
@@ -41,6 +42,11 @@ const str = (v: string | boolean | undefined) => (typeof v === 'string' ? v : ''
 const EdoSettings = ({ s, set, fields, onSave }: Props) => {
   const [msg, setMsg] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
+  const [types, setTypes] = useState<DocType[]>([]);
+
+  useEffect(() => {
+    paytiFetch('edo-potok-types').then((d) => setTypes(d.types || []));
+  }, []);
 
   const say = (k: string, v: string) => setMsg((p) => ({ ...p, [k]: v }));
 
@@ -51,6 +57,7 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
     setBusy('');
     if (!d.ok) return say(provider, d.error);
     const boxes = (d.boxes || []).map((b: { name: string; inn: string }) => `${b.name} (${b.inn})`).join(', ');
+    if (provider === 'potok') setTypes(d.types || []);
     say(provider, `${d.info}${boxes ? `. Организации: ${boxes}` : ''}`);
   };
 
@@ -126,30 +133,37 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
       <Card className="p-6 space-y-4">
         <div>
           <p className="font-medium">ЭДО Поток</p>
-          <p className="text-sm text-muted-foreground">Доступ по протоколу API ЭДО Потока. Адрес тестового и рабочего API выдаёт оператор</p>
+          <p className="text-sm text-muted-foreground">
+            Вход по ID ЭДО и паролю организации (пароль выдаёт поддержка edo@edo.ru) либо по e-mail и паролю сотрудника из личного кабинета. Ключ доступа система получает сама и обновляет раз в сутки
+          </p>
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Среда">
-            <select className={selectCls} value={str(s.potok_env) || 'test'} onChange={(e) => set({ potok_env: e.target.value })}>
-              <option value="test">Тестовая</option>
-              <option value="prod">Рабочая</option>
-            </select>
-          </Field>
-          <Field label="Адрес API">
-            <Input value={str(s.potok_base_url)} onChange={(e) => set({ potok_base_url: e.target.value })} placeholder="https://..." />
-          </Field>
-          <Field label="Логин">
+          <Field label="ID ЭДО организации или e-mail сотрудника" hint="Например 2PS-0078414651 или user@company.ru">
             <Input autoComplete="off" value={str(s.potok_login)} onChange={(e) => set({ potok_login: e.target.value })} />
           </Field>
-          <Field label="Пароль" hint={s.potok_password_set ? 'Пароль сохранён. Оставьте пустым, чтобы не менять' : undefined}>
+          <Field label="Пароль" hint={s.potok_password_set ? 'Пароль сохранён. Оставьте пустым, чтобы не менять' : 'Пароль организации или сотрудника, в зависимости от логина'}>
             <Input type="password" autoComplete="new-password" value={str(s.potok_password)} onChange={(e) => set({ potok_password: e.target.value })} />
           </Field>
-          <Field label="Организация отправителя">
+          <Field label="Организация отправителя" hint="Нужна, если у сотрудника несколько организаций: ID ЭДО или ИНН. Пусто — берётся первая">
             <Input value={str(s.potok_org_id)} onChange={(e) => set({ potok_org_id: e.target.value })} />
           </Field>
+          <Field label="Адрес API" hint="Обычно менять не нужно">
+            <Input value={str(s.potok_base_url)} onChange={(e) => set({ potok_base_url: e.target.value })} placeholder="https://lk.edo.ru/api/edo/v1" />
+          </Field>
+          <Field label="Тип документа по умолчанию" hint="Берётся из справочника Потока. Для отдельных правил можно выбрать другой">
+            <select className={selectCls} value={str(s.potok_doc_type)} onChange={(e) => set({ potok_doc_type: e.target.value })}>
+              <option value="">Не выбрано</option>
+              {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {str(s.potok_doc_type) && !types.some((t) => String(t.id) === str(s.potok_doc_type)) && <option value={str(s.potok_doc_type)}>Тип №{str(s.potok_doc_type)}</option>}
+            </select>
+          </Field>
+          <label className="flex items-center gap-2 text-sm self-end pb-2">
+            <input type="checkbox" checked={s.potok_sign_requested !== false} onChange={(e) => set({ potok_sign_requested: e.target.checked })} />
+            Запрашивать подпись у клиента
+          </label>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => test('potok')} disabled={busy === 'potok'}>{busy === 'potok' ? 'Проверяю...' : 'Проверить адрес'}</Button>
+          <Button variant="outline" size="sm" onClick={() => test('potok')} disabled={busy === 'potok'}>{busy === 'potok' ? 'Проверяю...' : 'Проверить вход и загрузить типы документов'}</Button>
           {msg.potok && <span className="text-sm text-muted-foreground">{msg.potok}</span>}
         </div>
       </Card>

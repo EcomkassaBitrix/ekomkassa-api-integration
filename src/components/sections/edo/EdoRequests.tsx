@@ -10,8 +10,8 @@ interface Doc { id: number; request_id: number; title: string; number: string; f
 interface Ev { request_id: number; step: string; ok: boolean; info: string; created_at: string }
 
 const PROVIDERS: Record<string, string> = { diadoc: 'Диадок', potok: 'ЭДО Поток' };
-const STATUSES: Record<string, string> = { processing: 'В работе', ready: 'Файлы готовы', sent: 'Отправлено', error: 'Ошибка', new: 'Новая' };
-const DOC_STATUSES: Record<string, string> = { found: 'Найден', ready: 'Скачан', sent: 'Отправлен', error: 'Ошибка' };
+const STATUSES: Record<string, string> = { processing: 'В работе', ready: 'Файлы готовы', sent: 'Отправлено в ЭДО', error: 'Ошибка', new: 'Новая' };
+const DOC_STATUSES: Record<string, string> = { found: 'Найден', ready: 'Скачан', sent: 'Отправлен в ЭДО', error: 'Ошибка' };
 
 const fmt = (iso: string) => new Date(iso + 'Z').toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 

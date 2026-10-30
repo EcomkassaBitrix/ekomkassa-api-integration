@@ -21,6 +21,14 @@ def handle(event, action):
     deal_id = params.get('dealId') or ''
     bx = payti.Bitrix()
     out = {'dealId': deal_id}
+    if params.get('mode') == 'inn':
+        deal = bx.call('crm.deal.get', {'id': int(deal_id)}) or {}
+        out['deal'] = {k: deal.get(k) for k in ('COMPANY_ID', 'CONTACT_ID', 'TITLE')}
+        out['inn_like'] = {k: v for k, v in deal.items() if v and ('INN' in k.upper() or 'ИНН' in str(bx.fields('deal').get(k, {}).get('formLabel', '')).upper())}
+        for et, key in ((4, 'COMPANY_ID'), (3, 'CONTACT_ID')):
+            if deal.get(key) and deal.get(key) != '0':
+                out[f'req_{et}'] = [{k: r.get(k) for k in ('ID', 'RQ_INN', 'RQ_KPP', 'RQ_COMPANY_NAME', 'RQ_OGRNIP', 'PRESET_ID')} for r in bx.call('crm.requisite.list', {'filter': {'ENTITY_TYPE_ID': et, 'ENTITY_ID': deal[key]}, 'select': ['*']}) or []]
+        return payti.resp(200, out)
     try:
         res = bx.call('crm.documentgenerator.document.list', {
             'filter': {'entityTypeId': 2, 'entityId': int(deal_id)},

@@ -6,12 +6,12 @@ import Icon from '@/components/ui/icon';
 import { PAYTI_URL, paytiFetch } from '../PaytiSettingsDialog';
 import { EdoTemplate } from './EdoSettings';
 
-interface Rule { id?: number; name: string; category_id: string; stage_id: string | null; template_ids: string[]; pick: string; enabled: boolean }
+interface Rule { id?: number; name: string; category_id: string; stage_id: string | null; template_ids: string[]; pick: string; enabled: boolean; potok_doc_type?: number | null }
 interface Funnel { id: string; name: string; stages: { id: string; name: string }[] }
 
 const selectCls = 'w-full h-10 rounded-md border border-input bg-background px-3 text-sm';
 const PICKS: Record<string, string> = { all: 'Все найденные документы', latest: 'Только последний документ', each_latest: 'Последний по каждому шаблону' };
-const empty: Rule = { name: '', category_id: '0', stage_id: '', template_ids: [], pick: 'latest', enabled: true };
+const empty: Rule = { name: '', category_id: '0', stage_id: '', template_ids: [], pick: 'latest', enabled: true, potok_doc_type: null };
 
 const Field = ({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) => (
   <label className="text-sm space-y-1 block">
@@ -32,9 +32,11 @@ const EdoRules = ({ templates, onTemplates }: Props) => {
   const [edit, setEdit] = useState<Rule | null>(null);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [types, setTypes] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
     paytiFetch('edo-rules').then((d) => setRules(d.rules || []));
+    paytiFetch('edo-potok-types').then((d) => setTypes(d.types || []));
     paytiFetch('edo-funnels').then((d) => {
       if (d.ok) setFunnels(d.funnels);
       else setMsg(`Не удалось получить воронки: ${d.error}`);
@@ -143,6 +145,12 @@ const EdoRules = ({ templates, onTemplates }: Props) => {
           <Field label="Сколько документов брать" hint="Если в сделке несколько документов, например несколько версий договора">
             <select className={selectCls} value={edit.pick} onChange={(e) => setEdit({ ...edit, pick: e.target.value })}>
               {Object.entries(PICKS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <Field label="Тип документа в ЭДО Потоке" hint="Если не выбрать, используется тип из настроек. Список появится после проверки входа в настройках">
+            <select className={selectCls} value={edit.potok_doc_type ? String(edit.potok_doc_type) : ''} onChange={(e) => setEdit({ ...edit, potok_doc_type: e.target.value ? Number(e.target.value) : null })}>
+              <option value="">Как в настройках</option>
+              {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </Field>
           <label className="flex items-center gap-2 text-sm">

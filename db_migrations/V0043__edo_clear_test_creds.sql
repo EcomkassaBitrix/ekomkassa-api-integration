@@ -1,0 +1,1 @@
+UPDATE t_p25765938_ekomkassa_api_integr.edo_settings SET potok_login = NULL, potok_password = NULL, potok_token = NULL, potok_token_at = NULL WHERE id = 1;

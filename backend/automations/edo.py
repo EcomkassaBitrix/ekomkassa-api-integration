@@ -8,12 +8,13 @@ import boto3
 import requests
 
 import payti
+import potok
 from payti import resp, db, Bitrix
 
-ACTIONS = {'edo-rules', 'edo-rule-save', 'edo-rule-delete', 'edo-funnels', 'edo-hook', 'edo-meta', 'edo-settings', 'edo-templates-sync', 'edo-template-save', 'edo-requests', 'edo-run', 'edo-test'}
-SECRETS = ('bitrix_webhook_url', 'diadoc_password', 'potok_password')
+ACTIONS = {'edo-potok-types', 'edo-rules', 'edo-rule-save', 'edo-rule-delete', 'edo-funnels', 'edo-hook', 'edo-meta', 'edo-settings', 'edo-templates-sync', 'edo-template-save', 'edo-requests', 'edo-run', 'edo-test'}
+SECRETS = ('bitrix_webhook_url', 'diadoc_password', 'potok_password', 'potok_token')
 COLS = ['bitrix_webhook_url', 'edo_field', 'diadoc_value', 'potok_value', 'file_format', 'diadoc_env', 'diadoc_client_id',
-        'diadoc_login', 'diadoc_password', 'diadoc_box_id', 'potok_env', 'potok_base_url', 'potok_login', 'potok_password', 'potok_org_id']
+        'diadoc_login', 'diadoc_password', 'diadoc_box_id', 'potok_env', 'potok_base_url', 'potok_login', 'potok_password', 'potok_org_id', 'potok_doc_type', 'potok_sign_requested']
 DIADOC_URLS = {'test': 'https://diadoc-api.kontur.ru', 'prod': 'https://diadoc-api.kontur.ru'}
 PROVIDERS = {'diadoc': 'Диадок', 'potok': 'ЭДО Поток'}
 
@@ -31,6 +32,7 @@ def public_settings(s):
     for k in SECRETS:
         v = out.pop(k, None) or ''
         out[k.replace('bitrix_webhook_url', 'webhook') + '_set'] = bool(v)
+    out.pop('potok_token_at', None)
     out['webhook_hint'] = ''
     url = s.get('bitrix_webhook_url') or ''
     if '/rest/' in url:
@@ -76,6 +78,15 @@ def pick_provider(bx, s, deal):
     if (s.get('potok_value') or 'поток').strip().lower() in val:
         return 'potok', ''
     return '', f'Оператор «{val}» не распознан'
+
+
+def deal_inn(bx, deal):
+    for et, key in ((4, 'COMPANY_ID'), (3, 'CONTACT_ID')):
+        if deal.get(key) and str(deal[key]) != '0':
+            for r in bx.call('crm.requisite.list', {'filter': {'ENTITY_TYPE_ID': et, 'ENTITY_ID': deal[key]}, 'select': ['ID', 'RQ_INN']}) or []:
+                if r.get('RQ_INN'):
+                    return str(r['RQ_INN'])
+    return ''
 
 
 def find_rule(conn, deal, rule_id):
@@ -142,6 +153,23 @@ def process(conn, deal_id, source, rule_id=None):
             return finish('error', 'В сделке нет документов по выбранным шаблонам', provider, title)
         fmt = s.get('file_format') or 'pdf'
         bad = 0
+        to, to_err, doc_type = None, '', None
+        if provider == 'potok':
+            doc_type = rule.get('potok_doc_type') or s.get('potok_doc_type')
+            try:
+                if not doc_type:
+                    raise RuntimeError('Не выбран тип документа для ЭДО Потока (в настройках или в правиле)')
+                inn = deal_inn(bx, deal)
+                if not inn:
+                    raise RuntimeError('В сделке не найден ИНН клиента (реквизиты компании)')
+                to, name = potok.find_contractor(conn, s, inn)
+                if not to:
+                    raise RuntimeError(f'Клиент с ИНН {inn} не найден в ЭДО Поток')
+                log(conn, req, 'Получатель в ЭДО Поток', True, f'{name} (ИНН {inn})')
+            except Exception as e:
+                to_err = str(e)
+                log(conn, req, 'Получатель в ЭДО Поток', False, to_err)
+        sent = 0
         for d in docs:
             files = []
             if fmt in ('pdf', 'both'):
@@ -170,13 +198,25 @@ def process(conn, deal_id, source, rule_id=None):
                     cur.execute("UPDATE edo_documents SET status = 'ready', file_name = %s, file_url = %s, file_size = %s, error = NULL, updated_at = NOW() WHERE id = %s", (name, cdn, len(r.content), row['id']))
                     conn.commit()
                     log(conn, req, f"{d.get('title')} .{ext}", True, f'Скачан, {len(r.content) // 1024} КБ', row['id'])
+                    if provider == 'potok':
+                        if to_err:
+                            raise RuntimeError(to_err)
+                        draft_id, st = potok.upload_draft(conn, s, to, doc_type, f"{d.get('title') or name}.{ext}", r.content, s.get('potok_sign_requested'))
+                        cur.execute("UPDATE edo_documents SET status = 'sent', external_id = %s, updated_at = NOW() WHERE id = %s", (draft_id, row['id']))
+                        conn.commit()
+                        sent += 1
+                        log(conn, req, f"{d.get('title')} .{ext} → ЭДО Поток", True, f'Черновик №{draft_id} ({st})', row['id'])
                 except Exception as e:
                     bad += 1
+                    conn.rollback()
                     cur.execute("UPDATE edo_documents SET status = 'error', error = %s, updated_at = NOW() WHERE id = %s", (str(e)[:300], row['id']))
                     conn.commit()
                     log(conn, req, f"{d.get('title')} .{ext}", False, str(e), row['id'])
-        log(conn, req, 'Отправка в ЭДО', False, f'Передача в {PROVIDERS[provider]} ещё не подключена: файлы подготовлены')
-        return finish('error' if bad else 'ready', f'Не скачано файлов: {bad}' if bad else '', provider, title)
+        if provider != 'potok':
+            log(conn, req, 'Отправка в ЭДО', False, f'Передача в {PROVIDERS[provider]} ещё не подключена: файлы подготовлены')
+        if bad:
+            return finish('error', f'Не обработано файлов: {bad}', provider, title)
+        return finish('sent' if provider == 'potok' else 'ready', '', provider, title)
     except Exception as e:
         conn.rollback()
         log(conn, req, 'Ошибка', False, str(e))
@@ -204,14 +244,14 @@ def test_diadoc(s):
     return {'ok': True, 'info': 'Вход выполнен', 'boxes': [{'id': (o.get('Boxes') or [{}])[0].get('BoxIdGuid') or o.get('OrgId'), 'name': o.get('ShortName') or o.get('FullName'), 'inn': o.get('Inn')} for o in orgs]}
 
 
-def test_potok(s):
-    if not (s.get('potok_base_url') and s.get('potok_login') and s.get('potok_password')):
-        return {'ok': False, 'error': 'Заполните адрес API, логин и пароль'}
+def test_potok(conn, s):
     try:
-        r = requests.get(s['potok_base_url'].rstrip('/'), timeout=6)
+        pick = potok.login(conn, s)
+        org = pick.get('organization') or {}
+        types = potok.doc_types(conn, s)
     except Exception as e:
-        return {'ok': False, 'error': f'Адрес не отвечает: {e}'}
-    return {'ok': True, 'info': f'Адрес отвечает (код {r.status_code}). Проверка входа появится после подключения протокола Потока'}
+        return {'ok': False, 'error': str(e)}
+    return {'ok': True, 'info': f"Вход выполнен: {org.get('fullName') or org.get('edoId')} ({org.get('edoId')})", 'types': types}
 
 
 def handle(event, action):
@@ -254,12 +294,22 @@ def handle(event, action):
                     v = body[c]
                     if c in SECRETS and not v:
                         continue
+                    if c == 'potok_doc_type':
+                        v = int(v) if v not in ('', None) else None
                     sets.append(f'{c} = %s')
                     vals.append(v if v != '' else None)
+            if any(c in body for c in ('potok_login', 'potok_password', 'potok_base_url', 'potok_org_id')):
+                sets.append('potok_token = NULL')
             if sets:
                 cur.execute(f"UPDATE edo_settings SET {', '.join(sets)}, updated_at = NOW() WHERE id = 1", vals)
                 conn.commit()
             return resp(200, {'ok': True, 'settings': public_settings(get_settings(conn))})
+
+        if action == 'edo-potok-types':
+            try:
+                return resp(200, {'ok': True, 'types': potok.doc_types(conn, get_settings(conn))})
+            except Exception as e:
+                return resp(200, {'ok': False, 'error': str(e), 'types': []})
 
         if action == 'edo-rules':
             cur.execute('SELECT * FROM edo_rules ORDER BY category_id, id')
@@ -268,11 +318,11 @@ def handle(event, action):
         if action == 'edo-rule-save':
             tpl = [str(t) for t in body.get('template_ids') or []]
             pick = body.get('pick') if body.get('pick') in ('all', 'latest', 'each_latest') else 'all'
-            vals = (body.get('name') or 'Правило', str(body.get('category_id') or '0'), body.get('stage_id') or None, json.dumps(tpl), pick, bool(body.get('enabled', True)))
+            vals = (body.get('name') or 'Правило', str(body.get('category_id') or '0'), body.get('stage_id') or None, json.dumps(tpl), pick, bool(body.get('enabled', True)), int(body['potok_doc_type']) if body.get('potok_doc_type') else None)
             if body.get('id'):
-                cur.execute('UPDATE edo_rules SET name = %s, category_id = %s, stage_id = %s, template_ids = %s::jsonb, pick = %s, enabled = %s, updated_at = NOW() WHERE id = %s', vals + (int(body['id']),))
+                cur.execute('UPDATE edo_rules SET name = %s, category_id = %s, stage_id = %s, template_ids = %s::jsonb, pick = %s, enabled = %s, potok_doc_type = %s, updated_at = NOW() WHERE id = %s', vals + (int(body['id']),))
             else:
-                cur.execute('INSERT INTO edo_rules (name, category_id, stage_id, template_ids, pick, enabled) VALUES (%s, %s, %s, %s::jsonb, %s, %s)', vals)
+                cur.execute('INSERT INTO edo_rules (name, category_id, stage_id, template_ids, pick, enabled, potok_doc_type) VALUES (%s, %s, %s, %s::jsonb, %s, %s, %s)', vals)
             conn.commit()
             cur.execute('SELECT * FROM edo_rules ORDER BY category_id, id')
             return resp(200, {'ok': True, 'rules': cur.fetchall()})
@@ -318,7 +368,7 @@ def handle(event, action):
 
         if action == 'edo-test':
             s = get_settings(conn)
-            return resp(200, test_diadoc(s) if params.get('provider') == 'diadoc' else test_potok(s))
+            return resp(200, test_diadoc(s) if params.get('provider') == 'diadoc' else test_potok(conn, s))
 
         if action == 'edo-requests':
             cur.execute('SELECT * FROM edo_requests ORDER BY id DESC LIMIT 100')
