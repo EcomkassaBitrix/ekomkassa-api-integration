@@ -273,7 +273,8 @@ def clean_fields(raw):
     for i, f in enumerate(raw or []):
         label = str((f or {}).get('label') or '').strip()
         if label:
-            out.append({'id': str((f or {}).get('id') or f'f{i + 1}')[:40], 'label': label[:200], 'hint': str((f or {}).get('hint') or '').strip()[:500]})
+            out.append({'id': str((f or {}).get('id') or f'f{i + 1}')[:40], 'label': label[:200], 'hint': str((f or {}).get('hint') or '').strip()[:500],
+                    'crm_field': str((f or {}).get('crm_field') or '').strip()[:100]})
     return out
 
 
@@ -291,7 +292,7 @@ def booking_view(settings, b, service):
         'employee': b.get('employee_name') or '', 'canReschedule': can_re,
         'rescheduleHours': settings['reschedule_deadline_hours'], 'horizonDays': settings['horizon_days'],
         'dealTitle': b.get('deal_title') or '', 'reschedules': b.get('reschedule_count') or 0,
-        'fields': clean_fields((service or {}).get('extra_fields')), 'answers': b.get('answers') or {},
+        'fields': [{k: v for k, v in f.items() if k != 'crm_field'} for f in clean_fields((service or {}).get('extra_fields'))], 'answers': b.get('answers') or {},
     }
 
 
@@ -428,6 +429,10 @@ def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_bo
         updates[settings['start_field']] = ls.isoformat()
     if settings.get('target_stage_id'):
         updates['STAGE_ID'] = settings['target_stage_id']
+    for f in clean_fields((service or {}).get('extra_fields')):
+        val = (b.get('answers') or {}).get(f['id'])
+        if f.get('crm_field') and val:
+            updates[f['crm_field']] = val
     deal = {}
     try:
         deal = bx.call('crm.deal.get', {'id': b['deal_id']}) or {}

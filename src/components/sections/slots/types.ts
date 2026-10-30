@@ -39,6 +39,7 @@ export interface ExtraField {
   id: string;
   label: string;
   hint: string;
+  crm_field?: string;
 }
 
 export interface SlotService {

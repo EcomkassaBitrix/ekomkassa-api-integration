@@ -10,6 +10,7 @@ import { CrmFieldMeta, ExtraField, SlotService, WEEKDAYS, selectCls } from './ty
 interface Props {
   services: SlotService[];
   classifier: CrmFieldMeta | null;
+  crmFields: CrmFieldMeta[];
   onChange: (s: SlotService[]) => void;
 }
 
@@ -17,6 +18,8 @@ const empty: SlotService = {
   id: 0, name: '', match_values: [], duration_min: 60, buffer_min: 0, work_days: [1, 2, 3, 4, 5],
   work_from: '09:00', work_to: '18:00', is_default: false, is_active: true, extra_fields: [],
 };
+
+const TEXT_TYPES = ['string', 'url', 'integer', 'double', 'money'];
 
 const ServicesCard = ({ services, classifier, onChange }: Props) => {
   const [edit, setEdit] = useState<SlotService | null>(null);
@@ -58,6 +61,7 @@ const ServicesCard = ({ services, classifier, onChange }: Props) => {
     setCustom('');
   };
 
+  const textFields = crmFields.filter((f) => TEXT_TYPES.includes(f.type) && !f.multiple);
   const fields = edit?.extra_fields || [];
   const setFields = (list: ExtraField[]) => edit && setEdit({ ...edit, extra_fields: list });
   const addField = () => setFields([...fields, { id: `f${Date.now().toString(36)}`, label: '', hint: '' }]);
@@ -178,7 +182,7 @@ const ServicesCard = ({ services, classifier, onChange }: Props) => {
           <div className="space-y-2">
             <div>
               <span className="text-sm text-muted-foreground">Что спросить у клиента при записи</span>
-              <p className="text-xs text-muted-foreground">Все добавленные поля обязательные: пока клиент их не заполнит, запись не создаётся. Ответы попадут в задачу и в сделку.</p>
+              <p className="text-xs text-muted-foreground">Все добавленные поля обязательные: пока клиент их не заполнит, запись не создаётся. Ответ попадёт в задачу и, если выбрано, в поле сделки.</p>
             </div>
             {fields.map((f, i) => (
               <div key={f.id} className="rounded-md border border-border p-3 space-y-2 bg-background">
@@ -187,6 +191,13 @@ const ServicesCard = ({ services, classifier, onChange }: Props) => {
                   <Button type="button" size="icon" variant="ghost" onClick={() => setFields(fields.filter((x) => x.id !== f.id))}><Icon name="Trash2" size={16} /></Button>
                 </div>
                 <Input value={f.hint} onChange={(e) => patchField(f.id, { hint: e.target.value })} placeholder="Подсказка клиенту: зачем это нужно" />
+                <label className="block text-xs text-muted-foreground space-y-1">
+                  <span>Куда записать ответ в сделке Битрикс24</span>
+                  <select className={selectCls} value={f.crm_field || ''} onChange={(e) => patchField(f.id, { crm_field: e.target.value })}>
+                    <option value="">Никуда, только в задачу</option>
+                    {textFields.map((c) => <option key={c.code} value={c.code}>{c.title}</option>)}
+                  </select>
+                </label>
               </div>
             ))}
             <Button type="button" variant="outline" size="sm" className="gap-2" onClick={addField}>

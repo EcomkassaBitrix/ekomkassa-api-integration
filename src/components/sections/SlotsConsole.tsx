@@ -99,7 +99,7 @@ const SlotsConsole = () => {
           <WebhookCard s={s} set={set} onSave={save} />
           <BrandingCard s={s} set={set} />
           <FunnelCard meta={meta} s={s} set={set} />
-          <ServicesCard services={services} classifier={classifier} onChange={setServices} />
+          <ServicesCard services={services} classifier={classifier} crmFields={meta.fields} onChange={setServices} />
           <TeamCard meta={meta} s={s} set={set} />
           <RulesCard s={s} set={set} />
           <div className="flex items-center gap-3 sticky bottom-0 bg-background/90 backdrop-blur py-3">
