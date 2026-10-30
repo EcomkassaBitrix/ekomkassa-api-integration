@@ -252,6 +252,7 @@ export const RulesCard = ({ s, set }: Pick<Props, 's' | 'set'>) => (
     </Field>
     <div className="space-y-2 pt-2 border-t border-border">
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.check_bitrix_busy} onChange={(e) => set({ check_bitrix_busy: e.target.checked })} />Учитывать занятость в календарях Битрикс24</label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.check_bitrix_tasks} onChange={(e) => set({ check_bitrix_tasks: e.target.checked })} />Учитывать задачи специалиста с плановым временем (начало и окончание)</label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.create_task} onChange={(e) => set({ create_task: e.target.checked })} />Создавать задачу специалисту в сделке</label>
       {s.create_task && (
         <>

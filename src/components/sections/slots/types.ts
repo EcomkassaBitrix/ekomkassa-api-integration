@@ -25,6 +25,7 @@ export interface SlotSettings {
   task_description: string;
   create_calendar_event: boolean;
   check_bitrix_busy: boolean;
+  check_bitrix_tasks: boolean;
   department_id: string | null;
   employees: Employee[];
   assigner_mode: 'deal' | 'user';

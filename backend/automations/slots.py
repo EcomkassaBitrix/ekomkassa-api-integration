@@ -21,10 +21,10 @@ SETTINGS_COLS = [
     'title', 'logo_url', 'base_url', 'timezone', 'step_min', 'horizon_days', 'min_notice_hours',
     'reschedule_deadline_hours', 'max_per_day', 'link_days', 'source_category_id', 'source_stage_id',
     'classifier_field', 'link_field', 'start_field', 'target_stage_id', 'create_task', 'task_title',
-    'create_calendar_event', 'check_bitrix_busy', 'department_id', 'assigner_mode', 'assigner_user_id', 'bitrix_webhook_url', 'employee_mode', 'task_description',
+    'create_calendar_event', 'check_bitrix_busy', 'check_bitrix_tasks', 'department_id', 'assigner_mode', 'assigner_user_id', 'bitrix_webhook_url', 'employee_mode', 'task_description',
 ]
 INT_COLS = {'step_min', 'horizon_days', 'min_notice_hours', 'reschedule_deadline_hours', 'max_per_day', 'link_days'}
-BOOL_COLS = {'create_task', 'create_calendar_event', 'check_bitrix_busy'}
+BOOL_COLS = {'create_task', 'create_calendar_event', 'check_bitrix_busy', 'check_bitrix_tasks'}
 UTC = timezone.utc
 
 
@@ -174,6 +174,35 @@ def bitrix_busy(bx, user_ids, d_from, d_to, tz):
     return out, None
 
 
+def bitrix_task_busy(bx, user_ids, lo, hi, tz, skip_task_id=None):
+    out = {str(u): [] for u in user_ids}
+    if not user_ids:
+        return out, None
+    try:
+        start = 0
+        for _ in range(6):
+            r = requests_post(bx, 'tasks.task.list', {
+                'filter': {'RESPONSIBLE_ID': [int(u) for u in user_ids], 'REAL_STATUS': [1, 2, 3, 6],
+                           '<=START_DATE_PLAN': hi.strftime('%Y-%m-%d 00:00:00'), '>=END_DATE_PLAN': lo.strftime('%Y-%m-%d 00:00:00')},
+                'select': ['ID', 'RESPONSIBLE_ID', 'START_DATE_PLAN', 'END_DATE_PLAN'], 'start': start,
+            })
+            res = r.get('result') or {}
+            tasks = res.get('tasks') if isinstance(res, dict) else res
+            for t in tasks or []:
+                if skip_task_id and str(t.get('id')) == str(skip_task_id):
+                    continue
+                a = parse_bx_dt(t.get('startDatePlan'), None, tz)
+                b = parse_bx_dt(t.get('endDatePlan'), None, tz)
+                if a and b and b > a:
+                    out.setdefault(str(t.get('responsibleId')), []).append((a, b))
+            if r.get('next') is None:
+                break
+            start = r['next']
+    except Exception as e:
+        return out, str(e)
+    return out, None
+
+
 def local_busy(conn, d_from, d_to, exclude_id=None):
     cur = conn.cursor()
     cur.execute(
@@ -217,6 +246,11 @@ def compute_slots(conn, bx, settings, service, d_from, d_to, booking=None):
                 if own and e == own[0] and a == own[1] and b == own[2]:
                     continue
                 busy.setdefault(e, []).append((a, b))
+    if settings.get('check_bitrix_tasks'):
+        tb, w2 = bitrix_task_busy(bx, emps, datetime.combine(d_from - timedelta(days=1), time(0, 0)), hi, tz, (booking or {}).get('task_id'))
+        warn = warn or w2
+        for e, items in tb.items():
+            busy.setdefault(e, []).extend(items)
     per_day = {}
     for r in local_busy(conn, lo, hi, (booking or {}).get('id')):
         busy.setdefault(str(r['employee_id']), []).append((r['start_at'], r['end_at']))
