@@ -844,7 +844,11 @@ def handle_inner(event, action):
                 limit = min(max(int(params.get('limit') or 50), 1), 100)
             except ValueError:
                 limit = 50
-            cur.execute("SELECT * FROM slot_exchange WHERE parent_id IS NULL ORDER BY id DESC LIMIT %s", (limit,))
+            deal = ''.join(ch for ch in str(params.get('deal') or '') if ch.isdigit())
+            if deal:
+                cur.execute("SELECT * FROM slot_exchange WHERE parent_id IS NULL AND deal_id = %s ORDER BY id DESC LIMIT %s", (deal, limit))
+            else:
+                cur.execute("SELECT * FROM slot_exchange WHERE parent_id IS NULL ORDER BY id DESC LIMIT %s", (limit,))
             items = cur.fetchall()
             ids = [i['id'] for i in items]
             calls = {}

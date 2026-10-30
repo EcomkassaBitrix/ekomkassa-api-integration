@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { paytiFetch } from '../PaytiSettingsDialog';
@@ -60,10 +61,11 @@ const ExchangeLog = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [open, setOpen] = useState<number | null>(null);
+  const [deal, setDeal] = useState('');
 
-  const load = async () => {
+  const load = async (dealId = deal) => {
     setLoading(true);
-    const d = await paytiFetch('slots-exchange', { query: 'limit=100' });
+    const d = await paytiFetch('slots-exchange', { query: `limit=100&deal=${encodeURIComponent(dealId.trim())}` });
     setItems(d.items || []);
     setLoading(false);
   };
@@ -82,10 +84,15 @@ const ExchangeLog = () => {
           <p className="text-xs text-muted-foreground">Входящие запросы и все обращения к Битрикс24. Хранится 30 дней</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); load(); }}>
+            <Input className="h-8 w-36" value={deal} onChange={(e) => setDeal(e.target.value)} placeholder="Номер сделки" />
+            <Button size="sm" type="submit" variant="outline">Найти</Button>
+            {deal && <Button size="sm" type="button" variant="ghost" onClick={() => { setDeal(''); load(''); }}>Сбросить</Button>}
+          </form>
           {FILTERS.map(([k, t]) => (
             <Button key={k} size="sm" variant={filter === k ? 'default' : 'outline'} onClick={() => setFilter(k)}>{t}</Button>
           ))}
-          <Button size="sm" variant="outline" className="gap-2" onClick={load} disabled={loading}>
+          <Button size="sm" variant="outline" className="gap-2" onClick={() => load()} disabled={loading}>
             <Icon name="RefreshCw" size={14} className={loading ? 'animate-spin' : ''} />
             Обновить
           </Button>
