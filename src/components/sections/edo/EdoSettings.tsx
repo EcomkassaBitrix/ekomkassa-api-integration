@@ -43,9 +43,13 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
   const [msg, setMsg] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState('');
   const [types, setTypes] = useState<DocType[]>([]);
+  const [orgs, setOrgs] = useState<{ id: string; name: string; inn: string }[]>([]);
 
   useEffect(() => {
-    paytiFetch('edo-potok-types').then((d) => setTypes(d.types || []));
+    paytiFetch('edo-potok-types').then((d) => {
+      setTypes(d.types || []);
+      setOrgs(d.orgs || []);
+    });
   }, []);
 
   const say = (k: string, v: string) => setMsg((p) => ({ ...p, [k]: v }));
@@ -57,7 +61,10 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
     setBusy('');
     if (!d.ok) return say(provider, d.error);
     const boxes = (d.boxes || []).map((b: { name: string; inn: string }) => `${b.name} (${b.inn})`).join(', ');
-    if (provider === 'potok') setTypes(d.types || []);
+    if (provider === 'potok') {
+      setTypes(d.types || []);
+      setOrgs(d.orgs || []);
+    }
     say(provider, `${d.info}${boxes ? `. Организации: ${boxes}` : ''}`);
   };
 
@@ -144,9 +151,14 @@ const EdoSettings = ({ s, set, fields, onSave }: Props) => {
           <Field label="Пароль" hint={s.potok_password_set ? 'Пароль сохранён. Оставьте пустым, чтобы не менять' : 'Пароль организации или сотрудника, в зависимости от логина'}>
             <Input type="password" autoComplete="new-password" value={str(s.potok_password)} onChange={(e) => set({ potok_password: e.target.value })} />
           </Field>
-          <Field label="Организация отправителя" hint="Нужна, если у сотрудника несколько организаций: ID ЭДО или ИНН. Пусто — берётся первая">
-            <Input value={str(s.potok_org_id)} onChange={(e) => set({ potok_org_id: e.target.value })} />
-          </Field>
+{orgs.length > 1 && (
+            <Field label="Организация отправителя" hint="У этого входа несколько организаций, выберите, от чьего имени отправлять">
+              <select className={selectCls} value={str(s.potok_org_id)} onChange={(e) => set({ potok_org_id: e.target.value })}>
+                <option value="">Первая в списке</option>
+                {orgs.map((o) => <option key={o.id} value={o.id}>{o.name} ({o.inn})</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Адрес API" hint="Обычно менять не нужно">
             <Input value={str(s.potok_base_url)} onChange={(e) => set({ potok_base_url: e.target.value })} placeholder="https://lk.edo.ru/api/edo/v1" />
           </Field>

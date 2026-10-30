@@ -47,6 +47,17 @@ def login(conn, s):
     return pick
 
 
+def orgs(s):
+    if not (s.get('potok_login') and s.get('potok_password')):
+        return []
+    r = requests.post(base(s) + '/clients/auth-global', json={'clientId': s['potok_login'].strip(), 'password': s['potok_password']}, timeout=10)
+    out = []
+    for it in _check(r).get('result') or []:
+        o = it.get('organization') or {}
+        out.append({'id': o.get('edoId') or o.get('clientId'), 'name': o.get('fullName') or o.get('shortName') or '', 'inn': o.get('inn') or ''})
+    return out
+
+
 def token(conn, s):
     at = s.get('potok_token_at')
     if s.get('potok_token') and at and datetime.utcnow() - at < timedelta(hours=TOKEN_HOURS):

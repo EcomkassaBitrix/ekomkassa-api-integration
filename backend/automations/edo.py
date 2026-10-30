@@ -251,7 +251,11 @@ def test_potok(conn, s):
         types = potok.doc_types(conn, s)
     except Exception as e:
         return {'ok': False, 'error': str(e)}
-    return {'ok': True, 'info': f"Вход выполнен: {org.get('fullName') or org.get('edoId')} ({org.get('edoId')})", 'types': types}
+    try:
+        org_list = potok.orgs(s)
+    except Exception:
+        org_list = []
+    return {'ok': True, 'info': f"Вход выполнен: {org.get('fullName') or org.get('edoId')} ({org.get('edoId')})", 'types': types, 'orgs': org_list}
 
 
 def handle(event, action):
@@ -307,7 +311,12 @@ def handle(event, action):
 
         if action == 'edo-potok-types':
             try:
-                return resp(200, {'ok': True, 'types': potok.doc_types(conn, get_settings(conn))})
+                st = get_settings(conn)
+                try:
+                    org_list = potok.orgs(st)
+                except Exception:
+                    org_list = []
+                return resp(200, {'ok': True, 'types': potok.doc_types(conn, st), 'orgs': org_list})
             except Exception as e:
                 return resp(200, {'ok': False, 'error': str(e), 'types': []})
 
