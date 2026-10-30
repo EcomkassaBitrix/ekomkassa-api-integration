@@ -21,7 +21,7 @@ const empty: SlotService = {
 
 const TEXT_TYPES = ['string', 'url', 'integer', 'double', 'money'];
 
-const ServicesCard = ({ services, classifier, onChange }: Props) => {
+const ServicesCard = ({ services, classifier, crmFields, onChange }: Props) => {
   const [edit, setEdit] = useState<SlotService | null>(null);
   const [saving, setSaving] = useState(false);
   const [custom, setCustom] = useState('');
