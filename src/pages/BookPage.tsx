@@ -35,6 +35,8 @@ const call = async (action: string, token: string, opts: { body?: unknown; query
 
 const dayKey = (iso: string, tz: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: tz });
 const fmtDay = (iso: string, tz: string) => new Date(iso).toLocaleDateString('ru-RU', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'long' });
+const fmtRange = (iso: string, mins: number, tz: string) => `${fmtTime(iso, tz)}–${fmtTime(new Date(new Date(iso).getTime() + mins * 60000).toISOString(), tz)}`;
+
 const fmtTime = (iso: string, tz: string) => new Date(iso).toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
 const fmtFull = (iso: string, tz: string) => new Date(iso).toLocaleString('ru-RU', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
@@ -218,7 +220,7 @@ const BookPage = () => {
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {daySlots.map((s) => (
                 <button
                   key={s}
@@ -226,7 +228,7 @@ const BookPage = () => {
                   onClick={() => setPicked(s)}
                   className={`h-10 rounded-md border text-sm transition-colors ${picked === s ? 'bg-primary text-primary-foreground border-primary' : 'border-input hover:bg-muted'}`}
                 >
-                  {fmtTime(s, tz)}
+                  {info?.durationMin ? fmtRange(s, info.durationMin, tz) : fmtTime(s, tz)}
                 </button>
               ))}
             </div>
