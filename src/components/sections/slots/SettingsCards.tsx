@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { paytiFetch } from '../PaytiSettingsDialog';
@@ -253,9 +254,14 @@ export const RulesCard = ({ s, set }: Pick<Props, 's' | 'set'>) => (
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.check_bitrix_busy} onChange={(e) => set({ check_bitrix_busy: e.target.checked })} />Учитывать занятость в календарях Битрикс24</label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.create_task} onChange={(e) => set({ create_task: e.target.checked })} />Создавать задачу специалисту в сделке</label>
       {s.create_task && (
-        <Field label="Название задачи" hint="Можно использовать {deal} — номер сделки и {service} — услуга">
-          <Input value={s.task_title} onChange={(e) => set({ task_title: e.target.value })} />
-        </Field>
+        <>
+          <Field label="Название задачи" hint="Переменные: {название сделки}, {deal} — номер сделки, {service} — услуга">
+            <Input value={s.task_title} onChange={(e) => set({ task_title: e.target.value })} />
+          </Field>
+          <Field label="Описание задачи" hint="В фигурных скобках пишите название поля сделки из Битрикс24, например {ЗН ФН}. Поля компании и контакта: {Компания: ИНН}. Также доступны {Название}, {дата записи}">
+            <Textarea rows={12} value={s.task_description || ''} onChange={(e) => set({ task_description: e.target.value })} />
+          </Field>
+        </>
       )}
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.create_calendar_event} onChange={(e) => set({ create_calendar_event: e.target.checked })} />Создавать событие в календаре специалиста</label>
     </div>

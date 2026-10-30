@@ -21,7 +21,7 @@ SETTINGS_COLS = [
     'title', 'logo_url', 'base_url', 'timezone', 'step_min', 'horizon_days', 'min_notice_hours',
     'reschedule_deadline_hours', 'max_per_day', 'link_days', 'source_category_id', 'source_stage_id',
     'classifier_field', 'link_field', 'start_field', 'target_stage_id', 'create_task', 'task_title',
-    'create_calendar_event', 'check_bitrix_busy', 'department_id', 'assigner_mode', 'assigner_user_id', 'bitrix_webhook_url', 'employee_mode',
+    'create_calendar_event', 'check_bitrix_busy', 'department_id', 'assigner_mode', 'assigner_user_id', 'bitrix_webhook_url', 'employee_mode', 'task_description',
 ]
 INT_COLS = {'step_min', 'horizon_days', 'min_notice_hours', 'reschedule_deadline_hours', 'max_per_day', 'link_days'}
 BOOL_COLS = {'create_task', 'create_calendar_event', 'check_bitrix_busy'}
@@ -289,6 +289,119 @@ def fmt_local(dt, tz):
     return to_local(dt, tz).strftime('%d.%m.%Y %H:%M')
 
 
+def field_text(bx, entity, code, meta, value, tz):
+    if value is None or value == '' or value == [] or value == '0' and meta.get('type') == 'boolean':
+        return ''
+    typ = meta.get('type')
+    vals = value if isinstance(value, list) else [value]
+    out = []
+    for v in vals:
+        if typ == 'enumeration':
+            v = bx.enum_name(entity, code, v)
+        elif typ == 'boolean':
+            v = 'Да' if str(v) in ('1', 'Y', 'true', 'True') else 'Нет'
+        elif typ in ('datetime', 'date'):
+            try:
+                dt = datetime.fromisoformat(str(v))
+                v = (dt.astimezone(tz) if dt.tzinfo else dt).strftime('%d.%m.%Y %H:%M' if typ == 'datetime' else '%d.%m.%Y')
+            except Exception:
+                pass
+        elif isinstance(v, dict):
+            v = v.get('VALUE') or v.get('value') or ''
+        out.append(str(v))
+    return ', '.join(x for x in out if x)
+
+
+def field_label(f, code):
+    label = f.get('formLabel') or f.get('listLabel') or f.get('title') or code
+    if isinstance(label, dict):
+        label = label.get('ru') or next(iter(label.values()), code)
+    return str(label).strip().lower()
+
+
+def render_template(bx, text, deal, tz, start_field, ls, service, deal_id):
+    import re
+    if not text:
+        return ''
+    cache = {}
+
+    def titles(entity):
+        if entity not in cache:
+            m = {}
+            for code, f in bx.fields(entity).items():
+                if isinstance(f, dict):
+                    m.setdefault(field_label(f, code), code)
+            cache[entity] = m
+        return cache[entity]
+
+    def related(kind):
+        key = 'rel_' + kind
+        if key in cache:
+            return cache[key]
+        data = {}
+        try:
+            if kind == 'company' and deal.get('COMPANY_ID') and str(deal['COMPANY_ID']) != '0':
+                data = bx.call('crm.company.get', {'id': deal['COMPANY_ID']}) or {}
+            elif kind == 'contact':
+                items = bx.call('crm.deal.contact.items.get', {'id': deal_id}) or []
+                if items:
+                    primary = [i for i in items if i.get('IS_PRIMARY') == 'Y']
+                    data = bx.call('crm.contact.get', {'id': (primary or items)[0].get('CONTACT_ID')}) or {}
+        except Exception:
+            data = {}
+        cache[key] = data
+        return data
+
+    def inn():
+        if 'inn' in cache:
+            return cache['inn']
+        v = ''
+        try:
+            cid = deal.get('COMPANY_ID')
+            if cid and str(cid) != '0':
+                r = bx.call('crm.requisite.list', {'filter': {'ENTITY_TYPE_ID': 4, 'ENTITY_ID': cid}, 'select': ['RQ_INN']}) or []
+                v = next((x.get('RQ_INN') for x in r if x.get('RQ_INN')), '') or ''
+            if not v:
+                link = bx.call('crm.requisite.link.get', {'entityTypeId': 2, 'entityId': deal_id}) or {}
+                if link.get('REQUISITE_ID'):
+                    v = (bx.call('crm.requisite.get', {'id': link['REQUISITE_ID']}) or {}).get('RQ_INN') or ''
+        except Exception:
+            v = ''
+        cache['inn'] = v
+        return v
+
+    def one(m):
+        raw = m.group(1).strip()
+        key = raw.lower()
+        if key in ('deal', 'номер сделки'):
+            return str(deal_id)
+        if key in ('service', 'услуга'):
+            return service['name']
+        if key in ('название сделки', 'название', 'deal_title'):
+            return str(deal.get('TITLE') or '')
+        if key in ('дата и время записи', 'дата записи'):
+            return ls.strftime('%d.%m.%Y %H:%M')
+        if key in ('компания: инн', 'инн компании', 'инн'):
+            return str(inn())
+        entity, src, label = 'deal', deal, key
+        if ':' in key and key.split(':', 1)[0].strip() in ('компания', 'контакт'):
+            pre, label = [x.strip() for x in key.split(':', 1)]
+            entity = 'company' if pre == 'компания' else 'contact'
+            src = related(entity)
+        code = titles(entity).get(label)
+        if not code:
+            return m.group(0)
+        if entity == 'deal' and start_field and code == start_field:
+            return ls.strftime('%d.%m.%Y %H:%M')
+        meta = bx.fields(entity).get(code) or {}
+        v = src.get(code)
+        if entity == 'deal' and (v is None or v == ''):
+            v = deal.get(code)
+        return field_text(bx, entity, code, meta, v, tz)
+
+    return re.sub(r'\{([^{}]+)\}', one, text)
+
+
 def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_booked):
     bid = b['id']
     tz = ZoneInfo(settings['timezone'])
@@ -316,14 +429,16 @@ def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_bo
         try:
             if task_id and was_booked:
                 bx.call('tasks.task.update', {'taskId': task_id, 'fields': {
-                    'RESPONSIBLE_ID': int(emp_id), 'START_DATE_PLAN': ls.isoformat(), 'END_DATE_PLAN': le.isoformat(), 'DEADLINE': le.isoformat()}})
+                    'RESPONSIBLE_ID': int(emp_id), 'START_DATE_PLAN': ls.isoformat(), 'END_DATE_PLAN': le.isoformat(), 'DEADLINE': le.isoformat(),
+                    'DESCRIPTION': render_template(bx, settings.get('task_description'), deal, tz, settings.get('start_field'), ls, service, b['deal_id'])}})
                 add_event(conn, bid, 'Задача перенесена', True, f'№{task_id}')
             else:
-                title = (settings['task_title'] or '').replace('{deal}', str(b['deal_id'])).replace('{service}', service['name'])
+                title = render_template(bx, settings['task_title'], deal, tz, settings.get('start_field'), ls, service, b['deal_id'])
                 fields = {
                     'TITLE': title, 'RESPONSIBLE_ID': int(emp_id), 'UF_CRM_TASK': ['D_' + str(b['deal_id'])],
                     'START_DATE_PLAN': ls.isoformat(), 'END_DATE_PLAN': le.isoformat(), 'DEADLINE': le.isoformat(),
-                    'DESCRIPTION': f"Клиент записался на {fmt_local(start, tz)}. Сделка №{b['deal_id']} {b.get('deal_title') or ''}",
+                    'DESCRIPTION': render_template(bx, settings.get('task_description'), deal, tz, settings.get('start_field'), ls, service, b['deal_id'])
+                    or f"Клиент записался на {fmt_local(start, tz)}. Сделка №{b['deal_id']} {b.get('deal_title') or ''}",
                 }
                 if creator:
                     fields['CREATED_BY'] = int(creator)

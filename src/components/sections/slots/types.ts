@@ -22,6 +22,7 @@ export interface SlotSettings {
   target_stage_id: string | null;
   create_task: boolean;
   task_title: string;
+  task_description: string;
   create_calendar_event: boolean;
   check_bitrix_busy: boolean;
   department_id: string | null;
