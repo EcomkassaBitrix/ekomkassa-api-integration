@@ -40,6 +40,8 @@ const dayKey = (iso: string, tz: string) => new Date(iso).toLocaleDateString('en
 const fmtDay = (iso: string, tz: string) => new Date(iso).toLocaleDateString('ru-RU', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'long' });
 const fmtRange = (iso: string, mins: number, tz: string) => `${fmtTime(iso, tz)}–${fmtTime(new Date(new Date(iso).getTime() + mins * 60000).toISOString(), tz)}`;
 
+const plural = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? 'вариант' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'варианта' : 'вариантов');
+
 const fmtTime = (iso: string, tz: string) => new Date(iso).toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
 const fmtFull = (iso: string, tz: string) => new Date(iso).toLocaleString('ru-RU', { timeZone: tz, weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
@@ -270,7 +272,7 @@ const BookPage = () => {
                   className={`shrink-0 px-3 py-2 rounded-lg border text-sm text-left transition-colors ${day === k ? 'bg-primary text-primary-foreground border-primary' : 'border-input hover:bg-muted'}`}
                 >
                   <span className="block capitalize">{fmtDay(list[0], tz)}</span>
-                  <span className="text-xs opacity-80">{list.length} вариантов</span>
+                  <span className="text-xs opacity-80">{list.length} {plural(list.length)}</span>
                 </button>
               ))}
             </div>
