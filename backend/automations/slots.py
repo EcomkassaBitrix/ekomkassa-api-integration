@@ -832,7 +832,15 @@ def handle_inner(event, action):
             settings = get_settings(conn)
             service = get_service(conn, b['service_id'])
             if action == 'slots-public-get':
-                return resp(200, booking_view(settings, b, service))
+                view = booking_view(settings, b, service)
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT start_at, employee_name FROM slot_bookings WHERE deal_id = %s AND id <> %s AND status = 'booked' AND start_at > (NOW() AT TIME ZONE 'UTC') ORDER BY start_at",
+                    (b['deal_id'], b['id']),
+                )
+                view['otherBookings'] = [{'start': iso_z(r['start_at']), 'employee': r.get('employee_name') or ''} for r in cur.fetchall()]
+                cur.close()
+                return resp(200, view)
             if b['status'] == 'cancelled' or (b['status'] == 'invited' and b['expires_at'] < utcnow()):
                 return resp(410, {'ok': False, 'error': 'Ссылка больше не действует'})
             if action == 'slots-public-slots':

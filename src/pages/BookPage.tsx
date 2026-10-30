@@ -24,6 +24,7 @@ interface Info {
   dealTitle: string;
   fields?: { id: string; label: string; hint: string }[];
   answers?: Record<string, string>;
+  otherBookings?: { start: string; employee: string }[];
   error?: string;
 }
 
@@ -309,6 +310,11 @@ const BookPage = () => {
           <p className="font-medium">{info.service}</p>
           <p className="text-sm text-muted-foreground">Длительность {info.durationMin} мин · время по поясу {info.timezone}</p>
           {info.status === 'booked' && info.start && <p className="text-sm text-muted-foreground mt-1">Сейчас: {fmtFull(info.start, tz)}</p>}
+          {!!info.otherBookings?.length && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Уже есть запись на: {info.otherBookings.map((o) => fmtFull(o.start, tz)).join(', ')}
+            </p>
+          )}
         </div>
 
         {loadingSlots && <p className="text-sm text-muted-foreground">Ищу свободное время...</p>}
