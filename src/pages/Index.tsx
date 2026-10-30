@@ -74,7 +74,7 @@ const Index = () => {
               { id: 'integrations', label: 'Интеграции', icon: 'Plug' },
               { id: 'keys', label: 'API Ключи', icon: 'Key' },
               { id: 'automations', label: 'Автоматизации', icon: 'Workflow' },
-              { id: 'slots', label: 'Свободные слоты', icon: 'CalendarClock' },
+              { id: 'slots', label: 'Слоты', icon: 'CalendarClock' },
               { id: 'edo', label: 'ЭДО', icon: 'FileCheck' },
               { id: 'sandbox', label: 'Песочница', icon: 'Send' },
               { id: 'logs', label: 'Логи', icon: 'FileText' },
@@ -126,7 +126,7 @@ const Index = () => {
                   {activeSection === 'integrations' && 'Интеграции'}
                   {activeSection === 'keys' && 'API Ключи'}
                   {activeSection === 'automations' && 'Автоматизации'}
-                  {activeSection === 'slots' && 'Свободные слоты'}
+                  {activeSection === 'slots' && 'Слоты'}
                   {activeSection === 'edo' && 'ЭДО'}
                   {activeSection === 'sandbox' && 'Песочница'}
                   {activeSection === 'logs' && 'Логи запросов'}
