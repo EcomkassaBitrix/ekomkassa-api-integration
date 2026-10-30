@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { PAYTI_URL } from '@/components/sections/PaytiSettingsDialog';
 
@@ -21,6 +22,8 @@ interface Info {
   rescheduleHours: number;
   horizonDays: number;
   dealTitle: string;
+  fields?: { id: string; label: string; hint: string }[];
+  answers?: Record<string, string>;
   error?: string;
 }
 
@@ -42,6 +45,18 @@ const fmtFull = (iso: string, tz: string) => new Date(iso).toLocaleString('ru-RU
 
 const icsDate = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
+const StepBar = ({ step }: { step: 1 | 2 }) => (
+  <div className="flex items-center gap-2 text-sm">
+    {[{ n: 1, t: 'Выберите время' }, { n: 2, t: 'Заполните информацию' }].map((x) => (
+      <div key={x.n} className={`flex items-center gap-2 ${step === x.n ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step === x.n ? 'bg-primary text-primary-foreground' : step > x.n ? 'bg-primary/20 text-primary' : 'bg-muted'}`}>{x.n}</span>
+        {x.t}
+        {x.n === 1 && <span className="text-muted-foreground">›</span>}
+      </div>
+    ))}
+  </div>
+);
+
 const BookPage = () => {
   const { token = '' } = useParams();
   const [info, setInfo] = useState<Info | null>(null);
@@ -53,6 +68,8 @@ const BookPage = () => {
   const [error, setError] = useState('');
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [justBooked, setJustBooked] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
 
   const tz = info?.timezone || 'Europe/Moscow';
 
@@ -68,6 +85,10 @@ const BookPage = () => {
     setInfo(data);
     return data as Info;
   }, [token]);
+
+  useEffect(() => {
+    if (info?.answers) setAnswers((prev) => ({ ...info.answers, ...prev }));
+  }, [info?.answers]);
 
   useEffect(() => {
     if (!info?.title) return;
@@ -103,7 +124,7 @@ const BookPage = () => {
     let code = 0;
     let data: any = {};
     try {
-      const r = await call('slots-public-book', token, { body: { start: picked } });
+      const r = await call('slots-public-book', token, { body: { start: picked, answers } });
       code = r.code;
       data = r.data;
     } catch {
@@ -115,16 +136,19 @@ const BookPage = () => {
       setChoosing(false);
       setJustBooked(true);
       setPicked('');
+      setStep(1);
       return;
     }
     setError(data.error || 'Не удалось записаться');
     if (data.taken) {
       setPicked('');
+      setStep(1);
       loadSlots();
     }
   };
 
   const startReschedule = () => {
+    setStep(1);
     setChoosing(true);
     setJustBooked(false);
     setPicked('');
@@ -186,10 +210,40 @@ const BookPage = () => {
     );
   }
 
+  const hasFields = !!info.fields?.length;
+
+  if (choosing && step === 2 && hasFields) {
+    const ready = info.fields!.every((f) => (answers[f.id] || '').trim());
+    return shell(
+      <Card className="p-6 space-y-5">
+        <StepBar step={2} />
+        <div>
+          <p className="font-medium">Заполните необходимую информацию</p>
+          <p className="text-sm text-muted-foreground">Выбрано: {fmtFull(picked, tz)}. Все поля обязательны.</p>
+        </div>
+        <div className="space-y-4">
+          {info.fields!.map((f) => (
+            <label key={f.id} className="block space-y-1">
+              <span className="text-sm font-medium">{f.label}</span>
+              {f.hint && <span className="block text-xs text-muted-foreground">{f.hint}</span>}
+              <Input value={answers[f.id] || ''} onChange={(e) => setAnswers({ ...answers, [f.id]: e.target.value })} />
+            </label>
+          ))}
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <div className="flex gap-2">
+          <Button className="flex-1" disabled={!ready || busy} onClick={book}>{busy ? 'Записываю...' : 'Записаться'}</Button>
+          <Button variant="outline" onClick={() => { setError(''); setStep(1); }}>Назад</Button>
+        </div>
+      </Card>,
+    );
+  }
+
   if (choosing) {
     const daySlots = days.find(([k]) => k === day)?.[1] || [];
     return shell(
       <Card className="p-6 space-y-5">
+        {hasFields && <StepBar step={1} />}
         <div>
           <p className="font-medium">{info.service}</p>
           <p className="text-sm text-muted-foreground">Длительность {info.durationMin} мин · время по поясу {info.timezone}</p>
@@ -238,9 +292,15 @@ const BookPage = () => {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex gap-2">
-          <Button className="flex-1" disabled={!picked || busy} onClick={book}>
-            {busy ? 'Записываю...' : picked ? `Записаться на ${fmtFull(picked, tz)}` : 'Выберите время'}
-          </Button>
+          {hasFields ? (
+            <Button className="flex-1" disabled={!picked || busy} onClick={() => { setError(''); setStep(2); }}>
+              {picked ? 'Далее' : 'Выберите время'}
+            </Button>
+          ) : (
+            <Button className="flex-1" disabled={!picked || busy} onClick={book}>
+              {busy ? 'Записываю...' : picked ? `Записаться на ${fmtFull(picked, tz)}` : 'Выберите время'}
+            </Button>
+          )}
           {info.status === 'booked' && <Button variant="outline" onClick={() => setChoosing(false)}>Назад</Button>}
         </div>
       </Card>,

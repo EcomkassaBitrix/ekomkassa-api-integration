@@ -1,0 +1,2 @@
+ALTER TABLE t_p25765938_ekomkassa_api_integr.slot_services ADD COLUMN IF NOT EXISTS extra_fields JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE t_p25765938_ekomkassa_api_integr.slot_bookings ADD COLUMN IF NOT EXISTS answers JSONB NOT NULL DEFAULT '{}'::jsonb;

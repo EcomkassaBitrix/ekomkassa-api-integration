@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { paytiFetch } from '../PaytiSettingsDialog';
-import { CrmFieldMeta, SlotService, WEEKDAYS, selectCls } from './types';
+import { CrmFieldMeta, ExtraField, SlotService, WEEKDAYS, selectCls } from './types';
 
 interface Props {
   services: SlotService[];
@@ -15,7 +15,7 @@ interface Props {
 
 const empty: SlotService = {
   id: 0, name: '', match_values: [], duration_min: 60, buffer_min: 0, work_days: [1, 2, 3, 4, 5],
-  work_from: '09:00', work_to: '18:00', is_default: false, is_active: true,
+  work_from: '09:00', work_to: '18:00', is_default: false, is_active: true, extra_fields: [],
 };
 
 const ServicesCard = ({ services, classifier, onChange }: Props) => {
@@ -58,6 +58,11 @@ const ServicesCard = ({ services, classifier, onChange }: Props) => {
     setCustom('');
   };
 
+  const fields = edit?.extra_fields || [];
+  const setFields = (list: ExtraField[]) => edit && setEdit({ ...edit, extra_fields: list });
+  const addField = () => setFields([...fields, { id: `f${Date.now().toString(36)}`, label: '', hint: '' }]);
+  const patchField = (id: string, patch: Partial<ExtraField>) => setFields(fields.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+
   const daysText = (d: number[]) => WEEKDAYS.filter((w) => d.includes(w.n)).map((w) => w.label).join(', ') || '—';
 
   return (
@@ -86,6 +91,7 @@ const ServicesCard = ({ services, classifier, onChange }: Props) => {
                 {s.duration_min} мин{s.buffer_min ? ` + перерыв ${s.buffer_min} мин` : ''} · {daysText(s.work_days)} · {s.work_from}–{s.work_to}
               </p>
               <p className="text-xs text-muted-foreground truncate">Квалификации: {s.match_values.length ? s.match_values.join(', ') : 'не заданы'}</p>
+              {!!s.extra_fields?.length && <p className="text-xs text-muted-foreground">Спросить у клиента: {s.extra_fields.map((f) => f.label).join(', ')}</p>}
             </div>
             <div className="flex gap-1 shrink-0">
               <Button size="icon" variant="ghost" onClick={() => setEdit(s)}><Icon name="Pencil" size={16} /></Button>
@@ -167,6 +173,26 @@ const ServicesCard = ({ services, classifier, onChange }: Props) => {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <div>
+              <span className="text-sm text-muted-foreground">Что спросить у клиента при записи</span>
+              <p className="text-xs text-muted-foreground">Все добавленные поля обязательные: пока клиент их не заполнит, запись не создаётся. Ответы попадут в задачу и в сделку.</p>
+            </div>
+            {fields.map((f, i) => (
+              <div key={f.id} className="rounded-md border border-border p-3 space-y-2 bg-background">
+                <div className="flex gap-2">
+                  <Input value={f.label} onChange={(e) => patchField(f.id, { label: e.target.value })} placeholder={`Поле ${i + 1}, например: Домен для регистрации`} />
+                  <Button type="button" size="icon" variant="ghost" onClick={() => setFields(fields.filter((x) => x.id !== f.id))}><Icon name="Trash2" size={16} /></Button>
+                </div>
+                <Input value={f.hint} onChange={(e) => patchField(f.id, { hint: e.target.value })} placeholder="Подсказка клиенту: зачем это нужно" />
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={addField}>
+              <Icon name="Plus" size={14} />
+              Добавить поле
+            </Button>
           </div>
 
           <label className="flex items-center gap-2 text-sm">

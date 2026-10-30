@@ -35,7 +35,14 @@ export interface SlotSettings {
   webhook_hint?: string;
 }
 
+export interface ExtraField {
+  id: string;
+  label: string;
+  hint: string;
+}
+
 export interface SlotService {
+  extra_fields?: ExtraField[];
   id: number;
   name: string;
   match_values: string[];

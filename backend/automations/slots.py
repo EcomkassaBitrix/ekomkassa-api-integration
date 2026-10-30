@@ -268,6 +268,15 @@ def emp_name(settings, emp_id):
     return str(emp_id)
 
 
+def clean_fields(raw):
+    out = []
+    for i, f in enumerate(raw or []):
+        label = str((f or {}).get('label') or '').strip()
+        if label:
+            out.append({'id': str((f or {}).get('id') or f'f{i + 1}')[:40], 'label': label[:200], 'hint': str((f or {}).get('hint') or '').strip()[:500]})
+    return out
+
+
 def booking_view(settings, b, service):
     tz = ZoneInfo(settings['timezone'])
     now = utcnow()
@@ -282,6 +291,7 @@ def booking_view(settings, b, service):
         'employee': b.get('employee_name') or '', 'canReschedule': can_re,
         'rescheduleHours': settings['reschedule_deadline_hours'], 'horizonDays': settings['horizon_days'],
         'dealTitle': b.get('deal_title') or '', 'reschedules': b.get('reschedule_count') or 0,
+        'fields': clean_fields((service or {}).get('extra_fields')), 'answers': b.get('answers') or {},
     }
 
 
@@ -402,6 +412,12 @@ def render_template(bx, text, deal, tz, start_field, ls, service, deal_id):
     return re.sub(r'\{([^{}]+)\}', one, text)
 
 
+def answers_block(service, b):
+    ans = b.get('answers') or {}
+    lines = [f"{f['label']}: {ans.get(f['id'], '')}" for f in clean_fields((service or {}).get('extra_fields')) if ans.get(f['id'])]
+    return ('\n\nДополнительная информация от клиента\n' + '\n'.join(lines)) if lines else ''
+
+
 def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_booked):
     bid = b['id']
     tz = ZoneInfo(settings['timezone'])
@@ -450,8 +466,8 @@ def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_bo
                 fields = {
                     'TITLE': title, 'RESPONSIBLE_ID': int(emp_id), 'UF_CRM_TASK': ['D_' + str(b['deal_id'])],
                     'START_DATE_PLAN': ls.isoformat(), 'END_DATE_PLAN': le.isoformat(), 'DEADLINE': le.isoformat(),
-                    'DESCRIPTION': render_template(bx, settings.get('task_description'), deal, tz, settings.get('start_field'), ls, service, b['deal_id'])
-                    or f"Клиент записался на {fmt_local(start, tz)}. Сделка №{b['deal_id']} {b.get('deal_title') or ''}",
+                    'DESCRIPTION': (render_template(bx, settings.get('task_description'), deal, tz, settings.get('start_field'), ls, service, b['deal_id'])
+                                    or f"Клиент записался на {fmt_local(start, tz)}. Сделка №{b['deal_id']} {b.get('deal_title') or ''}") + answers_block(service, b),
                 }
                 if creator:
                     fields['CREATED_BY'] = int(creator)
@@ -490,13 +506,13 @@ def crm_after_booking(conn, bx, settings, service, b, emp_id, start, end, was_bo
     cur.close()
     try:
         text = ('Клиент перенёс запись на настройку' if was_booked else 'Клиент записался на настройку') + \
-            f": {fmt_local(start, tz)}, специалист {name}"
+            f": {fmt_local(start, tz)}, специалист {name}" + answers_block(service, b)
         bx.call('crm.timeline.comment.add', {'fields': {'ENTITY_ID': int(b['deal_id']), 'ENTITY_TYPE': 'deal', 'COMMENT': text}})
     except Exception as e:
         add_event(conn, bid, 'Комментарий в сделке', False, e)
 
 
-def do_book(conn, bx, token, start_iso):
+def do_book(conn, bx, token, start_iso, answers_in=None):
     b = get_booking(conn, token)
     if not b:
         return 404, {'ok': False, 'error': 'Ссылка не найдена'}
@@ -511,6 +527,17 @@ def do_book(conn, bx, token, start_iso):
         start = parse_iso(start_iso)
     except Exception:
         return 400, {'ok': False, 'error': 'Некорректное время'}
+    fields = clean_fields((service or {}).get('extra_fields'))
+    answers = dict(b.get('answers') or {})
+    if isinstance(answers_in, dict):
+        for f in fields:
+            if f['id'] in answers_in:
+                answers[f['id']] = str(answers_in[f['id']] or '').strip()[:2000]
+    answers = {f['id']: answers.get(f['id'], '') for f in fields}
+    missing = [f['label'] for f in fields if not answers.get(f['id'])]
+    if missing:
+        return 400, {'ok': False, 'error': 'Заполните все поля: ' + ', '.join(missing), 'missing': True}
+    b['answers'] = answers
     tz = ZoneInfo(settings['timezone'])
     day = to_local(start, tz).date()
     cur = conn.cursor()
@@ -530,8 +557,8 @@ def do_book(conn, bx, token, start_iso):
     try:
         cur.execute(
             "UPDATE slot_bookings SET status = 'booked', employee_id = %s, employee_name = %s, start_at = %s, end_at = %s, "
-            "reschedule_count = reschedule_count + %s, updated_at = NOW() WHERE id = %s",
-            (emp, emp_name(settings, emp), start, end, 1 if was_booked else 0, b['id']),
+            "reschedule_count = reschedule_count + %s, answers = %s, updated_at = NOW() WHERE id = %s",
+            (emp, emp_name(settings, emp), start, end, 1 if was_booked else 0, Json(answers), b['id']),
         )
         cur.execute(
             "SELECT 1 FROM slot_bookings WHERE status = 'booked' AND employee_id = %s AND id <> %s AND start_at < %s AND end_at > %s LIMIT 1",
@@ -664,7 +691,7 @@ def handle(event, action):
                 d_to = min(d_to, d_from + timedelta(days=31))
                 slots, warn = compute_slots(conn, make_bx(conn), settings, service, d_from, d_to, b)
                 return resp(200, {'ok': True, 'timezone': settings['timezone'], 'slots': [iso_z(s) for s, _ in slots], 'warning': bool(warn)})
-            code, data = do_book(conn, make_bx(conn), token, body.get('start'))
+            code, data = do_book(conn, make_bx(conn), token, body.get('start'), body.get('answers'))
             return resp(code, data)
 
         api_key = params.get('api_key') or headers.get('x-api-key') or ''
@@ -703,15 +730,16 @@ def handle(event, action):
             wd = sorted({int(x) for x in body.get('work_days', [1, 2, 3, 4, 5]) if 1 <= int(x) <= 7})
             mv = [str(x).strip() for x in body.get('match_values', []) if str(x).strip()]
             vals = (str(body.get('name') or 'Услуга')[:200], mv, max(int(body.get('duration_min') or 60), 5), max(int(body.get('buffer_min') or 0), 0),
-                    wd, body.get('work_from') or '09:00', body.get('work_to') or '18:00', bool(body.get('is_default')), body.get('is_active', True) is not False)
+                    wd, body.get('work_from') or '09:00', body.get('work_to') or '18:00', bool(body.get('is_default')), body.get('is_active', True) is not False,
+                    Json(clean_fields(body.get('extra_fields'))))
             if body.get('is_default'):
                 cur.execute('UPDATE slot_services SET is_default = FALSE')
             if body.get('id'):
                 cur.execute('UPDATE slot_services SET name=%s, match_values=%s, duration_min=%s, buffer_min=%s, work_days=%s, work_from=%s, work_to=%s, '
-                            'is_default=%s, is_active=%s WHERE id=%s', vals + (int(body['id']),))
+                            'is_default=%s, is_active=%s, extra_fields=%s WHERE id=%s', vals + (int(body['id']),))
             else:
-                cur.execute('INSERT INTO slot_services (name, match_values, duration_min, buffer_min, work_days, work_from, work_to, is_default, is_active) '
-                            'VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)', vals)
+                cur.execute('INSERT INTO slot_services (name, match_values, duration_min, buffer_min, work_days, work_from, work_to, is_default, is_active, extra_fields) '
+                            'VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', vals)
             conn.commit()
             return resp(200, {'services': get_services(conn)})
 
