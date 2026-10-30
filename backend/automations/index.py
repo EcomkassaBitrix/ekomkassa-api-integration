@@ -4,6 +4,7 @@ import fns
 import details
 import hooklog
 import slots
+import docs
 
 
 def handler(event, context):
@@ -32,6 +33,8 @@ def handler(event, context):
         return ofd.handle(event, action)
     if action in fns.ACTIONS:
         return fns.handle(event, action)
+    if action in docs.ACTIONS:
+        return docs.handle(event, action)
     if action in details.ACTIONS:
         return details.handle(event, action)
     return payti.resp(400, {'error': 'Unknown action'})
