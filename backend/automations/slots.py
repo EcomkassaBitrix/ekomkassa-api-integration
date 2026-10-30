@@ -12,7 +12,7 @@ from psycopg2.extras import Json
 from payti import Bitrix, db, digits, hook_key_valid, parse_deal_id, resp
 
 ACTIONS = {
-    'slots-hook', 'slots-meta', 'slots-stages', 'slots-users', 'slots-settings', 'slots-service-save',
+    'slots-hook', 'slots-preview', 'slots-meta', 'slots-stages', 'slots-users', 'slots-settings', 'slots-service-save',
     'slots-service-delete', 'slots-bookings', 'slots-deals', 'slots-invite', 'slots-busy-check',
     'slots-cancel', 'slots-logo', 'slots-webhook-test', 'slots-public-get', 'slots-public-slots', 'slots-public-book',
 }
@@ -772,6 +772,19 @@ def handle(event, action):
                                       'items': [{'id': str(i.get('ID')), 'value': i.get('VALUE')} for i in (f.get('items') or []) if isinstance(i, dict)]})
             out['fields'].sort(key=lambda x: (not x['code'].startswith('UF_'), x['title'].lower()))
             return resp(200, out)
+
+        if action == 'slots-preview':
+            settings = get_settings(conn)
+            deal_id = digits(params.get('deal'))
+            bx = make_bx(conn)
+            deal = bx.call('crm.deal.get', {'id': deal_id}) or {}
+            tz = ZoneInfo(settings['timezone'])
+            ls = to_local(utcnow() + timedelta(days=1), tz).replace(hour=9, minute=0, second=0, microsecond=0)
+            svc = {'name': 'Перерегистрация кассы или замена ФН'}
+            return resp(200, {
+                'title': render_template(bx, settings['task_title'], deal, tz, settings.get('start_field'), ls, svc, deal_id),
+                'description': render_template(bx, settings.get('task_description'), deal, tz, settings.get('start_field'), ls, svc, deal_id),
+            })
 
         if action == 'slots-stages':
             cat = digits(params.get('category')) or '0'
