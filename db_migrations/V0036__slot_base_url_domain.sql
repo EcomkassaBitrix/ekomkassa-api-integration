@@ -1,0 +1,1 @@
+UPDATE t_p25765938_ekomkassa_api_integr.slot_settings SET base_url = 'https://ekomkassa.poehali.ws' WHERE id = 1;
